@@ -15,6 +15,11 @@ other deployment topology.
 
 Requires JDK 17 and Android SDK platform 35.
 
+For Android Studio sync, set **Settings/Preferences > Build, Execution,
+Deployment > Build Tools > Gradle > Gradle JDK** to **Embedded JDK 17** (or
+another installed JDK 17). Do not select JDK 25: this project uses Gradle
+8.10.2, which does not support running on it.
+
 ```sh
 ./gradlew lint testDebugUnitTest
 ```
