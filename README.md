@@ -13,12 +13,14 @@ other deployment topology.
 
 ## Verify
 
-Requires JDK 17 and Android SDK platform 35.
+Requires Android SDK platform 35. Gradle runs on JDK 25; Android
+compilation remains on Java 17 bytecode.
 
 For Android Studio sync, set **Settings/Preferences > Build, Execution,
-Deployment > Build Tools > Gradle > Gradle JDK** to **Embedded JDK 17** (or
-another installed JDK 17). Do not select JDK 25: this project uses Gradle
-8.10.2, which does not support running on it.
+Deployment > Build Tools > Gradle > Gradle JDK** to an installed **JDK 25**.
+Current Android Studio versions support this Gradle runtime. Use JDK 17 only
+as a fallback where JDK 25 is unavailable; the project keeps Java 17 for
+Android compilation.
 
 ```sh
 ./gradlew lint testDebugUnitTest
