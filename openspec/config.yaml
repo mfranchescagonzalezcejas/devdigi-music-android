@@ -1,0 +1,30 @@
+schema: spec-driven
+
+context: |
+  Project: devdigi-music-android
+  Stack: Android Gradle Kotlin DSL, AGP 9.3.1, Kotlin 2.2.10, Jetpack Compose, JUnit 4, Jenkins
+  Architecture: single-module Android app with Jenkins as primary CI
+  Testing: Gradle unit tests via testDebugUnitTest and Android lint via lint; no formatter, detekt, ktlint, or coverage plugin configured
+  Style: bootstrap project, minimal conventions, English technical artifacts
+
+rules:
+  proposal:
+    - Include rollback notes for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document rationale for architecture decisions
+  tasks:
+    - Keep tasks small and session-completable
+  apply:
+    guidelines:
+      - Follow existing code patterns
+    tdd: true
+    test_command: ./gradlew testDebugUnitTest
+  verify:
+    test_command: ./gradlew testDebugUnitTest
+    build_command: ./gradlew assembleDebug
+    coverage_threshold: 0
+  archive:
+    - Preserve audit trail when moving completed changes

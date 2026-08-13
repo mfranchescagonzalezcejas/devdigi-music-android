@@ -7,3 +7,7 @@ captures/
 .externalNativeBuild/
 .cxx/
 .cursor/
+
+# OpenCode / local plugin state
+.atl/
+.codegraph/
