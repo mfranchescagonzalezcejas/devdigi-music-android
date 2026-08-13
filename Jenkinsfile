@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent { label 'android' }
 
     parameters {
         booleanParam(name: 'RUN_NAVIDROME_INTEGRATION', defaultValue: false, description: 'Run trusted Navidrome integration checks.')
