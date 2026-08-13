@@ -6,7 +6,9 @@ Jenkins is the primary CI system. GitHub Actions CI has been removed to avoid a 
 
 CI-0 Basic pipeline is complete. The root `Jenkinsfile` runs visible formatting/static-analysis, unit-test, lint, and debug-assembly stages. It publishes JUnit XML and archives available debug APK, unit-test, and lint artifacts even when an earlier stage fails.
 
-The formatting/static-analysis stage currently runs Gradle `check`. This intentionally overlaps with the later unit-test and lint stages so the existing verification remains visible. No formatter, ktlint, detekt, or coverage plugin is configured yet.
+CI-2 / #33 is complete. The formatting/static-analysis stage is an intentional visible diagnostic placeholder, not a gate: it explains that formatter and static-analysis tooling is deferred for the bootstrap project. It does not run Gradle `check`, tests, or lint. Unit tests run once in their dedicated `testDebugUnitTest` stage and Android lint runs once in its dedicated `lint` stage, with the existing reports and artifacts preserved.
+
+No formatter, ktlint, detekt, or coverage plugin is configured. Coverage is explicitly deferred until behavior-focused tests exist; the current generated application-ID test does not provide a meaningful baseline.
 
 CI-1 Multibranch integration is complete. Jenkins is configured as a Multibranch Pipeline for branches and pull requests, uses a fine-grained GitHub credential with the least permissions needed for repository access and commit statuses, and reports build results to GitHub. A periodic multibranch scan is enabled; automatic GitHub-to-Jenkins triggering remains future work.
 
@@ -31,7 +33,7 @@ Signing, Play publishing, and Navidrome credentials belong only in Jenkins Crede
 | --- | --- | --- |
 | CI-0 | Complete | Basic Android verification, reports, and debug artifacts. |
 | CI-1 | Complete | Multibranch branch/PR discovery, GitHub commit statuses, and periodic scans. |
-| CI-2 | Planned | Evaluate static-analysis tooling; remove duplicated verification while retaining visible stages and reports. |
+| CI-2 | Complete | #33 removed duplicated verification; the visible quality diagnostic defers tooling and coverage until behavior-focused tests justify them. |
 | CI-3 | Planned | Reproducible synthetic Navidrome integration environment. |
 | CI-4 | Planned | Investigate and add useful Android instrumented CI testing. |
 | CI-5 | Planned | Secure Android release signing from trusted refs. |
