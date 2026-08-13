@@ -32,7 +32,9 @@ Signing, Play publishing, and Navidrome credentials belong only in Jenkins Crede
 | CI-0 | Complete | Basic Android verification, reports, and debug artifacts. |
 | CI-1 | Complete | Multibranch branch/PR discovery, GitHub commit statuses, and periodic scans. |
 | CI-2 | Planned | Evaluate static-analysis tooling; remove duplicated verification while retaining visible stages and reports. |
-| CI-3 | Planned | Secure automatic GitHub-to-Jenkins triggering that works without assuming a public Jenkins endpoint. |
-| CI-4 | Planned | Reproducible synthetic Navidrome integration environment and useful Android instrumented CI testing. |
+| CI-3 | Planned | Reproducible synthetic Navidrome integration environment. |
+| CI-4 | Planned | Investigate and add useful Android instrumented CI testing. |
 | CI-5 | Planned | Secure Android release signing from trusted refs. |
 | CI-6 | Planned | Tagged GitHub and Google Play release automation after signing is available. |
+
+Automatic GitHub-to-Jenkins triggering is separate cross-cutting work (#32). It must work securely without assuming a public Jenkins endpoint.
