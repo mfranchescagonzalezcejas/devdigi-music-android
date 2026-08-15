@@ -39,3 +39,4 @@ No license has been selected. See GitHub issue #19 before reusing or contributin
 ## Branch protection
 
 `main` is intentionally unprotected while this is a sole-maintainer bootstrap. Require checks and pull-request reviews when another maintainer or external contribution flow exists.
+
