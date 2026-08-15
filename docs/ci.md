@@ -10,11 +10,13 @@ CI-2 / #33 is complete. The formatting/static-analysis stage is an intentional v
 
 No formatter, ktlint, detekt, or coverage plugin is configured. Coverage is explicitly deferred until behavior-focused tests exist; the current generated application-ID test does not provide a meaningful baseline.
 
-CI-1 Multibranch integration is complete. Jenkins is configured as a Multibranch Pipeline for branches and pull requests, uses a fine-grained GitHub credential with the least permissions needed for repository access and commit statuses, and reports build results to GitHub. A periodic multibranch scan is enabled; automatic GitHub-to-Jenkins triggering remains future work.
+CI-1 Multibranch integration is complete. Jenkins is configured as a Multibranch Pipeline for branches and pull requests, uses a fine-grained GitHub credential with the least permissions needed for repository access and commit statuses, and reports build results to GitHub.
+
+GitHub webhooks now trigger Jenkins automatically for supported push and pull-request events. Push and pull-request deliveries have been validated end to end, including Multibranch discovery, Jenkins builds, and GitHub commit statuses. The previous periodic Multibranch scan has been disabled now that webhook delivery is the primary trigger.
 
 ## Controller and agent requirements
 
-The Jenkins controller coordinates multibranch discovery, credentials, and GitHub status reporting. An agent selected by the `android` label executes the Android build.
+The Jenkins controller coordinates multibranch discovery, credentials, webhook-triggered discovery, and GitHub status reporting. An agent selected by the `android` label executes the Android build.
 
 - The Android agent runs Jenkins with JDK 21 and has a pre-provisioned Android SDK containing Android API 35 and Build Tools 35.0.0.
 - The project build requires Gradle runtime JDK 25, while Android compilation targets Java 17. The controller must provision or select a compatible JDK 25 runtime for the Gradle invocation; the agent JVM version alone does not satisfy that requirement.
@@ -27,16 +29,18 @@ External pull requests must not receive secrets or execute trusted-only integrat
 
 Signing, Play publishing, and Navidrome credentials belong only in Jenkins Credentials. They are supplied only at execution time and are never stored in repository files, documentation, logs, or artifacts.
 
+The interactive Jenkins UI remains protected. Machine-triggered webhook access is restricted to the dedicated integration path required for GitHub delivery rather than bypassing authentication for the Jenkins interface as a whole.
+
 ## Roadmap
 
-| Item | Status | Scope |
-| --- | --- | --- |
-| CI-0 | Complete | Basic Android verification, reports, and debug artifacts. |
-| CI-1 | Complete | Multibranch branch/PR discovery, GitHub commit statuses, and periodic scans. |
+| Item | Status   | Scope                                                                                                                                      |
+| ---- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| CI-0 | Complete | Basic Android verification, reports, and debug artifacts.                                                                                  |
+| CI-1 | Complete | Multibranch branch/PR discovery, GitHub webhook triggering, and commit statuses.                                                           |
 | CI-2 | Complete | #33 removed duplicated verification; the visible quality diagnostic defers tooling and coverage until behavior-focused tests justify them. |
-| CI-3 | Planned | Reproducible synthetic Navidrome integration environment. |
-| CI-4 | Planned | Investigate and add useful Android instrumented CI testing. |
-| CI-5 | Planned | Secure Android release signing from trusted refs. |
-| CI-6 | Planned | Tagged GitHub and Google Play release automation after signing is available. |
+| CI-3 | Planned  | Reproducible synthetic Navidrome integration environment.                                                                                  |
+| CI-4 | Planned  | Investigate and add useful Android instrumented CI testing.                                                                                |
+| CI-5 | Planned  | Secure Android release signing from trusted refs.                                                                                          |
+| CI-6 | Planned  | Tagged GitHub and Google Play release automation after signing is available.                                                               |
 
-Automatic GitHub-to-Jenkins triggering is separate cross-cutting work (#32). It must work securely without assuming a public Jenkins endpoint.
+Automatic GitHub-to-Jenkins triggering tracked by #32 has been implemented and validated. Webhooks are now the primary trigger mechanism, while interactive Jenkins access remains protected separately.
