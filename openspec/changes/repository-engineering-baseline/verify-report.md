@@ -20,6 +20,12 @@ build_output_hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca49599
 **Version**: N/A
 **Mode**: Strict TDD (documentation/process exception)
 
+> **Evidence snapshot:** the hashes and harness results below belong to the original
+> verification run. After that run, documentation-only maintenance updated the
+> final #32 status, Jenkins trust-boundary wording, review-size forecast, and
+> Markdown whitespace. The original hashes are intentionally retained as historical
+> evidence rather than presented as hashes of the current PR head.
+
 ### Completeness
 
 | Metric | Value |
@@ -39,7 +45,7 @@ output sha256:dd1b41af6260ce20b9b26bd176517b3d33dcb42e16cca51fccb249f2f61b98a5
 
 The harness inspected the draft and SDD artifacts, queried GitHub issues read-only, checked all-state duplicates, confirmed #32/#33 state and timestamps, scanned privacy patterns, and asserted the exact changed-file boundary. An initial verifier-only exact-string assertion expected `single source of truth`; the draft correctly says `single CI source of truth`, so the assertion was corrected before the passing run.
 
-**Whitespace/build check**: ✅ Passed, exit `0`; all six new Markdown files passed `git diff --no-index --check` with empty output.
+**Whitespace/build check**: ✅ Passed, exit `0`; all six implementation Markdown files checked by the original harness (excluding this verification report) passed `git diff --no-index --check` with empty output.
 
 **Product tests/build**: ➖ N/A by the approved documentation-only TDD exception. No application, test, Gradle, Jenkins, workflow, or CI source changed; inventing or rerunning product tests would not cover this change.
 
@@ -78,7 +84,7 @@ The harness inspected the draft and SDD artifacts, queried GitHub issues read-on
 | Independent disposition and backlog action | ✅ Yes | Both fields are represented explicitly. |
 | Independent candidate gates | ✅ Yes | Apply evidence records separate fresh audits; current read-only audit still finds no duplicates. |
 | Semantic-placeholder privacy | ✅ Yes | Draft and both issue bodies passed the privacy scan. |
-| Jenkins/OpenSpec/GitFlow boundaries | ✅ Yes | Current project facts are preserved without operational changes or public endpoints. |
+| Jenkins/OpenSpec/GitFlow boundaries | ✅ Yes | Current project facts are preserved without operational changes or additional public endpoints. |
 
 ### TDD Compliance
 

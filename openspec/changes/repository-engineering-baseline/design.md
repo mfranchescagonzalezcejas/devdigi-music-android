@@ -2,7 +2,7 @@
 
 ## Technical Approach
 
-Create `docs/devdigi-repository-baseline-draft.md` as a portable draft. Keep Jenkins as sole primary CI and private boundary. Reuse #18, #19, #32, #34–#37, #39, and #40; preserve closed #33. Gate at most two candidate issues with read-only policy, taxonomy, duplicate, and privacy checks. No operational behavior changes.
+Create `docs/devdigi-repository-baseline-draft.md` as a portable draft. Keep Jenkins as the sole primary CI, preserve the protected interactive Jenkins boundary, and retain only the least-privilege machine webhook exception. Reuse #18, #19, #32, #34–#37, #39, and #40; preserve closed #33. Gate at most two candidate issues with read-only policy, taxonomy, duplicate, and privacy checks. No operational behavior changes.
 
 ## Guidance Structure
 
@@ -52,8 +52,9 @@ Record Music-specific evidence, constraints, tracker ownership, prerequisites, a
 | File | Action | Description |
 |---|---|---|
 | `docs/devdigi-repository-baseline-draft.md` | Create | Guidance sections, evidence ledger, reusable prompt, gap matrix, and staged backlog |
+| `openspec/changes/repository-engineering-baseline/` | Create | Proposal, design, exploration, specification, tasks, and verification evidence |
 
-No other file, CI, code, infrastructure, branch, PR, setting, or provider configuration changes.
+No other operational file, CI, code, infrastructure, branch setting, or provider configuration changes.
 
 ## Interfaces / Contracts
 
