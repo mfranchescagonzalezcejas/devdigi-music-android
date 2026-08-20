@@ -21,6 +21,18 @@ class ServerConnectionViewModelTest {
     }
 
     @Test
+    fun editingKeepsThePersistedProfileVisible() = runTest {
+        val profile = ServerProfile(ServerEndpoint("https://music.example.com"))
+        val viewModel = ServerConnectionViewModel(FakeRepository(profile), backgroundScope)
+        testScheduler.runCurrent()
+
+        viewModel.onEndpointChanged("https://other.example.com")
+
+        assertEquals("https://other.example.com", viewModel.state.endpointInput)
+        assertEquals(profile, viewModel.state.profile)
+    }
+
+    @Test
     fun confirmingAnInvalidEndpointDoesNotCreateAProfile() = runTest {
         val viewModel = ServerConnectionViewModel(FakeRepository(), backgroundScope)
         viewModel.onEndpointChanged("http://music.example.com")
@@ -46,7 +58,7 @@ class ServerConnectionViewModelTest {
         )
         assertEquals(UrlValidity.Valid(viewModel.state.profile!!), viewModel.state.urlValidity)
         assertEquals(ConnectionFacts(), viewModel.state.connectionFacts)
-        assertEquals("Sign in is required before this server can be verified.", viewModel.state.statusMessage)
+        assertEquals("", viewModel.state.statusMessage)
     }
 
     @Test
@@ -70,6 +82,7 @@ class ServerConnectionViewModelTest {
     fun writeFailuresDoNotClaimThatTheProfileWasSavedOrDeleted() = runTest {
         val repository = FakeRepository(failWrites = true)
         val viewModel = ServerConnectionViewModel(repository, backgroundScope)
+        testScheduler.runCurrent()
         viewModel.onEndpointChanged("https://music.example.com")
 
         viewModel.confirm()
@@ -79,9 +92,36 @@ class ServerConnectionViewModelTest {
         assertEquals("Unable to save server.", viewModel.state.statusMessage)
     }
 
+    @Test
+    fun successfulWritesClearPriorSaveAndDeleteErrors() = runTest {
+        val repository = FakeRepository(failWrites = true)
+        val viewModel = ServerConnectionViewModel(repository, backgroundScope)
+        testScheduler.runCurrent()
+        viewModel.onEndpointChanged("https://music.example.com")
+
+        viewModel.confirm()
+        testScheduler.runCurrent()
+        assertEquals("Unable to save server.", viewModel.state.statusMessage)
+
+        repository.failWrites = false
+        viewModel.confirm()
+        testScheduler.runCurrent()
+        assertEquals("", viewModel.state.statusMessage)
+
+        repository.failWrites = true
+        viewModel.delete()
+        testScheduler.runCurrent()
+        assertEquals("Unable to delete server.", viewModel.state.statusMessage)
+
+        repository.failWrites = false
+        viewModel.delete()
+        testScheduler.runCurrent()
+        assertEquals("", viewModel.state.statusMessage)
+    }
+
     private class FakeRepository(
         initial: ServerProfile? = null,
-        private val failWrites: Boolean = false,
+        var failWrites: Boolean = false,
     ) : ServerProfileRepository {
         val profileState = MutableStateFlow(initial)
         override val profile = profileState

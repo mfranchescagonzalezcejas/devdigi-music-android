@@ -41,7 +41,6 @@ class ServerConnectionViewModel(
         state = state.copy(
             endpointInput = endpoint,
             urlValidity = UrlValidity.UNCHECKED,
-            profile = null,
             connectionFacts = ConnectionFacts(),
         )
     }
@@ -52,17 +51,19 @@ class ServerConnectionViewModel(
                 val profile = ServerProfile(result.endpoint)
                 coroutineScope.launch {
                     runCatching { repository.save(profile) }
-                        .onFailure { state = state.copy(profile = null, statusMessage = "Unable to save server.") }
+                        .onSuccess { state = state.copy(statusMessage = "") }
+                        .onFailure { state = state.copy(statusMessage = "Unable to save server.") }
                 }
             }
 
-            EndpointParseResult.Invalid -> state = state.copy(profile = null, urlValidity = UrlValidity.Invalid())
+            EndpointParseResult.Invalid -> state = state.copy(urlValidity = UrlValidity.Invalid())
         }
     }
 
     fun delete() {
         coroutineScope.launch {
             runCatching { repository.delete() }
+                .onSuccess { state = state.copy(statusMessage = "") }
                 .onFailure { state = state.copy(statusMessage = "Unable to delete server.") }
         }
     }

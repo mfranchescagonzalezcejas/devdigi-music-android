@@ -58,7 +58,7 @@ interface ServerProfileRepository {
 
 | Layer | What to Test | Approach |
 |---|---|---|
-| Unit | Parsing and both policy implementations | Synthetic URLs; run `testDebugUnitTest` and `testReleaseUnitTest`; no sockets. |
+| Unit | Parsing and both policy implementations | Synthetic URLs; run `testDebugUnitTest` for shared and debug policy tests, plus `:app:assembleRelease` and `:app:lintRelease` as release compile/lint evidence; no sockets. |
 | Ping state | Synthetic `PingClient` outcomes and independent verification facts | Use a fake `PingClient` to cover reachable, transport-error, unexpected, and unauthenticated outcomes; compatibility and authentication remain `NOT_CHECKED`. |
 | Repository | Restore, replace, delete, malformed values, one-key payload | `PreferenceDataStoreFactory`, temporary file, `runTest`/`backgroundScope`. |
 | ViewModel | Initial restoration and Flow-driven replacement/deletion; failures | `MutableStateFlow` fake repository and coroutine test dispatcher. |
@@ -71,7 +71,3 @@ N/A — no routing, shell, subprocess, VCS/PR automation, executable classificat
 ## Migration / Rollout
 
 No migration required. The debug-only manifest overlay is absent from release; release retains target-SDK cleartext denial and its HTTPS-only policy. The narrow config only prepares debug transport policy—it adds neither permission nor client, so it does not enable #13 networking. Local Navidrome Docker/Compose remains a separate dev-infrastructure issue.
-
-## Open Questions
-
-- [ ] Review binding remains blocked until a maintainer supplies approved lineage and expected revision; implementation must remain unbound.
