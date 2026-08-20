@@ -10,7 +10,7 @@ class ServerConnectionTest {
         val result = ServerEndpoint.parse(" HTTPS://music.example.com:443/navidrome ")
 
         assertEquals(
-            EndpointParseResult.Valid(ServerEndpoint("https://music.example.com/navidrome")),
+            EndpointParseResult.Valid(endpoint("https://music.example.com/navidrome")),
             result,
         )
     }
@@ -20,7 +20,7 @@ class ServerConnectionTest {
         val result = ServerEndpoint.parse("https://music.example.com:8443/navidrome%20music")
 
         assertEquals(
-            EndpointParseResult.Valid(ServerEndpoint("https://music.example.com:8443/navidrome%20music")),
+            EndpointParseResult.Valid(endpoint("https://music.example.com:8443/navidrome%20music")),
             result,
         )
     }
@@ -37,8 +37,22 @@ class ServerConnectionTest {
 
     @Test
     fun rejectsTerminalDotLocalAliases() {
-        listOf("https://localhost.", "https://music.localhost.").forEach { endpoint ->
+        listOf(
+            "https://localhost.",
+            "https://music.localhost.",
+            "https://127.0.0.1.",
+            "https://10.0.2.2.",
+        ).forEach { endpoint ->
             assertTrue("Expected $endpoint to be rejected", ServerEndpoint.parse(endpoint) is EndpointParseResult.Invalid)
+        }
+    }
+
+    @Test
+    fun rejectsTerminalDotDebugHttpAliases() {
+        val policy = EndpointPolicy { host -> host in setOf("localhost", "127.0.0.1", "10.0.2.2") }
+
+        listOf("localhost.", "127.0.0.1.", "10.0.2.2.").forEach { host ->
+            assertTrue(ServerEndpoint.parse("http://$host:4533", policy) is EndpointParseResult.Invalid)
         }
     }
 
@@ -86,7 +100,7 @@ class ServerConnectionTest {
 
     @Test
     fun profileContainsOnlyTheNormalizedEndpoint() {
-        val endpoint = ServerEndpoint("https://music.example.com/navidrome")
+        val endpoint = endpoint("https://music.example.com/navidrome")
 
         assertEquals(endpoint, ServerProfile(endpoint).endpoint)
     }
@@ -128,7 +142,7 @@ class ServerConnectionTest {
 
         listOf("localhost", "127.0.0.1", "10.0.2.2").forEach { host ->
             assertEquals(
-                EndpointParseResult.Valid(ServerEndpoint("http://$host:4533")),
+                EndpointParseResult.Valid(endpoint("http://$host:4533", policy)),
                 ServerEndpoint.parse("http://$host:4533", policy),
             )
         }
@@ -136,11 +150,14 @@ class ServerConnectionTest {
 
     @Test
     fun rejectsHttpWhenThePolicyDoesNotAllowTheHost() {
-        val releasePolicy = EndpointPolicy { false }
         val debugPolicy = EndpointPolicy { host -> host == "10.0.2.2" }
 
-        assertTrue(ServerEndpoint.parse("http://music.example.com", releasePolicy) is EndpointParseResult.Invalid)
+        assertTrue(ServerEndpoint.parse("http://music.example.com", HttpsOnlyEndpointPolicy) is EndpointParseResult.Invalid)
         assertTrue(ServerEndpoint.parse("http://music.example.com", debugPolicy) is EndpointParseResult.Invalid)
-        assertTrue(ServerEndpoint.parse("http://localhost", releasePolicy) is EndpointParseResult.Invalid)
+        assertTrue(ServerEndpoint.parse("http://localhost", HttpsOnlyEndpointPolicy) is EndpointParseResult.Invalid)
+        assertTrue(ServerEndpoint.parse("https://music.example.com", HttpsOnlyEndpointPolicy) is EndpointParseResult.Valid)
     }
+
+    private fun endpoint(value: String, policy: EndpointPolicy = BuildVariantEndpointPolicy): ServerEndpoint =
+        (ServerEndpoint.parse(value, policy) as EndpointParseResult.Valid).endpoint
 }

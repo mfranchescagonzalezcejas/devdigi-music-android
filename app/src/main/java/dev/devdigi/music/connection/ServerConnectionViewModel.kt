@@ -23,14 +23,15 @@ class ServerConnectionViewModel(
 ) : ViewModel() {
     var state by mutableStateOf(ServerConnectionUiState())
         private set
+    private var hasUserEditedDraft = false
 
     init {
         coroutineScope.launch {
             repository.profile.collect { profile ->
                 state = state.copy(
-                    endpointInput = profile?.endpoint?.value.orEmpty(),
+                    endpointInput = if (hasUserEditedDraft) state.endpointInput else profile?.endpoint?.value.orEmpty(),
                     profile = profile,
-                    urlValidity = profile?.let(UrlValidity::Valid) ?: UrlValidity.UNCHECKED,
+                    urlValidity = if (hasUserEditedDraft) state.urlValidity else profile?.let(UrlValidity::Valid) ?: UrlValidity.UNCHECKED,
                     connectionFacts = ConnectionFacts(),
                 )
             }
@@ -38,6 +39,7 @@ class ServerConnectionViewModel(
     }
 
     fun onEndpointChanged(endpoint: String) {
+        hasUserEditedDraft = true
         state = state.copy(
             endpointInput = endpoint,
             urlValidity = UrlValidity.UNCHECKED,
@@ -51,7 +53,15 @@ class ServerConnectionViewModel(
                 val profile = ServerProfile(result.endpoint)
                 coroutineScope.launch {
                     runCatching { repository.save(profile) }
-                        .onSuccess { state = state.copy(statusMessage = "") }
+                        .onSuccess {
+                            hasUserEditedDraft = false
+                            state = state.copy(
+                                endpointInput = profile.endpoint.value,
+                                profile = profile,
+                                urlValidity = UrlValidity.Valid(profile),
+                                statusMessage = "",
+                            )
+                        }
                         .onFailure { state = state.copy(statusMessage = "Unable to save server.") }
                 }
             }

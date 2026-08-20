@@ -2,7 +2,11 @@ package dev.devdigi.music.connection
 
 import java.net.URI
 
-data class ServerEndpoint(val value: String) {
+class ServerEndpoint private constructor(val value: String) {
+    override fun equals(other: Any?): Boolean = other is ServerEndpoint && value == other.value
+
+    override fun hashCode(): Int = value.hashCode()
+
     companion object {
         fun parse(
             input: String,
@@ -12,23 +16,16 @@ data class ServerEndpoint(val value: String) {
 
             val value = input.trim()
             val uri = runCatching { URI(value) }.getOrNull() ?: return EndpointParseResult.Invalid
-            val host = uri.host?.lowercase() ?: return EndpointParseResult.Invalid
-            val hostWithoutTerminalDots = host.trimEnd('.')
             val scheme = uri.scheme?.lowercase() ?: return EndpointParseResult.Invalid
-            val isPermittedLocalHttp = scheme == "http" && endpointPolicy.allowsHttp(hostWithoutTerminalDots)
+            val rawHost = uri.host?.lowercase() ?: return EndpointParseResult.Invalid
+            val host = rawHost.trimEnd('.').takeIf(String::isNotEmpty) ?: return EndpointParseResult.Invalid
+            val isPermittedLocalHttp = isPermittedLocalHttp(scheme, host, rawHost != host, endpointPolicy)
             if (
                 !uri.isAbsolute ||
-                (scheme != "https" && !isPermittedLocalHttp) ||
-                uri.userInfo != null ||
-                uri.query != null ||
-                uri.fragment != null ||
-                (!isPermittedLocalHttp && hostWithoutTerminalDots == "localhost") ||
-                (!isPermittedLocalHttp && hostWithoutTerminalDots.endsWith(".localhost")) ||
-                hostWithoutTerminalDots.endsWith(".local") ||
-                host.startsWith('[') ||
-                host.all(Char::isDigit) ||
-                (uri.port != -1 && uri.port !in 1..65535) ||
-                (!isPermittedLocalHttp && isProhibitedIpv4(host)) ||
+                hasInvalidScheme(scheme, isPermittedLocalHttp) ||
+                hasInvalidAuthority(uri) ||
+                hasInvalidHost(host, isPermittedLocalHttp) ||
+                hasInvalidPort(uri.port) ||
                 hasAmbiguousPath(uri.rawPath)
             ) {
                 return EndpointParseResult.Invalid
@@ -42,6 +39,30 @@ data class ServerEndpoint(val value: String) {
                 .orEmpty()
             return EndpointParseResult.Valid(ServerEndpoint("$scheme://$host$port$path"))
         }
+
+        private fun isPermittedLocalHttp(
+            scheme: String,
+            host: String,
+            hasTerminalDot: Boolean,
+            endpointPolicy: EndpointPolicy,
+        ): Boolean = scheme == "http" && !hasTerminalDot && endpointPolicy.allowsHttp(host)
+
+        private fun hasInvalidScheme(scheme: String, isPermittedLocalHttp: Boolean): Boolean =
+            scheme != "https" && !isPermittedLocalHttp
+
+        private fun hasInvalidAuthority(uri: URI): Boolean =
+            uri.userInfo != null || uri.query != null || uri.fragment != null
+
+        private fun hasInvalidHost(host: String, isPermittedLocalHttp: Boolean): Boolean =
+            host.startsWith('[') ||
+                host.all(Char::isDigit) ||
+                host.endsWith(".local") ||
+                (!isPermittedLocalHttp && (isLocalHost(host) || isProhibitedIpv4(host)))
+
+        private fun isLocalHost(host: String): Boolean =
+            host == "localhost" || host.endsWith(".localhost")
+
+        private fun hasInvalidPort(port: Int): Boolean = port != -1 && port !in 1..65535
 
         private fun hasAmbiguousPath(path: String?): Boolean {
             if (path == null) return false
@@ -69,6 +90,10 @@ data class ServerEndpoint(val value: String) {
 
 fun interface EndpointPolicy {
     fun allowsHttp(host: String): Boolean
+}
+
+object HttpsOnlyEndpointPolicy : EndpointPolicy {
+    override fun allowsHttp(host: String): Boolean = false
 }
 
 sealed interface EndpointParseResult {

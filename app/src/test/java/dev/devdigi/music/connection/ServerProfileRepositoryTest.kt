@@ -15,8 +15,8 @@ class ServerProfileRepositoryTest {
     fun restoresRevalidatedEndpointAndReplacesItUsingOnlyTheEndpointKey() = runBlocking {
         val store = PreferenceDataStoreFactory.create { temporaryFile() }
         val repository = DataStoreServerProfileRepository(store, EndpointPolicy { false })
-        val first = ServerProfile(ServerEndpoint("https://music.example.com/navidrome"))
-        val replacement = ServerProfile(ServerEndpoint("https://other.example.com"))
+        val first = ServerProfile(endpoint("https://music.example.com/navidrome"))
+        val replacement = ServerProfile(endpoint("https://music.example.com/replacement"))
 
         repository.save(first)
         assertEquals(first, repository.profile.first())
@@ -33,12 +33,30 @@ class ServerProfileRepositoryTest {
         store.edit { it[stringPreferencesKey("server_endpoint")] = "http://music.example.com" }
 
         assertNull(repository.profile.first())
-        repository.save(ServerProfile(ServerEndpoint("https://music.example.com")))
+        repository.save(ServerProfile(endpoint("https://music.example.com")))
         repository.delete()
 
         assertNull(repository.profile.first())
         assertNull(store.data.first()[stringPreferencesKey("server_endpoint")])
     }
 
+    @Test
+    fun saveRevalidatesTheProfileBeforeWriting() = runBlocking {
+        val store = PreferenceDataStoreFactory.create { temporaryFile() }
+        val repository = DataStoreServerProfileRepository(store, HttpsOnlyEndpointPolicy)
+        val debugLocalEndpoint = (ServerEndpoint.parse(
+            "http://localhost:4533",
+            EndpointPolicy { it == "localhost" },
+        ) as EndpointParseResult.Valid).endpoint
+
+        repository.save(ServerProfile(debugLocalEndpoint))
+
+        assertNull(store.data.first()[stringPreferencesKey("server_endpoint")])
+        assertNull(repository.profile.first())
+    }
+
     private fun temporaryFile(): File = File.createTempFile("server-profile", ".preferences_pb").apply { delete() }
+
+    private fun endpoint(value: String): ServerEndpoint =
+        (ServerEndpoint.parse(value) as EndpointParseResult.Valid).endpoint
 }

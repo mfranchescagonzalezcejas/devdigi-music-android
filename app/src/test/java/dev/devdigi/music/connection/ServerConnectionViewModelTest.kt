@@ -22,13 +22,13 @@ class ServerConnectionViewModelTest {
 
     @Test
     fun editingKeepsThePersistedProfileVisible() = runTest {
-        val profile = ServerProfile(ServerEndpoint("https://music.example.com"))
+        val profile = ServerProfile(endpoint("https://music.example.com"))
         val viewModel = ServerConnectionViewModel(FakeRepository(profile), backgroundScope)
         testScheduler.runCurrent()
 
-        viewModel.onEndpointChanged("https://other.example.com")
+        viewModel.onEndpointChanged("https://music.example.com/draft")
 
-        assertEquals("https://other.example.com", viewModel.state.endpointInput)
+        assertEquals("https://music.example.com/draft", viewModel.state.endpointInput)
         assertEquals(profile, viewModel.state.profile)
     }
 
@@ -53,7 +53,7 @@ class ServerConnectionViewModelTest {
         testScheduler.runCurrent()
 
         assertEquals(
-            ServerProfile(ServerEndpoint("https://music.example.com/navidrome")),
+            ServerProfile(endpoint("https://music.example.com/navidrome")),
             viewModel.state.profile,
         )
         assertEquals(UrlValidity.Valid(viewModel.state.profile!!), viewModel.state.urlValidity)
@@ -63,19 +63,48 @@ class ServerConnectionViewModelTest {
 
     @Test
     fun restoresReplacesAndDeletesTheProfileFromTheRepositoryFlow() = runTest {
-        val repository = FakeRepository(ServerProfile(ServerEndpoint("https://music.example.com")))
+        val repository = FakeRepository(ServerProfile(endpoint("https://music.example.com")))
         val viewModel = ServerConnectionViewModel(repository, backgroundScope)
         testScheduler.runCurrent()
 
         assertEquals("https://music.example.com", viewModel.state.endpointInput)
-        repository.profileState.value = ServerProfile(ServerEndpoint("https://other.example.com"))
+        repository.profileState.value = ServerProfile(endpoint("https://music.example.com/replacement"))
         testScheduler.runCurrent()
-        assertEquals("https://other.example.com", viewModel.state.profile?.endpoint?.value)
+        assertEquals("https://music.example.com/replacement", viewModel.state.profile?.endpoint?.value)
 
         viewModel.delete()
         testScheduler.runCurrent()
         assertNull(viewModel.state.profile)
         assertEquals("", viewModel.state.endpointInput)
+    }
+
+    @Test
+    fun lateRepositoryUpdatesKeepAnEditedOrInvalidDraft() = runTest {
+        val repository = FakeRepository(ServerProfile(endpoint("https://music.example.com")))
+        val viewModel = ServerConnectionViewModel(repository, backgroundScope)
+        testScheduler.runCurrent()
+
+        viewModel.onEndpointChanged("http://music.example.com")
+        viewModel.confirm()
+        repository.profileState.value = ServerProfile(endpoint("https://music.example.com/replacement"))
+        testScheduler.runCurrent()
+
+        assertEquals("http://music.example.com", viewModel.state.endpointInput)
+        assertEquals("https://music.example.com/replacement", viewModel.state.profile?.endpoint?.value)
+        assertTrue(viewModel.state.urlValidity is UrlValidity.Invalid)
+    }
+
+    @Test
+    fun successfulSaveAdoptsTheNormalizedEndpointBeforeItsFlowEmission() = runTest {
+        val repository = FakeRepository(emitOnSave = false)
+        val viewModel = ServerConnectionViewModel(repository, backgroundScope)
+        viewModel.onEndpointChanged("HTTPS://music.example.com:443/navidrome")
+
+        viewModel.confirm()
+        testScheduler.runCurrent()
+
+        assertEquals("https://music.example.com/navidrome", viewModel.state.endpointInput)
+        assertEquals(ServerProfile(endpoint("https://music.example.com/navidrome")), viewModel.state.profile)
     }
 
     @Test
@@ -122,13 +151,14 @@ class ServerConnectionViewModelTest {
     private class FakeRepository(
         initial: ServerProfile? = null,
         var failWrites: Boolean = false,
+        private val emitOnSave: Boolean = true,
     ) : ServerProfileRepository {
         val profileState = MutableStateFlow(initial)
         override val profile = profileState
 
         override suspend fun save(profile: ServerProfile) {
             check(!failWrites)
-            profileState.value = profile
+            if (emitOnSave) profileState.value = profile
         }
 
         override suspend fun delete() {
@@ -136,4 +166,7 @@ class ServerConnectionViewModelTest {
             profileState.value = null
         }
     }
+
+    private fun endpoint(value: String): ServerEndpoint =
+        (ServerEndpoint.parse(value) as EndpointParseResult.Valid).endpoint
 }
