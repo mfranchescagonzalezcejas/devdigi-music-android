@@ -3,6 +3,9 @@ agp = "9.3.1"
 kotlin = "2.2.10"
 composeBom = "2024.12.01"
 junit = "4.13.2"
+lifecycle = "2.8.7"
+datastore = "1.1.7"
+coroutines = "1.8.1"
 
 [libraries]
 androidx-activity-compose = "androidx.activity:activity-compose:1.10.0"
@@ -10,6 +13,10 @@ androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = 
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+androidx-datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version.ref = "datastore" }
+coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 junit = { module = "junit:junit", version.ref = "junit" }
 
 [plugins]
