@@ -29,6 +29,19 @@ class SubsonicAuthSignerTest {
         assertNotEquals("consecutive salts differ", first.salt, second.salt)
     }
 
+    @Test
+    fun signatureToStringDoesNotExposeSaltTokenOrPassword() {
+        val signer = DefaultSubsonicAuthSigner(saltSource = { "c19b2d" })
+        val signature = signer.sign(AuthCredentials.create("alice", "sesame"))
+
+        val text = signature.toString()
+
+        assertTrue("toString must not leak the salt", !text.contains(signature.salt))
+        assertTrue("toString must not leak the token", !text.contains(signature.token))
+        assertTrue("toString must not leak the password", !text.contains("sesame"))
+        assertTrue("toString must be redacted", text.contains("***"))
+    }
+
     private companion object {
         val HEX_REGEX = Regex("^[0-9a-f]+$")
     }

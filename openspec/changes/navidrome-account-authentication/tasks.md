@@ -15,7 +15,7 @@ Chain strategy: N/A
 
 | Unit | Goal | Test command | Rollback boundary |
 |------|------|--------------|-------------------|
-| 1 | Types + signer + storage | `testDebugUnitTest --tests "*.connection.*Auth*"` | Remove new files + deps |
+| 1 | Auth types + signer + response parser + result/facts mapping + identity/metadata | `testDebugUnitTest --tests "*.connection.*Auth*"` | Remove new files + deps |
 | 2 | Ping client + session + UI | `testDebugUnitTest --tests "*.connection.*"` | Remove OkHttp/SessionRestorer, revert VM/Screen |
 
 ## Phase 1: Domain Types + Signer (WU1)
@@ -66,7 +66,7 @@ Chain strategy: N/A
 
 ### RED
 
-- [ ] 3.1 Create `OkHttpAuthenticatedPingClientTest.kt` — MockWebServer: success->Authenticated; #40->InvalidCredentials; #41/#42->Unsupported; #43->AuthProtocolError; #20/#30->IncompatibleServer; malformed/timeout->NetworkError; #44 unmapped
+- [ ] 3.1 Create `OkHttpAuthenticatedPingClientTest.kt` — MockWebServer: success->Authenticated; #40->InvalidCredentials; #41/#42->Unsupported; #43->AuthProtocolError; #20/#30->IncompatibleServer; malformed/protocol-invalid response->AuthProtocolError; timeout/IOException->NetworkError; #44 unmapped
 
 ### GREEN
 

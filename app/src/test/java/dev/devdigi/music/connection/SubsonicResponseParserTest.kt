@@ -12,6 +12,7 @@ class SubsonicResponseParserTest {
             {
                 "subsonic-response": {
                     "status": "ok",
+                    "version": "1.16.1",
                     "type": "navidrome",
                     "serverVersion": "0.54.1",
                     "openSubsonic": true
@@ -27,6 +28,62 @@ class SubsonicResponseParserTest {
         assertTrue(result is AuthResult.Authenticated)
         val metadata = (result as AuthResult.Authenticated).metadata
         assertEquals(ServerMetadata("navidrome", "0.54.1", true), metadata)
+    }
+
+    @Test
+    fun okWithoutOpenSubsonicMapsToIncompatibleServer() {
+        val json = okJson(version = "1.16.1", type = "navidrome", serverVersion = "0.54.1", openSubsonic = null)
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.IncompatibleServer)
+    }
+
+    @Test
+    fun okWithOpenSubsonicFalseMapsToIncompatibleServer() {
+        val json = okJson(version = "1.16.1", type = "navidrome", serverVersion = "0.54.1", openSubsonic = false)
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.IncompatibleServer)
+    }
+
+    @Test
+    fun okWithMissingTypeMapsToAuthProtocolError() {
+        val json = okJson(version = "1.16.1", type = null, serverVersion = "0.54.1", openSubsonic = true)
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun okWithBlankTypeMapsToAuthProtocolError() {
+        val json = okJson(version = "1.16.1", type = "", serverVersion = "0.54.1", openSubsonic = true)
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun okWithMissingServerVersionMapsToAuthProtocolError() {
+        val json = okJson(version = "1.16.1", type = "navidrome", serverVersion = null, openSubsonic = true)
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun okWithBlankServerVersionMapsToAuthProtocolError() {
+        val json = okJson(version = "1.16.1", type = "navidrome", serverVersion = "", openSubsonic = true)
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun okWithMissingVersionMapsToAuthProtocolError() {
+        val json = okJson(version = null, type = "navidrome", serverVersion = "0.54.1", openSubsonic = true)
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun okWithBlankVersionMapsToAuthProtocolError() {
+        val json = okJson(version = "", type = "navidrome", serverVersion = "0.54.1", openSubsonic = true)
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
     }
 
     @Test
@@ -72,13 +129,32 @@ class SubsonicResponseParserTest {
     }
 
     @Test
-    fun malformedJsonMapsToAuthProtocolOrIncompatibleServer() {
+    fun malformedJsonMapsToAuthProtocolError() {
         val result = SubsonicResponseParser.parse("not valid json")
 
-        assertTrue(
-            "Expected AuthProtocolError or IncompatibleServer, got $result",
-            result is AuthResult.AuthProtocolError || result is AuthResult.IncompatibleServer,
-        )
+        assertTrue("Expected exactly AuthProtocolError, got $result", result is AuthResult.AuthProtocolError)
+    }
+
+    private fun okJson(
+        version: String?,
+        type: String?,
+        serverVersion: String?,
+        openSubsonic: Boolean?,
+    ): String {
+        val fields = buildList {
+            add("\"status\": \"ok\"")
+            version?.let { add("\"version\": \"$it\"") }
+            type?.let { add("\"type\": \"$it\"") }
+            serverVersion?.let { add("\"serverVersion\": \"$it\"") }
+            openSubsonic?.let { add("\"openSubsonic\": $it") }
+        }
+        return """
+            {
+                "subsonic-response": {
+                    ${fields.joinToString(", ")}
+                }
+            }
+        """.trimIndent()
     }
 
     private fun errorJson(code: Int, message: String): String = """

@@ -7,7 +7,9 @@ interface SubsonicAuthSigner {
     fun sign(credentials: AuthCredentials): AuthSignature
 }
 
-data class AuthSignature(val salt: String, val token: String)
+data class AuthSignature(val salt: String, val token: String) {
+    override fun toString(): String = "AuthSignature(salt=***, token=***)"
+}
 
 class DefaultSubsonicAuthSigner(
     private val saltSource: () -> String = { randomHexSalt() },
