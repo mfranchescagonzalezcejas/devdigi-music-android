@@ -4,14 +4,17 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import java.io.ByteArrayOutputStream
 import java.security.GeneralSecurityException
+import java.security.ProviderException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.coroutines.flow.first
 
 interface AuthSecretStore {
-    suspend fun save(username: String, secret: String): Result<Unit>
-    suspend fun read(): Result<StoredCredentials?>
+    suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit>
+    suspend fun read(expectedEndpoint: ServerEndpoint): Result<StoredCredentials?>
     suspend fun clear()
 }
 
@@ -23,52 +26,88 @@ data class StoredCredentials(val username: String, val secret: String) {
  * Encrypted secret store backed by a DEDICATED Preferences DataStore (`auth_secret`),
  * completely independent of the non-secret `server_profile` DataStore from #13.
  *
- * Persists only: username (non-secret, separate key) + the encrypted password payload
- * (base64 IV + ':' + base64 ciphertext) + the GCM IV carried inside that payload.
- * Never persists: plaintext password, salt, token, ConnectionFacts, authenticated
- * identity, or server metadata.
+ * The encrypted credential is cryptographically bound to the normalized endpoint and
+ * the exact opaque username via AES-GCM AAD ([AuthAad]). A secret created for server A
+ * can never decrypt or be used under server B: GCM authentication fails, no credentials
+ * are returned, and the invalid snapshot is cleared conditionally.
  *
- * `read()` is fail-closed: credentials are returned only when the entire stored state
- * is valid; malformed payload, bad encoding, missing IV, corrupt ciphertext, AEAD/GCM
- * tag failure, wrong/missing/replaced key, or any [GeneralSecurityException] yields
- * no credentials and a best-effort clear of the encrypted state. A failed clear after
- * a crypto failure still returns no credentials.
+ * `read()` is fail-closed and cancellation-safe: `CancellationException` is rethrown
+ * (it is not a storage failure); malformed payload, bad encoding, missing IV, corrupt
+ * ciphertext, AEAD/GCM tag failure, wrong/missing/replaced key, `ProviderException`,
+ * or any [GeneralSecurityException] yields no credentials and a best-effort conditional
+ * clear. `save()` failure removes the prior snapshot only if it still matches what was
+ * captured, so a concurrently committed newer credential is never erased.
  */
 @OptIn(ExperimentalEncodingApi::class)
 class DataStoreAuthSecretStore(
     private val dataStore: DataStore<Preferences>,
     private val cipher: SecretCipher,
 ) : AuthSecretStore {
-    override suspend fun save(username: String, secret: String): Result<Unit> = runCatching {
-        val encrypted = cipher.encrypt(secret.toByteArray(Charsets.UTF_8))
-        dataStore.edit { preferences ->
-            preferences[USERNAME_KEY] = username
-            preferences[SECRET_KEY] = encode(encrypted)
+    override suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit> {
+        val snapshot = dataStore.data.first()
+        val priorUsername = snapshot[USERNAME_KEY]
+        val priorPayload = snapshot[SECRET_KEY]
+        val aad = AuthAad.forIdentity(identity.endpoint.value, identity.username)
+        return try {
+            val encrypted = cipher.encrypt(secret.toByteArray(Charsets.UTF_8), aad)
+            dataStore.edit { preferences ->
+                preferences[USERNAME_KEY] = identity.username
+                preferences[SECRET_KEY] = encode(encrypted)
+            }
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            clearIfSnapshotStillMatches(priorUsername, priorPayload)
+            Result.failure(e)
         }
     }
 
-    override suspend fun read(): Result<StoredCredentials?> = runCatching {
+    override suspend fun read(expectedEndpoint: ServerEndpoint): Result<StoredCredentials?> {
+        return try {
+            readCredentials(expectedEndpoint)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun readCredentials(expectedEndpoint: ServerEndpoint): Result<StoredCredentials?> {
         val preferences = dataStore.data.first()
-        val payload = preferences[SECRET_KEY] ?: return@runCatching null
+        val payload = preferences[SECRET_KEY] ?: return Result.success(null)
         val username = preferences[USERNAME_KEY]
         val encrypted = decode(payload)
         if (username == null || encrypted == null) {
-            clear()
-            return@runCatching null
+            clearIfSnapshotStillMatches(username, payload)
+            return Result.success(null)
         }
+        val aad = AuthAad.forIdentity(expectedEndpoint.value, username)
         val secret = try {
-            String(cipher.decrypt(encrypted), Charsets.UTF_8)
-        } catch (_: GeneralSecurityException) {
-            clear()
-            return@runCatching null
+            String(cipher.decrypt(encrypted, aad), Charsets.UTF_8)
+        } catch (e: GeneralSecurityException) {
+            clearIfSnapshotStillMatches(username, payload)
+            return Result.success(null)
+        } catch (e: ProviderException) {
+            clearIfSnapshotStillMatches(username, payload)
+            return Result.success(null)
         }
-        StoredCredentials(username, secret)
+        return Result.success(StoredCredentials(username, secret))
     }
 
     override suspend fun clear() {
         dataStore.edit { preferences ->
             preferences.remove(USERNAME_KEY)
             preferences.remove(SECRET_KEY)
+        }
+    }
+
+    private suspend fun clearIfSnapshotStillMatches(username: String?, payload: String?) {
+        dataStore.edit { preferences ->
+            if (preferences[USERNAME_KEY] == username && preferences[SECRET_KEY] == payload) {
+                preferences.remove(USERNAME_KEY)
+                preferences.remove(SECRET_KEY)
+            }
         }
     }
 
@@ -87,5 +126,34 @@ class DataStoreAuthSecretStore(
     private companion object {
         val USERNAME_KEY = stringPreferencesKey("username")
         val SECRET_KEY = stringPreferencesKey("auth_secret")
+    }
+}
+
+/**
+ * Deterministic, length-prefixed AAD that binds a credential to the domain/version,
+ * the normalized endpoint, and the exact opaque username. Length prefixes avoid
+ * delimiter ambiguity without normalizing the username.
+ */
+object AuthAad {
+    private const val DOMAIN = "devdigi.music.auth.aad.v1"
+
+    fun forIdentity(endpoint: String, username: String): ByteArray {
+        val header = DOMAIN.toByteArray(Charsets.UTF_8)
+        val endpointBytes = endpoint.toByteArray(Charsets.UTF_8)
+        val usernameBytes = username.toByteArray(Charsets.UTF_8)
+        val out = ByteArrayOutputStream()
+        out.write(header)
+        writeUInt32Be(out, endpointBytes.size)
+        out.write(endpointBytes)
+        writeUInt32Be(out, usernameBytes.size)
+        out.write(usernameBytes)
+        return out.toByteArray()
+    }
+
+    private fun writeUInt32Be(out: ByteArrayOutputStream, value: Int) {
+        out.write((value ushr 24) and 0xFF)
+        out.write((value ushr 16) and 0xFF)
+        out.write((value ushr 8) and 0xFF)
+        out.write(value and 0xFF)
     }
 }

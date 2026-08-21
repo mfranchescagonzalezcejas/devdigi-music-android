@@ -25,6 +25,13 @@ Prospective PR-B workload ≈ **540 changed lines** (production 173, tests 313, 
 
 Justification: WU2 is a cohesive secure-secret-storage security boundary; splitting AuthSecretStore, AES-GCM/Android Keystore integration, encrypted persistence, backup exclusion, and fail-closed behavior would create an artificial security boundary. Most of the excess comes from security/fail-closed tests, which must NOT be reduced to satisfy the review threshold.
 
+### WU2 review remediation (gen 6 → gen 7 re-budget)
+- Gen 6 measured the implementation delta at **428** changed lines (native). It exceeded the original **400**-line authorization by **28** lines.
+- Maintainer explicitly **re-budgeted the same candidate to 500** (`re-budget = APPROVED`). The gen 7 attempt exists only to satisfy the governance gate; its delta is ~0 because its baseline IS the remediated candidate. The 428-line measurement remains gen 6's historical evidence.
+- Reason: the 28-line overage belongs to the same cohesive WU2 security-remediation boundary (AAD endpoint+username binding, fail-closed recovery, cancellation handling, DataStore corruption recovery, Keystore lifecycle/concurrency). Tests were not removed and the security boundary was not split.
+- Two distinct metrics: **native SDD attempt budget = 500**; **PR #49 review workload ≈ 622** (548 tracked + ~74 untracked). They are not the same number and are not made to match.
+- PR exception reaffirmed: review threshold 400 · current PR workload ~622 · `size:exception: APPROVED` · additional review guard ~800.
+
 | Unit | Goal | Test command | Rollback boundary |
 |------|------|--------------|-------------------|
 | 1 | Auth types + signer + response parser + result/facts mapping + identity/metadata | `testDebugUnitTest --tests "*.connection.*Auth*"` | Remove new files + deps |
