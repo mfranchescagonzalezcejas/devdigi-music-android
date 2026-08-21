@@ -11,6 +11,8 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 interface AuthSecretStore {
     suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit>
@@ -43,12 +45,16 @@ class DataStoreAuthSecretStore(
     private val dataStore: DataStore<Preferences>,
     private val cipher: SecretCipher,
 ) : AuthSecretStore {
-    override suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit> {
-        val snapshot = dataStore.data.first()
-        val priorUsername = snapshot[USERNAME_KEY]
-        val priorPayload = snapshot[SECRET_KEY]
+    private val mutex = Mutex()
+
+    override suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit> = mutex.withLock {
+        var priorUsername: String? = null
+        var priorPayload: String? = null
         val aad = AuthAad.forIdentity(identity.endpoint.value, identity.username)
-        return try {
+        return@withLock try {
+            val snapshot = dataStore.data.first()
+            priorUsername = snapshot[USERNAME_KEY]
+            priorPayload = snapshot[SECRET_KEY]
             val encrypted = cipher.encrypt(secret.toByteArray(Charsets.UTF_8), aad)
             dataStore.edit { preferences ->
                 preferences[USERNAME_KEY] = identity.username
@@ -63,8 +69,8 @@ class DataStoreAuthSecretStore(
         }
     }
 
-    override suspend fun read(expectedEndpoint: ServerEndpoint): Result<StoredCredentials?> {
-        return try {
+    override suspend fun read(expectedEndpoint: ServerEndpoint): Result<StoredCredentials?> = mutex.withLock {
+        return@withLock try {
             readCredentials(expectedEndpoint)
         } catch (e: CancellationException) {
             throw e
@@ -96,9 +102,11 @@ class DataStoreAuthSecretStore(
     }
 
     override suspend fun clear() {
-        dataStore.edit { preferences ->
-            preferences.remove(USERNAME_KEY)
-            preferences.remove(SECRET_KEY)
+        mutex.withLock {
+            dataStore.edit { preferences ->
+                preferences.remove(USERNAME_KEY)
+                preferences.remove(SECRET_KEY)
+            }
         }
     }
 

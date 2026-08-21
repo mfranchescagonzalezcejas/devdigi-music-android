@@ -1,5 +1,6 @@
 package dev.devdigi.music.connection
 
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import java.security.GeneralSecurityException
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -99,6 +100,21 @@ class SecretCipherTest {
         }
     }
 
+    @Test
+    fun keyPermanentlyInvalidatedDeletesAliasAndFailsClosed() {
+        val provider = InvalidatedAuthKeyProvider()
+        val cipher = AesGcmSecretCipher(provider)
+        val encrypted = EncryptedSecret(ByteArray(16) { 1 }, ByteArray(12) { 2 })
+
+        try {
+            cipher.decrypt(encrypted, aad)
+            fail("expected decryption failure after key invalidation")
+        } catch (_: GeneralSecurityException) {
+        }
+
+        assertTrue("invalidated alias must be deleted", provider.deleteCalled)
+    }
+
     private fun aesKey(): SecretKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
 }
 
@@ -110,4 +126,12 @@ private class FakeAuthKeyProvider(private val key: SecretKey) : AuthKeyProvider 
 private class FailingAuthKeyProvider : AuthKeyProvider {
     override fun getOrCreateKey(): SecretKey = throw GeneralSecurityException("no key")
     override fun deleteKey() = Unit
+}
+
+private class InvalidatedAuthKeyProvider : AuthKeyProvider {
+    var deleteCalled = false
+    override fun getOrCreateKey(): SecretKey = throw KeyPermanentlyInvalidatedException("invalidated")
+    override fun deleteKey() {
+        deleteCalled = true
+    }
 }

@@ -32,6 +32,21 @@ Justification: WU2 is a cohesive secure-secret-storage security boundary; splitt
 - Two distinct metrics: **native SDD attempt budget = 500**; **PR #49 review workload ≈ 622** (548 tracked + ~74 untracked). They are not the same number and are not made to match.
 - PR exception reaffirmed: review threshold 400 · current PR workload ~622 · `size:exception: APPROVED` · additional review guard ~800.
 
+### Gen 8 audit (reaffirmed, measured)
+Final measured workload for PR #49 @ d85027e (approved audit, maintainer):
+
+| Category | Changed lines |
+|----------|---------------|
+| production | 291 |
+| tests | 552 |
+| backup/config | 29 |
+| OpenSpec/docs | 55 |
+| **total** | **927** |
+
+- `size:exception = REAFFIRMED / APPROVED`
+- `split = NO`
+- The ~800 figure was advisory (an orchestration estimate), NOT repository policy.
+
 | Unit | Goal | Test command | Rollback boundary |
 |------|------|--------------|-------------------|
 | 1 | Auth types + signer + response parser + result/facts mapping + identity/metadata | `testDebugUnitTest --tests "*.connection.*Auth*"` | Remove new files + deps |

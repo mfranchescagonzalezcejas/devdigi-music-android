@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.File
+import java.io.IOException
 import java.security.GeneralSecurityException
 import java.security.ProviderException
 import java.util.Base64
@@ -13,8 +14,14 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.random.Random
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -258,6 +265,88 @@ class AuthSecretStoreTest {
     }
 
     @Test
+    fun saveFailureOnInitialReadReturnsResultFailure() = runBlocking {
+        val delegate = dataStore()
+        val store = DataStoreAuthSecretStore(
+            ThrowingOnReadDataStore(delegate, IOException("storage failure")),
+            FakeSecretCipher(),
+        )
+
+        val result = store.save(identity(endpointA, "alice"), "secret-password")
+
+        assertTrue("save must return failure when initial read fails", result.isFailure)
+        assertTrue(result.exceptionOrNull() is IOException)
+    }
+
+    @Test
+    fun cancellationPropagatesFromSaveInitialRead() = runBlocking {
+        val delegate = dataStore()
+        val store = DataStoreAuthSecretStore(
+            ThrowingOnReadDataStore(delegate, CancellationException("cancelled")),
+            FakeSecretCipher(),
+        )
+
+        try {
+            store.save(identity(endpointA, "alice"), "secret-password")
+            fail("expected CancellationException to propagate")
+        } catch (_: CancellationException) {
+        }
+    }
+
+    @Test
+    fun clearSerializesWithInFlightSave() = runBlocking {
+        val delegate = dataStore()
+        val pausing = PausingDataStore(delegate)
+        val store = DataStoreAuthSecretStore(pausing, FakeSecretCipher())
+
+        val saveJob = launch { store.save(identity(endpointA, "alice"), "secret-password") }
+        pausing.entered.await()
+        val clearJob = launch { store.clear() }
+        yield()
+
+        pausing.resume.complete(Unit)
+        saveJob.join()
+        clearJob.join()
+
+        assertNull(store.read(endpointA).getOrNull())
+        assertNull(delegate.data.first()[AUTH_SECRET_KEY])
+    }
+
+    @Test
+    fun readWaitsForInFlightSave() = runBlocking {
+        val delegate = dataStore()
+        val pausing = PausingDataStore(delegate)
+        val store = DataStoreAuthSecretStore(pausing, FakeSecretCipher())
+
+        val saveJob = launch { store.save(identity(endpointA, "alice"), "secret-password") }
+        pausing.entered.await()
+        val readDeferred = async { store.read(endpointA) }
+        yield()
+
+        pausing.resume.complete(Unit)
+        saveJob.join()
+
+        assertEquals(StoredCredentials("alice", "secret-password"), readDeferred.await().getOrThrow())
+    }
+
+    @Test
+    fun keyPermanentlyInvalidatedDuringReadDeletesAliasAndClears() = runBlocking {
+        val dataStore = dataStore()
+        val store = DataStoreAuthSecretStore(dataStore, AesGcmSecretCipher(StoreFakeAuthKeyProvider(aesKey())))
+        store.save(identity(endpointA, "alice"), "secret-password")
+
+        val invalidatedProvider = InvalidatedStoreAuthKeyProvider()
+        val failingStore = DataStoreAuthSecretStore(dataStore, AesGcmSecretCipher(invalidatedProvider))
+
+        val result = failingStore.read(endpointA)
+
+        assertTrue(result.isSuccess)
+        assertNull(result.getOrNull())
+        assertTrue("invalidated alias must be deleted", invalidatedProvider.deleteCalled)
+        assertNull(dataStore.data.first()[AUTH_SECRET_KEY])
+    }
+
+    @Test
     fun corruptedPreferencesRecoversToEmptyAndPermitsLaterSave() = runBlocking {
         val file = temporaryFile()
         file.writeBytes(byteArrayOf(0x00, 0x01, 0x02, 0x03, 0x7f))
@@ -297,6 +386,29 @@ class AuthSecretStoreTest {
         val AUTH_SECRET_KEY = stringPreferencesKey("auth_secret")
         val SERVER_ENDPOINT_KEY = stringPreferencesKey("server_endpoint")
         val USERNAME_KEY = stringPreferencesKey("username")
+    }
+}
+
+private class ThrowingOnReadDataStore(
+    private val delegate: DataStore<Preferences>,
+    private val error: Throwable,
+) : DataStore<Preferences> {
+    override val data: Flow<Preferences> = flow { throw error }
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
+        delegate.updateData(transform)
+}
+
+private class PausingDataStore(
+    private val delegate: DataStore<Preferences>,
+) : DataStore<Preferences> {
+    val entered = CompletableDeferred<Unit>()
+    val resume = CompletableDeferred<Unit>()
+
+    override val data: Flow<Preferences> = delegate.data
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+        entered.complete(Unit)
+        resume.await()
+        return delegate.updateData(transform)
     }
 }
 
@@ -346,4 +458,12 @@ private class CancellingSecretCipher : SecretCipher {
 private class StoreFakeAuthKeyProvider(private val key: SecretKey) : AuthKeyProvider {
     override fun getOrCreateKey(): SecretKey = key
     override fun deleteKey() = Unit
+}
+
+private class InvalidatedStoreAuthKeyProvider : AuthKeyProvider {
+    var deleteCalled = false
+    override fun getOrCreateKey(): SecretKey = throw android.security.keystore.KeyPermanentlyInvalidatedException("invalidated")
+    override fun deleteKey() {
+        deleteCalled = true
+    }
 }

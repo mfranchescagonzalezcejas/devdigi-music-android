@@ -1,5 +1,6 @@
 package dev.devdigi.music.connection
 
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import java.security.GeneralSecurityException
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
@@ -34,11 +35,16 @@ class AesGcmSecretCipher(private val keyProvider: AuthKeyProvider) : SecretCiphe
             throw GeneralSecurityException("invalid encrypted payload")
         }
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            keyProvider.getOrCreateKey(),
-            GCMParameterSpec(GCM_TAG_LENGTH_BITS, encrypted.iv),
-        )
+        try {
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                keyProvider.getOrCreateKey(),
+                GCMParameterSpec(GCM_TAG_LENGTH_BITS, encrypted.iv),
+            )
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            keyProvider.deleteKey()
+            throw GeneralSecurityException("key permanently invalidated", e)
+        }
         cipher.updateAAD(associatedData)
         return cipher.doFinal(encrypted.ciphertext)
     }
