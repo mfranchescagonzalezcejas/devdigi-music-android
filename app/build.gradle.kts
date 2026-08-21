@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "dev.devdigi.music"
     compileSdk = 35
+    testBuildType = providers.gradleProperty("unitTestBuildType").orElse("debug").get()
 
     defaultConfig {
         applicationId = "dev.devdigi.music"
@@ -39,5 +40,9 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.datastore.preferences)
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.datastore.preferences.core)
+    testImplementation(libs.coroutines.test)
 }
