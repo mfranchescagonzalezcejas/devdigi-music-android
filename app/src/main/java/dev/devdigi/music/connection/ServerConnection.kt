@@ -199,27 +199,35 @@ fun reduceAuthResult(result: AuthResult): ConnectionFacts = when (result) {
 }
 
 object SubsonicResponseParser {
-    fun parse(json: String): AuthResult = try {
-        val root = org.json.JSONObject(json).optJSONObject("subsonic-response")
-            ?: return AuthResult.AuthProtocolError
+    fun parse(json: String): AuthResult {
+        return try {
+            val root = org.json.JSONObject(json).optJSONObject("subsonic-response")
+                ?: return AuthResult.AuthProtocolError
 
-        when (root.optString("status", "")) {
+        // Common envelope: status and version must be actual non-blank JSON strings.
+        val status = root.opt("status")
+        if (status !is String || status.isBlank()) return AuthResult.AuthProtocolError
+        val version = root.opt("version")
+        if (version !is String || version.isBlank()) return AuthResult.AuthProtocolError
+
+        when (status) {
             "ok" -> {
-                val version = root.optString("version", "")
-                val openSubsonic = root.has("openSubsonic") && root.optBoolean("openSubsonic", false)
-                val serverType = root.optString("type", "")
-                val serverVersion = root.optString("serverVersion", "")
+                // Strict types: no optString/optBoolean coercion of required metadata.
+                val openSubsonic = root.opt("openSubsonic")
+                val serverType = root.opt("type")
+                val serverVersion = root.opt("serverVersion")
                 when {
-                    version.isBlank() -> AuthResult.AuthProtocolError
-                    !openSubsonic -> AuthResult.IncompatibleServer
-                    serverType.isBlank() -> AuthResult.AuthProtocolError
-                    serverVersion.isBlank() -> AuthResult.AuthProtocolError
+                    openSubsonic !is Boolean || !openSubsonic -> AuthResult.IncompatibleServer
+                    serverType !is String || serverType.isBlank() -> AuthResult.AuthProtocolError
+                    serverVersion !is String || serverVersion.isBlank() -> AuthResult.AuthProtocolError
                     else -> AuthResult.Authenticated(ServerMetadata(serverType, serverVersion, true))
                 }
             }
             "failed" -> {
-                val code = root.optJSONObject("error")?.optInt("code", -1) ?: -1
-                when (code) {
+                val error = root.optJSONObject("error") ?: return AuthResult.AuthProtocolError
+                val code = error.opt("code")
+                // error.code must be a real JSON integer; a textual "40" is NOT accepted.
+                when (code as? Int) {
                     40 -> AuthResult.InvalidCredentials
                     41, 42 -> AuthResult.UnsupportedAuthentication
                     43 -> AuthResult.AuthProtocolError
@@ -231,5 +239,6 @@ object SubsonicResponseParser {
         }
     } catch (_: org.json.JSONException) {
         AuthResult.AuthProtocolError
+    }
     }
 }

@@ -123,3 +123,19 @@ Process restart: read `ServerProfile`, recover secret via `AuthSecretStore`, fre
 - GIVEN `ServerAccountIdentity(endpoint=https://music.example.com, username=alice)`
 - WHEN server reports different `serverVersion` or `openSubsonic`
 - THEN identity unchanged AND only `ServerMetadata` updated
+
+### Requirement: Cryptographic Endpoint Binding
+
+The encrypted credential MUST be cryptographically bound to the normalized `ServerEndpoint.value` and the exact opaque username via AES-GCM associated data. A secret stored for one server MUST NOT decrypt or be usable under a different server profile. The AAD MUST be length-prefixed and deterministic; the username MUST NOT be normalized for binding.
+
+#### Scenario: Secret from server A fails under server B
+
+- GIVEN stored credentials encrypted with AAD bound to `https://music.example.com` / `alice`
+- WHEN `read` is attempted with a different `expectedEndpoint`
+- THEN GCM authentication fails AND no `StoredCredentials` are returned AND the invalid snapshot is cleared conditionally
+
+#### Scenario: Changing ServerProfile is defense-in-depth only
+
+- GIVEN an authenticated session
+- WHEN `ServerProfile` is changed or deleted
+- THEN the authenticated state is invalidated and `auth_secret` SHOULD be best-effort cleared; even if that clear fails, the AAD endpoint binding MUST still prevent reuse of the secret under another endpoint
