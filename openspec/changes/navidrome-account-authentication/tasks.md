@@ -77,6 +77,7 @@ Chained PRs recommended: Yes
 - [ ] 2.1 Create `AuthSecretCipherTest.kt` — round-trip; wrong key->exception; tampered->fail
 - [ ] 2.2 Create `AuthSecretStoreTest.kt` — round-trip; empty->null; clear; failure->no durable state
 - [ ] 2.2a Endpoint/username binding acceptance: secret saved for endpoint A cannot be read under endpoint B; same snapshot with changed exact username fails authentication; endpoint mismatch returns no credentials; username/AAD mismatch returns no credentials; invalid rejected snapshot is conditionally cleared; stale cleanup must not erase a newer valid replacement snapshot. `read(expectedEndpoint)` reads the stored username first, builds AAD from normalized `expectedEndpoint` + stored exact username, then decrypts; stored username is non-secret binding metadata, remains exact/opaque/case-sensitive/Unicode-preserving/no trim/no lowercase/no NFC.
+- [ ] 2.2b Fresh IV acceptance: every AES-GCM encryption generates a fresh random IV; IV size = 12 bytes / 96 bits; two encryptions under the same key and same plaintext must produce distinct IVs and distinct ciphertexts; IV must never be constant/reused; IV uniqueness is security-critical because AES-GCM nonce reuse is forbidden.
 
 ### GREEN
 
@@ -136,6 +137,16 @@ Chained PRs recommended: Yes
 ## Phase 5: Real Navidrome Validation (WU5 gated)
 
 - [ ] 5.1 Gated, separate. Injection TBD. After WU1-WU4 merged.
+
+## Generation 14 planning/docs remediation (review 4997606541 on 7824f8e)
+
+Codex reviewed exact HEAD `7824f8e` and reported five fresh findings for work unit `WU1-late-review-remediation-3`. All are planning/documentation updates only; no production Kotlin, no dependencies, no tests added.
+
+- [x] 1.27 Finding 1 (3834204845, P1): Correct exploration.md WU2 storage-model wording to the canonical layout: separate `auth_secret` Preferences DataStore persists exact username metadata + IV + ciphertext; username is non-secret binding metadata used for AAD reconstruction; password never persisted in plaintext; username stays outside ciphertext; username authenticated by AES-GCM AAD; `read(expectedEndpoint)` reads stored exact username, constructs AAD from normalized endpoint + stored username, decrypts, returns credentials only after successful GCM authentication; username remains exact/opaque/case-sensitive/Unicode-preserving/no trim/lowercase/NFC. Align design.md/tasks.md where stale.
+- [x] 1.28 Finding 2 (3834204850, P1): Correct exploration.md WU3 integration matrix and all stale `#10` phrasing: `status = "ok"` is eligible for `Authenticated` only after metadata validation succeeds; `failed + error.code = 10` → `AuthProtocolError` (code 10 = required parameter missing; MUST NEVER produce `Authenticated`). Preserve: #40 → `InvalidCredentials`; #41/#42 → `UnsupportedAuthentication`; #43 → `AuthProtocolError`; #20/#30 → `IncompatibleServer`; #44 unmapped → `AuthProtocolError`; unknown failure code → `AuthProtocolError`; malformed protocol → `AuthProtocolError`; timeout/IOException → `NetworkError`.
+- [x] 1.29 Finding 3 (3834204857, P2): Correct verify-report.md and apply-progress.md to report the actual executed `./gradlew testDebugUnitTest` count as **70 executed / 70 passed (0 failures, 0 errors, 0 skipped)** derived from Gradle/JUnit XML; keep WU1-scoped requirement/scenario counts (4/4, 11/11) and `implemented_scope=WU1`, `overall_change_complete=false`. The "30" figure remains only when explicitly labeled as `SubsonicResponseParserTest` focal count.
+- [x] 1.30 Finding 4 (3834204860, P2): Document WON'T FIX — protocol compliance: official OpenSubsonic schema requires `error.code` (int) and makes `error.message` optional; a failed response with a valid envelope and integer `error.code` (e.g. `{"status":"failed","version":"1.16.1","error":{"code":40}}`) is protocol-valid and maps code 40 → `InvalidCredentials`; `error.message` is not required. Add protocol-rationale note to design.md.
+- [x] 1.31 Finding 5 (3834204864, P1): Add Phase 2 (WU2) RED/acceptance requirement for fresh IV: every AES-GCM encryption generates a fresh random IV; IV size = 12 bytes / 96 bits; two encryptions under the same key and same plaintext produce distinct IVs and distinct ciphertexts; IV must never be constant/reused; IV uniqueness is security-critical because AES-GCM nonce reuse is forbidden. Align design.md cipher contract.
 
 ## Review Truthfulness (PR #48 late review)
 

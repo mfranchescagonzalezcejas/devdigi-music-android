@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:2526552f58932766c499c0a22032b25879fcec4cb269b543c1016a5bdedc485f
+evidence_revision: sha256:c444fda47088911bbbf941b41c13b5ca6aa35beefb7ba01f4e2735b7e42f5741
 verdict: pass
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 4/4
 scenarios: 11/11
 test_command: ./gradlew testDebugUnitTest
 test_exit_code: 0
-test_output_hash: sha256:d6263c35e2d22878f0dc6cd485df40789d1cf495b782b14bd5bb070d86f5478e
+test_output_hash: sha256:73a21cb1c6d866e188032d7333419c92f6210e6cb4c63539f3848d7e721ac695
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:6858e589050262141e54d5249abf6951066f78ca0353eb5081b573e23b69b251
+build_output_hash: sha256:71e8f7ad00dd3b7b6aea467cb27408072f94cc310e4f1d091f1aa4d3a5f9518e
 ```
 
 ## Verification Report
@@ -42,7 +42,8 @@ build_output_hash: sha256:6858e589050262141e54d5249abf6951066f78ca0353eb5081b573
 
 **Tests**: ✅ passed
 ```text
-./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (30/30 existing tests pass)
+./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (70 executed / 70 passed; 0 failures, 0 errors, 0 skipped)
+SubsonicResponseParserTest focal count: 30/30
 ```
 
 **Coverage**: ➖ Not available

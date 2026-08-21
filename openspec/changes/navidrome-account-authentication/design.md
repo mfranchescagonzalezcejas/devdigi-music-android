@@ -129,7 +129,7 @@ UTF8("devdigi.music.auth.aad.v1")
 ```
 where `endpointUtf8 = identity.endpoint.value` (UTF-8) and `usernameUtf8 = identity.username` (UTF-8, unnormalized).
 
-`SecretCipher` evolves to `encrypt(plaintext, associatedData)` / `decrypt(encrypted, associatedData)`, calling `Cipher.updateAAD(aad)` before `doFinal` on both paths. This subsumes the earlier "authenticate the username with the ciphertext" finding with the stronger endpoint+username binding.
+`SecretCipher` evolves to `encrypt(plaintext, associatedData)` / `decrypt(encrypted, associatedData)`, calling `Cipher.updateAAD(aad)` before `doFinal` on both paths. Every encryption MUST use a fresh cryptographically random IV; the IV size is 12 bytes (96 bits), the standard GCM nonce length. Two encryptions under the same key and same plaintext MUST produce distinct IVs and therefore distinct ciphertexts; a constant or reused IV is forbidden because AES-GCM nonce reuse destroys confidentiality and authenticity. This subsumes the earlier "authenticate the username with the ciphertext" finding with the stronger endpoint+username binding.
 
 ServerProfile change semantics (defense-in-depth, NOT the primary guarantee): changing/deleting `ServerProfile` invalidates current authenticated state and SHOULD best-effort clear `auth_secret`. Because `server_profile` and `auth_secret` are separate DataStores, the cross-store clear is not crash-atomic; even if the clear fails, a stale ciphertext survives, or a process crashes mid-change, AAD endpoint binding still prevents A's secret from being decrypted or used under B. Concrete profile-change/session-invalidation wiring lands in WU4; the invariant is fixed here.
 
@@ -175,6 +175,10 @@ Approved mapping for this scope:
 - Timeout / `IOException` → `NetworkError`.
 
 Deterministic cases SHALL cover 400/401/404/500/502/503 responses that carry a valid success envelope and assert `AuthProtocolError`, not `Authenticated`.
+
+## OpenSubsonic Error Envelope Rationale
+
+Per the official OpenSubsonic schema, the `error` object inside a `subsonic-response` envelope requires `error.code` (integer) and makes `error.message` optional ("The optional error message" / "A human readable error message"). Therefore a failed response that carries only a valid integer `error.code` — for example `{"status":"failed","version":"1.16.1","error":{"code":40}}` — is protocol-valid. The parser maps code 40 to `InvalidCredentials` without requiring `error.message` to be present. Code 10 ("Required parameter is missing.") is a protocol-level failure and MUST map to `AuthProtocolError`; it MUST NEVER produce `Authenticated`.
 
 ## Stale In-Flight Auth vs Profile Change (WU4)
 
