@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy backup rules (Android 11 and below, minSdk 23).
+     Exclude ONLY the auth-secret DataStore: restoring ciphertext without its
+     Android Keystore key would be unusable, so the secret must never be
+     restored independently of the key. The non-secret server_profile store is NOT excluded. -->
+<full-backup-content>
+    <exclude domain="file" path="datastore/auth_secret.preferences_pb" />
+</full-backup-content>

@@ -2,16 +2,28 @@
 
 ## Review Workload Forecast
 
-Estimated changed lines: ~650-750. 400-line budget risk: High (soft threshold intentionally exceeded).
+Initial forecast: ~650-750 lines; delivery was `single-pr` with `size:exception` APPROVED (maintainer), premised on staying below a then-assumed 800 hard ceiling.
 
-Hard planning ceiling: 800 — respected; forecast is within ceiling.
-Delivery strategy: single-pr
-size:exception: APPROVED (maintainer) — #14 is one cohesive security/authentication capability; splitting WU1+WU2 from WU3+WU4 would create artificial intermediate PR boundaries between authentication core, secure credential persistence, authenticated network behavior, and session state. Forecast remains below the 800 hard ceiling.
+### Superseded by workload audit (measured, not estimated)
+Actual measured workload before WU2 GREEN: **~1244 changed lines** (WU1 commit 915 + WU2 RED ~329). The 800 figure was an orchestration/SDD estimate, NOT a repository hard policy. The real repo rule (docs/devdigi-repository-baseline-draft.md) is the **400-line review-budget decision threshold**: record `single PR`, a chain strategy, or an explicit size exception before implementation.
 
-Decision needed before apply: No (size:exception approved)
-Chained PRs recommended: No (single-pr approved)
-Chain strategy: N/A
-400-line budget risk: High (accepted under size:exception)
+**Decision (supersedes single-pr): delivery_strategy = chained-prs**
+- PR A: planning + WU1 auth-core — base `develop`. Reconfirms `size:exception = APPROVED` (~915 lines, mostly planning + tests).
+- PR B: WU2 secure-secret-storage — base PR A branch. Evaluated individually against the 400 threshold.
+- PR C: WU3 authenticated-network-boundary — base PR B branch.
+- PR D: WU4 session-ui — base PR C branch.
+- WU5: real-Navidrome validation gate (final).
+
+Each subsequent PR is assessed individually against the 400 threshold; a small focused size:exception per PR is acceptable if it lands ~450-600. Tests are NOT reduced to satisfy the threshold. The OpenSpec change `navidrome-account-authentication` stays single across all chained PRs.
+
+400-line budget risk: High (per-PR)
+Chain strategy: feature-branch-chain (PR N targets PR N-1 branch)
+WU3 prerequisite: OkHttp 5.4.0 → compileSdk 36; Jenkins agent currently documented with Android Platform 35 — WU3 must not start until platforms;android-36 is available locally and on the Jenkins agent.
+
+### PR B / WU2 size:exception (APPROVED, specific — separate from PR A's historical decision)
+Prospective PR-B workload ≈ **540 changed lines** (production 173, tests 313, backup/config 27, OpenSpec/tasks 27) vs the **400 review threshold**. `size:exception = APPROVED` explicitly for PR B.
+
+Justification: WU2 is a cohesive secure-secret-storage security boundary; splitting AuthSecretStore, AES-GCM/Android Keystore integration, encrypted persistence, backup exclusion, and fail-closed behavior would create an artificial security boundary. Most of the excess comes from security/fail-closed tests, which must NOT be reduced to satisfy the review threshold.
 
 | Unit | Goal | Test command | Rollback boundary |
 |------|------|--------------|-------------------|
@@ -45,22 +57,22 @@ Chain strategy: N/A
 
 ### RED
 
-- [ ] 2.1 Create `AuthSecretCipherTest.kt` — round-trip; wrong key->exception; tampered->fail
-- [ ] 2.2 Create `AuthSecretStoreTest.kt` — round-trip; empty->null; clear; failure->no durable state
+- [x] 2.1 Create `AuthSecretCipherTest.kt` / `SecretCipherTest.kt` — round-trip; wrong key->exception; tampered->fail; missing key fail-closed
+- [x] 2.2 Create `AuthSecretStoreTest.kt` — round-trip; empty->null; clear; failure->no durable state; plaintext never persisted; malformed->cleared; server_profile independence
 
 ### GREEN
 
-- [ ] 2.3 Create `AuthKeyProvider.kt` — interface + AndroidKeystore impl (AES/GCM)
-- [ ] 2.4 Create `AuthSecretCipher.kt` — interface + EncryptedSecret + Android impl
-- [ ] 2.5 Create `AuthSecretStore.kt` — interface + DataStore impl, separate auth_secret
-- [ ] 2.6 Create `res/xml/backup_rules.xml` — exclude auth_secret.preferences_pb
-- [ ] 2.7 Create `res/xml/data_extraction_rules.xml` — exclude auth_secret.preferences_pb
-- [ ] 2.8 Update `AndroidManifest.xml` — fullBackupContent, dataExtractionRules, disableIfNoEncryption
+- [x] 2.3 Create `AuthKeyProvider.kt` — interface + AndroidKeystore impl (AES/GCM, alias devdigi.music.auth.v1)
+- [x] 2.4 Create `SecretCipher.kt` — interface + EncryptedSecret + Android impl (AES/GCM/NoPadding, fresh IV)
+- [x] 2.5 Create `AuthSecretStore.kt` — interface + DataStore impl, separate auth_secret
+- [x] 2.6 Create `res/xml/backup_rules.xml` — exclude auth_secret.preferences_pb
+- [x] 2.7 Create `res/xml/data_extraction_rules.xml` — exclude auth_secret.preferences_pb (cloud-backup + device-transfer)
+- [x] 2.8 Update `AndroidManifest.xml` — fullBackupContent, dataExtractionRules
 
 ### Verify
 
-- [ ] 2.9 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.AuthSecretCipherTest"`
-- [ ] 2.10 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.AuthSecretStoreTest"`
+- [x] 2.9 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.SecretCipherTest"`
+- [x] 2.10 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.AuthSecretStoreTest"`
 
 ## Phase 3: Authenticated Network Boundary (WU3)
 
