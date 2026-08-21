@@ -5,6 +5,7 @@ import java.security.GeneralSecurityException
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -115,6 +116,25 @@ class SecretCipherTest {
         assertTrue("invalidated alias must be deleted", provider.deleteCalled)
     }
 
+    @Test
+    fun keyPermanentlyInvalidatedDuringEncryptDeletesAliasAndFailsClosedAndLaterSucceeds() {
+        val provider = RecoveringInvalidatedAuthKeyProvider(aesKey())
+        val cipher = AesGcmSecretCipher(provider)
+        val plaintext = "secret-password".toByteArray(Charsets.UTF_8)
+
+        try {
+            cipher.encrypt(plaintext, aad)
+            fail("expected encryption failure after key invalidation")
+        } catch (_: GeneralSecurityException) {
+        }
+
+        assertTrue("invalidated alias must be deleted", provider.deleteCalled)
+        assertEquals("must not retry getOrCreateKey in same operation", 1, provider.getKeyCallCount)
+
+        val encrypted = cipher.encrypt(plaintext, aad)
+        assertTrue("subsequent encrypt must succeed with replacement key", encrypted.ciphertext.isNotEmpty())
+    }
+
     private fun aesKey(): SecretKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
 }
 
@@ -131,6 +151,19 @@ private class FailingAuthKeyProvider : AuthKeyProvider {
 private class InvalidatedAuthKeyProvider : AuthKeyProvider {
     var deleteCalled = false
     override fun getOrCreateKey(): SecretKey = throw KeyPermanentlyInvalidatedException("invalidated")
+    override fun deleteKey() {
+        deleteCalled = true
+    }
+}
+
+private class RecoveringInvalidatedAuthKeyProvider(private val replacementKey: SecretKey) : AuthKeyProvider {
+    var deleteCalled = false
+    var getKeyCallCount = 0
+    override fun getOrCreateKey(): SecretKey {
+        getKeyCallCount++
+        if (!deleteCalled) throw KeyPermanentlyInvalidatedException("invalidated")
+        return replacementKey
+    }
     override fun deleteKey() {
         deleteCalled = true
     }

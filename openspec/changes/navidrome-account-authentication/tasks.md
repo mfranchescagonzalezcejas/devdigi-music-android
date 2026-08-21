@@ -47,6 +47,13 @@ Final measured workload for PR #49 @ d85027e (approved audit, maintainer):
 - `split = NO`
 - The ~800 figure was advisory (an orchestration estimate), NOT repository policy.
 
+### Workload snapshots (supersede the stale 927 audit for PR #49)
+- **pre-Gen8 @ d85027e** (previous approved audit): production 291 · tests 552 · backup/config 29 · OpenSpec/docs 55 · **total 927**
+- **post-Gen8 / pre-Gen9 @ 586227f** (GitHub approx): additions 1163 · deletions 20 · **total changed 1183**
+- **Exact three-dot PR workload @ 98c4801...HEAD (recalculated from git): additions 1163 · deletions 20 · total 1183** — confirms the GitHub approximation; no blind copy, measured from the repository.
+- PR #49 remains governed by the already-REAFFIRMED `size:exception = APPROVED` (`split = NO`); the ~800 and earlier figures were advisory, NOT a repository hard ceiling.
+- Native Generation 9 change budget (`max_changed_lines = 300`) is the SDD attempt budget — it is distinct from the PR/session review-budget. Gen 9 measured **141** changed lines.
+
 | Unit | Goal | Test command | Rollback boundary |
 |------|------|--------------|-------------------|
 | 1 | Auth types + signer + response parser + result/facts mapping + identity/metadata | `testDebugUnitTest --tests "*.connection.*Auth*"` | Remove new files + deps |
@@ -131,6 +138,21 @@ Final measured workload for PR #49 @ d85027e (approved audit, maintainer):
 - [ ] 4.8 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.SessionRestorerTest"`
 - [ ] 4.9 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.ServerConnectionViewModelTest"`
 - [ ] 4.10 `./gradlew testDebugUnitTest` + `./gradlew assembleDebug`
+
+## Phase 2b: WU2 Review Remediation — Gen 9 (WU2-review-remediation-3)
+
+### RED → GREEN
+
+- [x] 2b.1 Encrypt-side `KeyPermanentlyInvalidatedException` handling: `AesGcmSecretCipher.encrypt()` deletes invalidated alias and fails closed; no same-operation retry; subsequent operation can use replacement key
+- [x] 2b.2 Save cleanup failure boundary: ordinary cleanup exception is suppressed on original failure; `CancellationException` from cleanup still propagates
+- [x] 2b.3 Process-wide `DataStoreAuthSecretStore` serialization: shared companion `Mutex` across wrapper instances; private helpers do not re-acquire mutex; true concurrent two-instance test
+
+### Verify
+
+- [x] 2b.4 `./gradlew testDebugUnitTest` — all passing
+- [x] 2b.5 `./gradlew lint` — passing
+- [x] 2b.6 `./gradlew assembleDebug` — passing
+- [x] 2b.7 `git diff --check` — clean
 
 ## Phase 5: Real Navidrome Validation (WU5 gated)
 

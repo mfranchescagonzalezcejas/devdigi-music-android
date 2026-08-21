@@ -24,7 +24,12 @@ data class EncryptedSecret(val ciphertext: ByteArray, val iv: ByteArray)
 class AesGcmSecretCipher(private val keyProvider: AuthKeyProvider) : SecretCipher {
     override fun encrypt(plaintext: ByteArray, associatedData: ByteArray): EncryptedSecret {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, keyProvider.getOrCreateKey())
+        try {
+            cipher.init(Cipher.ENCRYPT_MODE, keyProvider.getOrCreateKey())
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            keyProvider.deleteKey()
+            throw GeneralSecurityException("key permanently invalidated", e)
+        }
         cipher.updateAAD(associatedData)
         val ciphertext = cipher.doFinal(plaintext)
         return EncryptedSecret(ciphertext, cipher.iv)

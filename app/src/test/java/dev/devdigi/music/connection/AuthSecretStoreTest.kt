@@ -347,6 +347,56 @@ class AuthSecretStoreTest {
     }
 
     @Test
+    fun saveCleanupFailurePreservesOriginalFailureAndAttachesSuppressed() = runBlocking {
+        val delegate = dataStore()
+        val throwingWrite = ThrowingOnWriteDataStore(delegate, IOException("cleanup failure"))
+        val store = DataStoreAuthSecretStore(throwingWrite, FailingSecretCipher())
+
+        val result = store.save(identity(endpointA, "alice"), "secret-password")
+
+        assertTrue(result.isFailure)
+        val failure = result.exceptionOrNull()
+        assertTrue("original failure must be preserved", failure is GeneralSecurityException)
+        val suppressed = failure?.suppressedExceptions
+        assertEquals("cleanup failure must be attached as suppressed", 1, suppressed?.size)
+        assertTrue("suppressed must be cleanup failure", suppressed?.first() is IOException)
+    }
+
+    @Test
+    fun saveCleanupCancellationPropagates() = runBlocking {
+        val delegate = dataStore()
+        val throwingWrite = ThrowingOnWriteDataStore(delegate, CancellationException("cleanup cancelled"))
+        val store = DataStoreAuthSecretStore(throwingWrite, FailingSecretCipher())
+
+        try {
+            store.save(identity(endpointA, "alice"), "secret-password")
+            fail("expected CancellationException to propagate from cleanup")
+        } catch (_: CancellationException) {
+        }
+    }
+
+    @Test
+    fun clearOnSeparateStoreInstanceSerializesWithInFlightSave() = runBlocking {
+        val delegate = dataStore()
+        val pausing = PausingOnFirstUpdateDataStore(delegate)
+        val storeA = DataStoreAuthSecretStore(pausing, FakeSecretCipher())
+        val storeB = DataStoreAuthSecretStore(pausing, FakeSecretCipher())
+
+        val saveJob = launch { storeA.save(identity(endpointA, "alice"), "secret-password") }
+        pausing.entered.await()
+        val clearJob = launch { storeB.clear() }
+        yield()
+
+        pausing.resume.complete(Unit)
+        saveJob.join()
+        clearJob.join()
+
+        assertNull(storeA.read(endpointA).getOrNull())
+        assertNull(storeB.read(endpointA).getOrNull())
+        assertNull(delegate.data.first()[AUTH_SECRET_KEY])
+    }
+
+    @Test
     fun corruptedPreferencesRecoversToEmptyAndPermitsLaterSave() = runBlocking {
         val file = temporaryFile()
         file.writeBytes(byteArrayOf(0x00, 0x01, 0x02, 0x03, 0x7f))
@@ -408,6 +458,32 @@ private class PausingDataStore(
     override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
         entered.complete(Unit)
         resume.await()
+        return delegate.updateData(transform)
+    }
+}
+
+private class ThrowingOnWriteDataStore(
+    private val delegate: DataStore<Preferences>,
+    private val error: Throwable,
+) : DataStore<Preferences> {
+    override val data: Flow<Preferences> = delegate.data
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
+        throw error
+}
+
+private class PausingOnFirstUpdateDataStore(
+    private val delegate: DataStore<Preferences>,
+) : DataStore<Preferences> {
+    val entered = CompletableDeferred<Unit>()
+    val resume = CompletableDeferred<Unit>()
+    private val hasEntered = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    override val data: Flow<Preferences> = delegate.data
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+        if (hasEntered.compareAndSet(false, true)) {
+            entered.complete(Unit)
+            resume.await()
+        }
         return delegate.updateData(transform)
     }
 }

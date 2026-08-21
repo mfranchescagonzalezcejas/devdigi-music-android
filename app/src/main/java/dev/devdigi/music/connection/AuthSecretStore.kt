@@ -45,7 +45,6 @@ class DataStoreAuthSecretStore(
     private val dataStore: DataStore<Preferences>,
     private val cipher: SecretCipher,
 ) : AuthSecretStore {
-    private val mutex = Mutex()
 
     override suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit> = mutex.withLock {
         var priorUsername: String? = null
@@ -64,7 +63,13 @@ class DataStoreAuthSecretStore(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            clearIfSnapshotStillMatches(priorUsername, priorPayload)
+            try {
+                clearIfSnapshotStillMatches(priorUsername, priorPayload)
+            } catch (cleanup: CancellationException) {
+                throw cleanup
+            } catch (cleanup: Exception) {
+                e.addSuppressed(cleanup)
+            }
             Result.failure(e)
         }
     }
@@ -134,6 +139,7 @@ class DataStoreAuthSecretStore(
     private companion object {
         val USERNAME_KEY = stringPreferencesKey("username")
         val SECRET_KEY = stringPreferencesKey("auth_secret")
+        val mutex = Mutex()
     }
 }
 
