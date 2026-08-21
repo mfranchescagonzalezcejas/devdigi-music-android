@@ -62,5 +62,5 @@ Chain strategy: pending
 
 ## Phase 7: Local Verification / Settle
 
-- [x] 7.1 Run local synthetic verification: `testDebugUnitTest`, `assembleDebug`, `assembleRelease`, and `lint`; `testReleaseUnitTest` is not exposed by this AGP project, so release policy behavior is covered by the injected deny policy in shared unit tests and release source compilation.
+- [x] 7.1 Run local synthetic verification: `testDebugUnitTest`, `assembleDebug`, `assembleRelease`, and `lint`; `./gradlew -PunitTestBuildType=release testReleaseUnitTest` executes the real release `BuildVariantEndpointPolicy` behavior.
 - [x] 7.2 Preserve staged modifications; do not reset or recreate them. Continue the supplied active attempt token and return control without acquiring or settling another attempt.

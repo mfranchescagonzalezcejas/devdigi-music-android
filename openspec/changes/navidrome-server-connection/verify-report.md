@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:27aa2de5589f4b509d7d198a1decb2607bd2cbd652fb3fade10f187d6c177cdf
+evidence_revision: sha256:b6d4e96613bd3c2600fc58ce37bb34863ccdcf293c8288b09774b36615265acd
 verdict: pass_with_warnings
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 5/5
 scenarios: 10/10
 test_command: ./gradlew --rerun-tasks testDebugUnitTest
 test_exit_code: 0
-test_output_hash: sha256:b0dfb95f2b1320dcace20826ef53ca2f5b9129a84ac4191317791cc1dd6099b4
+test_output_hash: sha256:6b339e64bc1a38d9405b850a8196cbf9da8576275ba47641159cf9a598e48ddd
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:d62f95e5422fec359f8850c4424225b12ed9e80b0452a66e62d6764c2deafd03
+build_output_hash: sha256:7da6d0c8572e6ac7309c29fc187c2ea7b773b9ef51fdc9d0b96e5bf37a249f3f
 ```
 
 ## Verification Report
@@ -19,9 +19,12 @@ build_output_hash: sha256:d62f95e5422fec359f8850c4424225b12ed9e80b0452a66e62d676
 **Change**: navidrome-server-connection
 **Version**: N/A
 **Mode**: Strict TDD
-**Objective generation**: 4
-**Attempt ordinal**: 4
-**Attempt revision observed read-only**: `sha256:290631df6b37fe26494f021cb6c80e8f68a5619cbaca76ef8bede34e633d2107`
+**Objective generation**: 6
+**Attempt ordinal**: 6
+**Work unit**: `final-release-binding-admission`
+**Attempt revision**: `sha256:ef381bc76aee81927f1dae1eb5bceb9df9c5ea340c682848b9e11d24325a8bb8`
+**Objective revision**: `sha256:5e70d26b74402f00583f1f18acfb2a86a463382218f38abc40bec4104de7c1be`
+**Budget**: 300
 
 ### Completeness
 
@@ -30,119 +33,105 @@ build_output_hash: sha256:d62f95e5422fec359f8850c4424225b12ed9e80b0452a66e62d676
 | Requirements total / compliant | 5 / 5 |
 | Scenarios total / compliant | 10 / 10 |
 | Tasks total / complete / incomplete | 20 / 20 / 0 |
-
-Proposal, specification, design, tasks, Engram apply-progress, implementation, changed tests, generated JUnit XML, and current read-only generation-4 runtime status were inspected. Runtime and review state were not mutated.
+| Changed lines / budget | 282 / 300 |
 
 ### Build & Tests Execution
 
 | Check | Exit | Output hash | Result |
 |---|---:|---|---|
 | `git diff --check` | 0 | `sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | ✅ Passed |
-| `./gradlew --rerun-tasks testDebugUnitTest` | 0 | `sha256:b0dfb95f2b1320dcace20826ef53ca2f5b9129a84ac4191317791cc1dd6099b4` | ✅ Passed |
-| `./gradlew assembleDebug` | 0 | `sha256:d62f95e5422fec359f8850c4424225b12ed9e80b0452a66e62d6764c2deafd03` | ✅ Passed |
-| `./gradlew lint` | 0 | `sha256:b32849573b2276c1b98b8f70d1c4b52d06256dcd461c636b3e4c85f60b978ea9` | ✅ Passed |
-| `./gradlew :app:assembleRelease :app:lintRelease` | 0 | `sha256:91a4871c470858a4ef7bb0b54e8fc5a92dd9ae0020483dadc2b0de31f0843b60` | ✅ Passed |
-| Local Python changed-file privacy scan | 0 | `sha256:eddc42e554b787b5fe358a5a68ae262b7b8f8947de6bcd5f09df2973ee99e34c` | ✅ Passed |
+| `./gradlew --rerun-tasks testDebugUnitTest` | 0 | `sha256:6b339e64bc1a38d9405b850a8196cbf9da8576275ba47641159cf9a598e48ddd` | ✅ Passed |
+| `./gradlew -PunitTestBuildType=release --rerun-tasks testReleaseUnitTest` | 0 | `sha256:3bead89263e2ebd8f0a1301a5a18c03fcab8e6848eac8216099a9f73ed09619d` | ✅ Passed |
+| `./gradlew assembleDebug` | 0 | `sha256:7da6d0c8572e6ac7309c29fc187c2ea7b773b9ef51fdc9d0b96e5bf37a249f3f` | ✅ Passed |
+| `./gradlew lint` | 0 | `sha256:a5483353e9ed6c0074783eee8a431d1dbdfb07e72f16c80d07dd21d19ccb06ca` | ✅ Passed |
+| `./gradlew :app:assembleRelease :app:lintRelease` | 0 | `sha256:b32a27af2da48971f5235980ecec0499af7e6381d05d0f96f1cdab328b45598c` | ✅ Passed |
+| Release JUnit XML validation | 0 | `sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | ✅ Passed |
+| Debug and release JUnit XML summary | 0 | `sha256:3ec28d7dcd9b40bf2ac409815933cacc9bfd7190666b14a0ee92fa0aa24b306a` | ✅ Passed |
+| Release endpoint source-case validation | 0 | `sha256:09e14cfa037a43e8dc2d14e4db36de48df9a4889bde6d46deec0c3775eca2f36` | ✅ Passed |
+| Changed-file privacy and scope scan | 0 | `sha256:068b94d85c39549a15c18a93c9485b7e87ad7e360ab7ed5807ac620e1e4468a5` | ✅ Passed |
 
-Generated JUnit results prove **27 passed, 0 failed, 0 skipped**: **26 changed tests plus 1 `BootstrapTest`**. Distribution: `ServerConnectionTest` 13, `ServerProfileRepositoryTest` 3, `ServerConnectionViewModelTest` 9, and debug `EndpointPolicyTest` 1.
+Debug suite: **27 tests, 0 failures, 0 errors, 0 skipped**.
+Release suite: **27 tests, 0 failures, 0 errors, 0 skipped**.
+Release binding: `ReleaseEndpointPolicyTest` > `rejectsHttpAndAcceptsHttps` — **1 test, 0 failures, 0 errors, 0 skipped**.
 
-`testReleaseUnitTest` is not exposed by this AGP project and is not claimed. Release semantics are covered by shared HTTPS-only runtime tests plus successful release assembly and lint.
-
-The final privacy scan inspected 11 changed or untracked paths, allowed only documented synthetic/local fixtures and test templates, printed no matched values, and found no unapproved personal path, URL host, IP literal, or secret assignment. Three preparatory scanner drafts were excluded before canonicalization because their URL parser/allowlist produced a crash or false positives; the final command above is the admitted scan.
-
-**Coverage**: ➖ Skipped — no coverage plugin is configured; threshold is `0`.
+**Coverage**: ➖ Skipped — no coverage plugin configured; threshold is `0`.
 
 ### Spec Compliance Matrix
 
 | Requirement | Scenario | Passing evidence | Result |
 |---|---|---|---|
-| Endpoint Validation and Normalization | Normalize a reverse-proxy endpoint | Normalization and encoded-path tests | ✅ COMPLIANT |
-| Endpoint Validation and Normalization | Reject malformed input | Structural, unsafe-host, terminal-dot, numeric-host, invalid-port tests | ✅ COMPLIANT |
-| Endpoint-only Server Profile Repository | Restore a valid stored endpoint | Temporary-file DataStore restore/revalidation test | ✅ COMPLIANT |
-| Endpoint-only Server Profile Repository | Replace, delete, or reject storage | Repository and Flow-driven ViewModel tests | ✅ COMPLIANT |
-| Variant Transport Admission | Admit permitted local debug HTTP | Shared allowlist and debug policy tests | ✅ COMPLIANT |
-| Variant Transport Admission | Reject HTTP outside the allowance | Shared HTTPS-only tests plus release compile/lint | ✅ COMPLIANT |
-| Ping Client Verification Facts | Report reachability without compatibility | Synthetic protocol response test | ✅ COMPLIANT |
-| Ping Client Verification Facts | Preserve authenticated-ping boundary | Synthetic error/unexpected/unauthenticated tests | ✅ COMPLIANT |
-| Local Synthetic Verification | Run safe verification | Unit execution and privacy scan; no network | ✅ COMPLIANT |
-| Local Synthetic Verification | Exclude infrastructure bootstrap | Verification completed without Docker/private systems | ✅ COMPLIANT |
+| Endpoint Validation and Normalization | Normalize a reverse-proxy endpoint | Debug and release shared parser tests | ✅ COMPLIANT |
+| Endpoint Validation and Normalization | Reject malformed input | Debug and release shared parser tests | ✅ COMPLIANT |
+| Endpoint-only Server Profile Repository | Restore a valid stored endpoint | Debug and release temporary-file DataStore tests | ✅ COMPLIANT |
+| Endpoint-only Server Profile Repository | Replace, delete, or reject storage | Debug and release repository/ViewModel tests | ✅ COMPLIANT |
+| Variant Transport Admission | Admit permitted local debug HTTP | Default debug `EndpointPolicyTest` and shared allowlist tests | ✅ COMPLIANT |
+| Variant Transport Admission | Reject HTTP outside the allowance | Release `ReleaseEndpointPolicyTest` plus debug remote rejection tests | ✅ COMPLIANT |
+| Ping Client Verification Facts | Report reachability without compatibility | Debug and release synthetic protocol response tests | ✅ COMPLIANT |
+| Ping Client Verification Facts | Preserve authenticated-ping boundary | Debug and release synthetic error/unauthenticated tests | ✅ COMPLIANT |
+| Local Synthetic Verification | Run safe verification | Unit execution and privacy/scope scan; no network | ✅ COMPLIANT |
+| Local Synthetic Verification | Exclude infrastructure bootstrap | Verification completed without Docker or private systems | ✅ COMPLIANT |
 
 **Compliance summary**: 10/10 scenarios and 5/5 requirements compliant.
 
-### CodeRabbit Findings #1–#11
-
-| Finding | Verified correction | Evidence | Result |
-|---:|---|---|---|
-| 1 | Seal `ServerEndpoint` construction | Private constructor; tests create endpoints only through `parse` | ✅ PASS |
-| 2 | Reject terminal-dot local HTTP aliases after normalized-host handling | Terminal-dot HTTPS/debug HTTP tests pass | ✅ PASS |
-| 3 | Revalidate profiles at repository write admission | `saveRevalidatesTheProfileBeforeWriting` passes | ✅ PASS |
-| 4 | Keep connection form usable with keyboard/small viewport | Native `imePadding` and vertical scrolling compile; lint passes | ✅ PASS |
-| 5 | Preserve edited drafts across Flow emissions and adopt successful saves immediately | Two dedicated ViewModel regressions pass | ✅ PASS |
-| 6 | Recover DataStore read `IOException` without hiding unexpected failures | `catch` precedes `map`; compiler/build/lint pass; non-I/O errors rethrow | ✅ PASS |
-| 7 | Correct stale debug allowlist documentation | Exploration names exactly `localhost`, `127.0.0.1`, `10.0.2.2` | ✅ PASS |
-| 8 | Replace privacy-sensitive fixtures with approved synthetic paths | Final changed-file privacy scan passes | ✅ PASS |
-| 9 | Provide a shared production-testable HTTPS-only policy | Shared policy runtime assertions pass | ✅ PASS |
-| 10 | Make release policy reuse the shared HTTPS-only implementation | Release source delegates to shared policy; release build/lint pass | ✅ PASS |
-| 11 | Remove the redundant, non-executable release-only unit test | File is deleted; executed test truth remains 26 changed + Bootstrap | ✅ PASS |
-
-### Correctness and #13 Scope
+### Correctness
 
 | Boundary | Status | Evidence |
 |---|---|---|
-| Pure endpoint normalization and rejection | ✅ | Parser inspection plus 13 parser/facts tests |
-| Endpoint-only persistence | ✅ | One DataStore key; write/read revalidation; 3 repository tests |
-| Draft-safe UI state | ✅ | 9 ViewModel tests |
-| Debug/release admission split | ✅ | Debug runtime test; shared runtime policy; release compile/lint |
-| No credentials/authenticated ping/account state | ✅ | No credential model, production transport, or `INTERNET` permission added |
-| No Docker/private infrastructure | ✅ | No such command or system was invoked |
-| Issue #13 boundary preserved | ✅ | Authentication, compatibility determination, and real ping remain deferred to #14 |
+| Release policy binding executes on host | ✅ | Release JUnit XML names `ReleaseEndpointPolicyTest` 1/1 passing |
+| Release rejects all HTTP cases | ✅ | Four source cases execute against `BuildVariantEndpointPolicy` |
+| Release accepts HTTPS case | ✅ | `https://music.example.com` accepted |
+| Default debug unit task functional | ✅ | `testDebugUnitTest` 27/27 green |
+| Budget respected | ✅ | 282 / 300 changed lines |
+| No scope expansion | ✅ | Only Gradle test selection, release test, and task text changed |
+
+### Changed-Line Accounting
+
+| Path | Additions | Deletions | Changed lines |
+|---|---:|---:|---:|
+| `app/build.gradle.kts` | 1 | 0 | 1 |
+| `openspec/changes/navidrome-server-connection/tasks.md` | 1 | 1 | 2 |
+| `app/src/testRelease/.../ReleaseEndpointPolicyTest.kt` | 14 | 0 | 14 |
+| `openspec/changes/navidrome-server-connection/verify-report.md` | 147 | 118 | 265 |
+| **Total** | **282** | **119** | **282** |
+
+Untracked release test included. Report bytes are evidence output included in budget.
+
+### Privacy and Scope
+
+| Check | Result |
+|---|---|
+| Authorized paths only | ✅ Exactly three implementation paths plus report |
+| Synthetic/local fixtures only | ✅ Four local HTTP + one HTTPS example case |
+| No unapproved secrets or credentials | ✅ 0 occurrences |
+| No network or private-system access | ✅ No requests, Docker, or homelab |
+| Read-only lifecycle | ✅ No finish, commit, push, or remote operation |
 
 ### Coherence (Design)
 
 | Decision | Followed? | Notes |
 |---|---|---|
-| One-key Preferences DataStore | ✅ Yes | Stores only normalized endpoint |
-| Small repository test seam | ✅ Yes | `Flow`, save, delete only |
-| Reparse stored and written values | ✅ Yes | Active variant policy applied |
-| Mutually exclusive variant policies | ✅ Yes | Debug/release source sets |
-| Narrow debug cleartext only | ✅ Yes | Existing exact-host configuration unchanged |
-| No generic storage, DI, network, Docker, or account layer | ✅ Yes | Minimal #13 vertical slice |
+| Mutually exclusive variant policies | ✅ Yes | Release test compiles against release source-set |
+| Release HTTPS-only admission | ✅ Yes | Four HTTP rejections, one HTTPS acceptance |
+| Default debug workflow preserved | ✅ Yes | Property defaults to `debug` |
+| Synthetic verification only | ✅ Yes | No sockets, services, or credentials |
+| Minimal change | ✅ Yes | 282 lines within 300 budget |
 
 ### TDD Compliance
 
 | Check | Result | Details |
 |---|---|---|
-| TDD evidence reported | ✅ | Engram apply-progress records generation-3 RED/GREEN work |
-| Test files exist | ✅ | Four executable change test files |
-| RED confirmed | ⚠️ Partial | Historical failing output is incomplete for some prior interrupted work |
-| GREEN confirmed | ✅ | 26/26 changed tests pass now |
-| Triangulation adequate | ✅ | Parser, repository, policy, ViewModel, and facts use varied cases |
-| Safety net | ⚠️ Partial | Current full GREEN is proven; every earlier baseline run is not reconstructable |
-
-**TDD compliance**: 4/6 fully evidenced; 2/6 partial.
+| Test file exists | ✅ | Release test in release unit-test source set |
+| GREEN confirmed | ✅ | Release and debug suites pass |
+| Triangulation adequate | ✅ | Four rejection + one acceptance case |
+| Safety net | ✅ | Debug suite 27/27 green |
 
 ### Test Layer Distribution
 
-| Layer | Executed changed tests | Files | Tools |
+| Layer | Debug | Release | Tools |
 |---|---:|---:|---|
-| Unit | 26 | 4 | JUnit 4 / Gradle |
-| Integration | 0 | 0 | Not installed |
-| E2E | 0 | 0 | Not installed |
-
-### Changed File Coverage
-
-Coverage analysis skipped — no coverage tool detected.
-
-### Assertion Quality
-
-**Assertion quality**: ✅ Assertions exercise production parser, reducer, repository, ViewModel, and policy behavior with concrete values; no tautology, ghost loop, smoke-only, or mock-heavy test was found.
-
-### Quality Metrics
-
-**Linter**: ✅ Debug and release lint passed.
-**Type checker/compiler**: ✅ Debug and release compilation passed.
-**Privacy**: ✅ Final changed-file scan passed without printing values.
-**Runtime/review state**: ➖ Read only; no finish/acquire/settle/reset/review command was invoked.
+| Unit | 27 | 27 | JUnit 4 / Gradle |
+| Integration | 0 | 0 | N/A |
+| E2E | 0 | 0 | N/A |
 
 ### Issues Found
 
@@ -150,63 +139,103 @@ Coverage analysis skipped — no coverage tool detected.
 
 **WARNING**
 
-1. Historical Strict-TDD RED and safety-net output is incomplete for earlier interrupted work, although current runtime GREEN is complete.
-2. The parser rejects all IPv6 literals, including public IPv6; no approved #13 scenario requires public IPv6.
-3. The privacy scanner needed three non-admitted preparatory revisions to handle malformed/synthetic URL fixtures; the final admitted scan passed.
+1. Preserved failing RED transcript unavailable for the Gradle/test change; GREEN and regression safety fully proven.
 
 **SUGGESTION**: None.
 
 ### Canonical Verification Evidence
 
-The exact bytes inside the following block, including its final newline, are the preimage for `evidence_revision`.
-
 ```yaml
 schema: gentle-ai.verification-evidence/v1
 change: navidrome-server-connection
-attempt_revision: sha256:290631df6b37fe26494f021cb6c80e8f68a5619cbaca76ef8bede34e633d2107
-objective_generation: 4
-attempt_ordinal: 4
+attempt_revision: sha256:ef381bc76aee81927f1dae1eb5bceb9df9c5ea340c682848b9e11d24325a8bb8
+objective_revision: sha256:5e70d26b74402f00583f1f18acfb2a86a463382218f38abc40bec4104de7c1be
+objective_generation: 6
+attempt_ordinal: 6
+work_unit: final-release-binding-admission
+evidence_goal: verified-release-binding-final-evidence
 requirements: 5/5
 scenarios: 10/10
 tasks: 20/20
+changed_lines:
+  actual: 282
+  budget: 300
+  exceeded: false
 commands:
   - command: git diff --check
     exit_code: 0
     output_hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - command: ./gradlew --rerun-tasks testDebugUnitTest
     exit_code: 0
-    output_hash: sha256:b0dfb95f2b1320dcace20826ef53ca2f5b9129a84ac4191317791cc1dd6099b4
+    output_hash: sha256:6b339e64bc1a38d9405b850a8196cbf9da8576275ba47641159cf9a598e48ddd
+  - command: ./gradlew -PunitTestBuildType=release --rerun-tasks testReleaseUnitTest
+    exit_code: 0
+    output_hash: sha256:3bead89263e2ebd8f0a1301a5a18c03fcab8e6848eac8216099a9f73ed09619d
   - command: ./gradlew assembleDebug
     exit_code: 0
-    output_hash: sha256:d62f95e5422fec359f8850c4424225b12ed9e80b0452a66e62d6764c2deafd03
+    output_hash: sha256:7da6d0c8572e6ac7309c29fc187c2ea7b773b9ef51fdc9d0b96e5bf37a249f3f
   - command: ./gradlew lint
     exit_code: 0
-    output_hash: sha256:b32849573b2276c1b98b8f70d1c4b52d06256dcd461c636b3e4c85f60b978ea9
+    output_hash: sha256:a5483353e9ed6c0074783eee8a431d1dbdfb07e72f16c80d07dd21d19ccb06ca
   - command: ./gradlew :app:assembleRelease :app:lintRelease
     exit_code: 0
-    output_hash: sha256:91a4871c470858a4ef7bb0b54e8fc5a92dd9ae0020483dadc2b0de31f0843b60
-  - command: local Python changed-file privacy scan
+    output_hash: sha256:b32a27af2da48971f5235980ecec0499af7e6381d05d0f96f1cdab328b45598c
+  - command: release JUnit XML validation
     exit_code: 0
-    output_hash: sha256:eddc42e554b787b5fe358a5a68ae262b7b8f8947de6bcd5f09df2973ee99e34c
+    output_hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - command: debug and release JUnit XML summary
+    exit_code: 0
+    output_hash: sha256:3ec28d7dcd9b40bf2ac409815933cacc9bfd7190666b14a0ee92fa0aa24b306a
+  - command: release endpoint source-case validation
+    exit_code: 0
+    output_hash: sha256:09e14cfa037a43e8dc2d14e4db36de48df9a4889bde6d46deec0c3775eca2f36
+  - command: changed-file privacy and scope scan
+    exit_code: 0
+    output_hash: sha256:068b94d85c39549a15c18a93c9485b7e87ad7e360ab7ed5807ac620e1e4468a5
 test_results:
-  passed: 27
-  failed: 0
-  skipped: 0
-  changed_tests_passed: 26
-  bootstrap_tests_passed: 1
-  distribution:
-    ServerConnectionTest: 13
-    ServerProfileRepositoryTest: 3
-    ServerConnectionViewModelTest: 9
-    EndpointPolicyTest: 1
+  debug:
+    passed: 27
+    failed: 0
+    errors: 0
+    skipped: 0
+  release:
+    passed: 27
+    failed: 0
+    errors: 0
+    skipped: 0
+  release_binding:
+    class: ReleaseEndpointPolicyTest
+    testcase: rejectsHttpAndAcceptsHttps
+    passed: 1
+    failed: 0
+    errors: 0
+    skipped: 0
+release_endpoint_cases:
+  - endpoint: http://localhost
+    expected: reject
+  - endpoint: http://127.0.0.1
+    expected: reject
+  - endpoint: http://10.0.2.2
+    expected: reject
+  - endpoint: http://music.example.com
+    expected: reject
+  - endpoint: https://music.example.com
+    expected: accept
+changed_line_accounting:
+  - path: app/build.gradle.kts
+    additions: 1
+    deletions: 0
+  - path: openspec/changes/navidrome-server-connection/tasks.md
+    additions: 1
+    deletions: 1
+  - path: app/src/testRelease/java/dev/devdigi/music/connection/ReleaseEndpointPolicyTest.kt
+    additions: 14
+    deletions: 0
 privacy_scan:
-  changed_or_untracked_paths: 11
+  changed_or_untracked_paths: 3
+  expected_paths_only: true
   approved_synthetic_or_local_fixtures_only: true
   unapproved_occurrences: 0
-test_release_unit_test:
-  available: false
-  claimed_passed: false
-  release_semantics_evidence: passing shared HTTPS-only policy tests plus assembleRelease and lintRelease
 scope:
   issue: 13
   network_requests_executed: 0
@@ -222,4 +251,4 @@ lifecycle:
 
 **PASS WITH WARNINGS**
 
-All 5 requirements, 10 scenarios, 20 tasks, 26 changed tests, and the existing Bootstrap test pass for active generation 4. #13 scope remains intact; lifecycle completion is intentionally left to the maintainer.
+All 5 requirements, 10 scenarios, 20 tasks, both 27-test suites, and the real release binding test pass for active generation 6. Budget 282/300. The attempt remains running for the parent to finish.
