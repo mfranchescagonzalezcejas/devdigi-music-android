@@ -9,7 +9,7 @@ Add a parallel authenticated seam on the archived #13 boundary. Credentials neve
 | Choice | Rejected + Tradeoff | Rationale |
 |--------|---------------------|-----------|
 | OkHttp 5.4.0, no logging-interceptor | Older OkHttp / logging interceptor | No credential leakage to logs |
-| `org.json` runtime + `org.json:json` testImplementation | Kotlinx serialization / Gson runtime | Minimal runtime; JVM tests need real `org.json` (android.jar stubs it) |
+| `kotlinx-serialization-json` 1.9.0 runtime | `org.json` runtime / Gson runtime | Strict standard JSON; rejects comments, trailing commas, single quotes, unquoted keys, trailing tokens before protocol interpretation |
 | Subsonic token/salt `md5(password + salt)`, per-request salt | API-key (#44) / persisted token | Password not sent over wire; salt not stored |
 | Android Keystore AES/GCM/NoPadding, separate `auth_secret` DataStore | `EncryptedSharedPreferences` / combined store | Precise key lifecycle, separate store, backup exclusion |
 | Crypto seams + in-memory fakes | Faking `AndroidKeyStore` on JVM via reflection | Deterministic tests, no reflection |
@@ -39,7 +39,7 @@ Sign-in: `SubsonicAuthSigner` builds token/salt; `AuthenticatedPingClient` calls
 | `app/src/main/AndroidManifest.xml` | Modify | `INTERNET`, backup rules |
 | `app/src/main/res/xml/backup_rules.xml` | Create | Exclude secret DataStore |
 | `app/src/main/res/xml/data_extraction_rules.xml` | Create | Exclude secret DataStore |
-| `app/build.gradle.kts`, `gradle/libs.versions.toml` | Modify | OkHttp, `org.json:json`, mockwebserver |
+| `app/build.gradle.kts`, `gradle/libs.versions.toml` | Modify | OkHttp, `kotlinx-serialization-json`, mockwebserver |
 | `app/src/test/java/dev/devdigi/music/connection/` | Create | RED tests |
 
 ## Interfaces / Contracts
@@ -125,6 +125,22 @@ where `endpointUtf8 = identity.endpoint.value` (UTF-8) and `usernameUtf8 = ident
 `SecretCipher` evolves to `encrypt(plaintext, associatedData)` / `decrypt(encrypted, associatedData)`, calling `Cipher.updateAAD(aad)` before `doFinal` on both paths. This subsumes the earlier "authenticate the username with the ciphertext" finding with the stronger endpoint+username binding.
 
 ServerProfile change semantics (defense-in-depth, NOT the primary guarantee): changing/deleting `ServerProfile` invalidates current authenticated state and SHOULD best-effort clear `auth_secret`. Because `server_profile` and `auth_secret` are separate DataStores, the cross-store clear is not crash-atomic; even if the clear fails, a stale ciphertext survives, or a process crashes mid-change, AAD endpoint binding still prevents A's secret from being decrypted or used under B. Concrete profile-change/session-invalidation wiring lands in WU4; the invariant is fixed here.
+
+## Redirect Policy (WU3)
+
+Authenticated OpenSubsonic ping requests MUST NOT automatically follow redirects. The OkHttp client (or equivalent transport) SHALL be configured with `followRedirects(false)` and `followSslRedirects(false)` if applicable. Any 3xx response SHALL be rejected locally and mapped to `AuthProtocolError` unless a future explicit taxonomy decision changes the mapping.
+
+The signed query parameters (`u`, `t`, `s`, `v`, `c`, `f`) MUST NOT be forwarded to another origin. The client SHALL issue exactly one authenticated request per ping; it SHALL NOT retry the same signed request against a redirect target. Deterministic WU4-style tests SHALL verify that cross-origin 302/307/308 redirects result in `result != Authenticated`, the configured server receives exactly one request, the redirect target receives zero requests, and no username/salt/token reach the redirect target.
+
+## Stale In-Flight Auth vs Profile Change (WU4)
+
+Each authentication attempt captures the current `ServerProfile` generation/revision when it begins. When `ServerProfile` is saved, replaced, or deleted: (1) the active authentication job is cancelled AND (2) the profile/auth generation is incremented or otherwise invalidates prior attempts.
+
+Cancellation is NOT the sole guarantee; the generation/revision check is the backstop. Before persisting credentials, exposing `ServerAccountIdentity`, or publishing `AUTHENTICATED`, the attempt MUST verify that the current profile generation matches the captured generation and that the current endpoint/profile still matches the attempt target.
+
+If the attempt is stale: do not publish `AUTHENTICATED`, do not expose identity, do not allow stale credentials to become durable/current; the current/new profile wins; fail closed. Do NOT hold a coroutine `Mutex` across the network ping.
+
+Deterministic planned tests SHALL cover profile change: (A) while the authenticated ping is suspended; (B) after ping success but before secure persistence; (C) after persistence but before identity/`AUTHENTICATED` exposure — using `CompletableDeferred`, controlled fakes, latches, and `kotlinx-coroutines-test`, with no `Thread.sleep` or timing races. In all cases the stale attempt loses and the current profile wins.
 
 ## Testing Strategy
 

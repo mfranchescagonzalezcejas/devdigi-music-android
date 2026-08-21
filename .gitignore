@@ -12,3 +12,6 @@ captures/
 # OpenCode / local plugin state
 .atl/
 .codegraph/
+
+# Gentle AI runtime/state (repository-local, never versioned)
+/.pi/

@@ -1,5 +1,11 @@
 package dev.devdigi.music.connection
 
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.intOrNull
 import java.net.URI
 
 class ServerEndpoint private constructor(val value: String) {
@@ -199,35 +205,39 @@ fun reduceAuthResult(result: AuthResult): ConnectionFacts = when (result) {
 }
 
 object SubsonicResponseParser {
+    private val strictJson = Json { isLenient = false }
+
     fun parse(json: String): AuthResult {
-        return try {
-            val root = org.json.JSONObject(json).optJSONObject("subsonic-response")
+        val root = try {
+            val element = strictJson.parseToJsonElement(json)
+            (element as? JsonObject)?.get("subsonic-response") as? JsonObject
                 ?: return AuthResult.AuthProtocolError
+        } catch (_: SerializationException) {
+            return AuthResult.AuthProtocolError
+        }
 
         // Common envelope: status and version must be actual non-blank JSON strings.
-        val status = root.opt("status")
-        if (status !is String || status.isBlank()) return AuthResult.AuthProtocolError
-        val version = root.opt("version")
-        if (version !is String || version.isBlank()) return AuthResult.AuthProtocolError
+        val status = root.stringField("status")
+        if (status.isNullOrBlank()) return AuthResult.AuthProtocolError
+        val version = root.stringField("version")
+        if (version.isNullOrBlank()) return AuthResult.AuthProtocolError
 
-        when (status) {
+        return when (status) {
             "ok" -> {
-                // Strict types: no optString/optBoolean coercion of required metadata.
-                val openSubsonic = root.opt("openSubsonic")
-                val serverType = root.opt("type")
-                val serverVersion = root.opt("serverVersion")
+                val openSubsonic = root.booleanField("openSubsonic")
+                val serverType = root.stringField("type")
+                val serverVersion = root.stringField("serverVersion")
                 when {
-                    openSubsonic !is Boolean || !openSubsonic -> AuthResult.IncompatibleServer
-                    serverType !is String || serverType.isBlank() -> AuthResult.AuthProtocolError
-                    serverVersion !is String || serverVersion.isBlank() -> AuthResult.AuthProtocolError
+                    openSubsonic == null || !openSubsonic -> AuthResult.IncompatibleServer
+                    serverType.isNullOrBlank() -> AuthResult.AuthProtocolError
+                    serverVersion.isNullOrBlank() -> AuthResult.AuthProtocolError
                     else -> AuthResult.Authenticated(ServerMetadata(serverType, serverVersion, true))
                 }
             }
             "failed" -> {
-                val error = root.optJSONObject("error") ?: return AuthResult.AuthProtocolError
-                val code = error.opt("code")
-                // error.code must be a real JSON integer; a textual "40" is NOT accepted.
-                when (code as? Int) {
+                val error = root["error"] as? JsonObject ?: return AuthResult.AuthProtocolError
+                val code = error.intField("code")
+                when (code) {
                     40 -> AuthResult.InvalidCredentials
                     41, 42 -> AuthResult.UnsupportedAuthentication
                     43 -> AuthResult.AuthProtocolError
@@ -237,8 +247,14 @@ object SubsonicResponseParser {
             }
             else -> AuthResult.AuthProtocolError
         }
-    } catch (_: org.json.JSONException) {
-        AuthResult.AuthProtocolError
     }
-    }
+
+    private fun JsonObject.stringField(key: String): String? =
+        (get(key) as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+    private fun JsonObject.booleanField(key: String): Boolean? =
+        (get(key) as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull
+
+    private fun JsonObject.intField(key: String): Int? =
+        (get(key) as? JsonPrimitive)?.takeIf { !it.isString }?.intOrNull
 }

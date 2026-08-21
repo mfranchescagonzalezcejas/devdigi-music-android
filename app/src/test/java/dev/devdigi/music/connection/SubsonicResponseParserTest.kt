@@ -1,6 +1,5 @@
 package dev.devdigi.music.connection
 
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,14 +19,68 @@ class SubsonicResponseParserTest {
             }
         """.trimIndent()
 
-        val root = JSONObject(json).getJSONObject("subsonic-response")
-        assertEquals("ok", root.getString("status"))
-
         val result = SubsonicResponseParser.parse(json)
 
         assertTrue(result is AuthResult.Authenticated)
         val metadata = (result as AuthResult.Authenticated).metadata
         assertEquals(ServerMetadata("navidrome", "0.54.1", true), metadata)
+    }
+
+    @Test
+    fun singleQuotedJsonMapsToAuthProtocolError() {
+        val json = "{ 'subsonic-response': { 'status': 'ok', 'version': '1.16.1' } }"
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun unquotedObjectKeyMapsToAuthProtocolError() {
+        val json = "{ subsonic-response: { status: \"ok\", version: \"1.16.1\" } }"
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun trailingCommaMapsToAuthProtocolError() {
+        val json = """
+            {
+                "subsonic-response": {
+                    "status": "ok",
+                    "version": "1.16.1",
+                }
+            }
+        """.trimIndent()
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun commentSyntaxMapsToAuthProtocolError() {
+        val json = """
+            {
+                // protocol envelope
+                "subsonic-response": {
+                    "status": "ok",
+                    "version": "1.16.1"
+                }
+            }
+        """.trimIndent()
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun trailingTokensMapToAuthProtocolError() {
+        val json = """
+            {
+                "subsonic-response": {
+                    "status": "ok",
+                    "version": "1.16.1"
+                }
+            } extra
+        """.trimIndent()
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
     }
 
     @Test
