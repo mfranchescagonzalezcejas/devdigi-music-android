@@ -139,3 +139,92 @@ fun reducePingObservation(observation: PingObservation): ConnectionFacts = Conne
         Reachability.REACHABLE
     },
 )
+
+data class ServerAccountIdentity(val endpoint: ServerEndpoint, val username: String)
+
+data class ServerMetadata(val serverType: String, val serverVersion: String, val openSubsonic: Boolean)
+
+class AuthCredentials private constructor(val username: String, internal val password: String) {
+    override fun toString(): String = "AuthCredentials(username=$username, password=***)"
+
+    companion object {
+        fun create(username: String, password: String): AuthCredentials = AuthCredentials(username, password)
+    }
+}
+
+sealed interface AuthResult {
+    data class Authenticated(val metadata: ServerMetadata) : AuthResult
+    data object InvalidCredentials : AuthResult
+    data object UnsupportedAuthentication : AuthResult
+    data object AuthProtocolError : AuthResult
+    data object IncompatibleServer : AuthResult
+    data object NetworkError : AuthResult
+}
+
+fun interface AuthenticatedPingClient {
+    suspend fun ping(credentials: AuthCredentials, profile: ServerProfile): AuthResult
+}
+
+fun reduceAuthResult(result: AuthResult): ConnectionFacts = when (result) {
+    is AuthResult.Authenticated -> ConnectionFacts(
+        reachability = Reachability.REACHABLE,
+        compatibility = Compatibility.COMPATIBLE,
+        authentication = Authentication.AUTHENTICATED,
+    )
+    AuthResult.InvalidCredentials -> ConnectionFacts(
+        reachability = Reachability.REACHABLE,
+        compatibility = Compatibility.NOT_CHECKED,
+        authentication = Authentication.REJECTED,
+    )
+    AuthResult.UnsupportedAuthentication -> ConnectionFacts(
+        reachability = Reachability.REACHABLE,
+        compatibility = Compatibility.NOT_CHECKED,
+        authentication = Authentication.NOT_CHECKED,
+    )
+    AuthResult.AuthProtocolError -> ConnectionFacts(
+        reachability = Reachability.REACHABLE,
+        compatibility = Compatibility.NOT_CHECKED,
+        authentication = Authentication.NOT_CHECKED,
+    )
+    AuthResult.IncompatibleServer -> ConnectionFacts(
+        reachability = Reachability.REACHABLE,
+        compatibility = Compatibility.INCOMPATIBLE,
+        authentication = Authentication.NOT_CHECKED,
+    )
+    AuthResult.NetworkError -> ConnectionFacts(
+        reachability = Reachability.UNREACHABLE,
+        compatibility = Compatibility.NOT_CHECKED,
+        authentication = Authentication.NOT_CHECKED,
+    )
+}
+
+object SubsonicResponseParser {
+    fun parse(json: String): AuthResult = try {
+        val root = org.json.JSONObject(json).optJSONObject("subsonic-response")
+            ?: return AuthResult.AuthProtocolError
+
+        when (root.optString("status", "")) {
+            "ok" -> {
+                val metadata = ServerMetadata(
+                    serverType = root.optString("type", ""),
+                    serverVersion = root.optString("serverVersion", ""),
+                    openSubsonic = root.optBoolean("openSubsonic", false),
+                )
+                AuthResult.Authenticated(metadata)
+            }
+            "failed" -> {
+                val code = root.optJSONObject("error")?.optInt("code", -1) ?: -1
+                when (code) {
+                    40 -> AuthResult.InvalidCredentials
+                    41, 42 -> AuthResult.UnsupportedAuthentication
+                    43 -> AuthResult.AuthProtocolError
+                    20, 30 -> AuthResult.IncompatibleServer
+                    else -> AuthResult.AuthProtocolError
+                }
+            }
+            else -> AuthResult.AuthProtocolError
+        }
+    } catch (_: org.json.JSONException) {
+        AuthResult.AuthProtocolError
+    }
+}

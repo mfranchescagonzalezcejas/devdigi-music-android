@@ -45,4 +45,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.androidx.datastore.preferences.core)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.orgjson)
 }

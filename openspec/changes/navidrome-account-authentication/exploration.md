@@ -1,0 +1,105 @@
+## Exploration: navidrome-account-authentication — #14 secure Navidrome account authentication
+
+### Current State
+
+`navidrome-server-connection` (#13) is fully closed and archived (`openspec/changes/archive/2026-08-21-navidrome-server-connection/`; PR #47 merged to `develop` at `9226ca59cbc16a95b162719ddec57baa183c42c0`). The current branch is `feat/14-secure-navidrome-authentication` with a clean working tree. The `:app` module exposes only the #13 seams:
+
+- `ServerEndpoint` (immutable, normalized; parse-only constructor; `EndpointPolicy` injection).
+- `ServerProfile(endpoint)` (endpoint-only data class — strict no-secret invariant).
+- `ConnectionFacts(reachability, compatibility, authentication)` — three independent axes, all `NOT_CHECKED` after #13.
+- `PingObservation` sealed: `ProtocolResponse(protocolVersion)`, `NetworkError`, `UnexpectedResponse`, `Unauthenticated`.
+- `PingClient` (fun interface, synthetic — no real I/O) and `reducePingObservation(observation)` — only sets `reachability`; compatibility/authentication remain `NOT_CHECKED` for #13 by design.
+- `ServerProfileRepository` (interface + `DataStoreServerProfileRepository` concrete) — persists only one `stringPreferencesKey("server_endpoint")`; no credentials, no facts, no identity.
+- Variant transport admission: debug admits HTTP only for `localhost`, `127.0.0.1`, `10.0.2.2`; release HTTPS-only; `network_security_config.xml` excludes all cleartext by default and allows only those three hosts.
+- `app/build.gradle.kts` does **not** declare `<uses-permission android:name="android.permission.INTERNET" />`. No OkHttp, no JSON dependency, no Keystore usage anywhere.
+
+Engram confirms the user-approved architecture for #14: OkHttp 5.4.0 stable (no logging-interceptor); Subsonic/OpenSubsonic username + password-derived token/salt; `token = md5(password + salt)` UTF-8 lowercase hex; per-request `SecureRandom` salt (`>=6` chars, URL-safe hex, never persisted); Android Keystore AES/GCM/NoPadding key in `AndroidKeyStore`, ciphertext in a **separate** DataStore (`auth_secret`), excluded from backup/restore, missing/invalid key → clear + forced re-login; fail-closed sign-in (authenticated ping before persist; if secure persist fails after valid ping → no durable state); sign-out clears secret + auth state, preserves `ServerProfile`; `ServerAccountIdentity = normalized(ServerEndpoint) + normalized(username)` (stable); `ServerMetadata = (serverType, serverVersion, openSubsonic)` (separate, NOT part of identity); `AuthCredentials` is a secret boundary (redacted `toString`, no `SavedState`/serialization/logging/telemetry, password never in real fixtures); result taxonomy (`Authenticated`; `#40`→`InvalidCredentials`; `#41`/`#42`→`UnsupportedAuthentication`; `#43`→`AuthProtocolError`; `#20`/`#30`+invalid protocol response→`IncompatibleServer`; IO/timeout→`NetworkError`; `#44` not mapped — API-key auth out of scope); session restoration must re-authenticate via authenticated ping before exposing durable `ServerAccountIdentity`/`AUTHENTICATED`; JSON = `org.json` runtime + `org.json:json` testImplementation (validated in WU1); single feature branch/PR; WUs = WU1 auth-core, WU2 secure-secret-storage, WU3 authenticated-network-boundary, WU4 session-ui, WU5 real-navidrome-validation (gated).
+
+### Affected Areas
+
+- `app/src/main/java/dev/devdigi/music/connection/ServerConnection.kt` — extend with `ServerAccountIdentity`, `ServerMetadata`, `AuthCredentials` (secret boundary), `AuthResult` sealed, `AuthenticatedPingClient` (fun interface), and a richer reducer that maps `AuthResult → ConnectionFacts` (compatibility/authentication axes become meaningful for the first time). `PingClient` and `reducePingObservation` stay as the synthetic unit-test seam for #13.
+- `app/src/main/java/dev/devdigi/music/connection/ServerProfileRepository.kt` — unchanged. Add a sibling `AuthSecretStore` interface + `DataStoreAuthSecretStore` (separate `auth_secret` Preferences DataStore, ciphertext only) in a new file `AuthSecretStore.kt`. Excluded from backup/restore via backup rules in `app/src/main/res/xml/`.
+- `app/src/main/java/dev/devdigi/music/connection/OkHttpAuthenticatedPingClient.kt` (new) — production OkHttp implementation of `AuthenticatedPingClient`; salt/token construction delegated to `SubsonicAuthSigner`.
+- `app/src/main/java/dev/devdigi/music/connection/SubsonicAuthSigner.kt` (new) — pure `token = md5(password + salt)`, `salt = SecureRandom bytes → lowercase hex, len>=6, no '+'/'/'`; UTF-8 input; takes `AuthCredentials` as transient argument, returns only `salt + token` per request.
+- `app/src/main/java/dev/devdigi/music/connection/SessionRestorer.kt` (new) — orchestrates `ServerProfileRepository.profile` + `AuthSecretStore.read` + `AuthenticatedPingClient.ping(creds, profile)`; never exposes durable `ServerAccountIdentity`/`AUTHENTICATED` without a successful authenticated ping.
+- `app/src/main/java/dev/devdigi/music/connection/AuthSecretCipher.kt` (new) — interface; `AndroidKeystoreAuthSecretCipher` impl using AES/GCM/NoPadding, IV per encrypt, key alias derived from a stable secret identifier, `GeneralSecurityException` → fail closed (no crash loop).
+- `app/src/main/java/dev/devdigi/music/connection/AuthKeyProvider.kt` (new) — interface + `AndroidKeystoreAuthKeyProvider` impl (`AndroidKeyStore` provider, no user-auth required). Tests use an in-memory provider.
+- `app/src/main/java/dev/devdigi/music/connection/ServerConnectionViewModel.kt` — add sign-in form state, `onUsernameChanged`/`onPasswordChanged` (transient, never persisted), `signIn()` (authenticated-ping-then-persist-then-identity), `signOut()` (clear secret + auth state, preserve `ServerProfile`), `restoreSession()` on init (always re-authenticate). Wire `AuthSecretStore`, `AuthenticatedPingClient`, `SessionRestorer`.
+- `app/src/main/java/dev/devdigi/music/connection/ServerConnectionScreen.kt` — username field (plain), password field (masked via `PasswordVisualTransformation`), sign-in/sign-out buttons, status messaging for `InvalidCredentials`/`UnsupportedAuthentication`/`AuthProtocolError`/`IncompatibleServer`/`NetworkError`. Never echo password or token in UI/state strings.
+- `app/src/main/java/dev/devdigi/music/MainActivity.kt` — wire repository + secret store + cipher + key provider + OkHttp client + ping client + signer; pass to ViewModel factory.
+- `app/src/main/AndroidManifest.xml` — add `<uses-permission android:name="android.permission.INTERNET" />`; add `android:dataExtractionRules="@xml/data_extraction_rules"` (Android 12+) and `android:fullBackupContent="@xml/backup_rules"` (legacy). `allowBackup="true"` becomes explicit.
+- `app/src/main/res/xml/backup_rules.xml` (new) and `app/src/main/res/xml/data_extraction_rules.xml` (new) — exclude the `auth_secret` Preferences DataStore file from both backup and device-to-device transfer.
+- `app/build.gradle.kts`, `gradle/libs.versions.toml` — add OkHttp `5.4.0` (no logging-interceptor), `org.json:json:20240303` (`testImplementation` only, WU1 validates), `com.squareup.okhttp3:mockwebserver` (testImplementation, WU3).
+- `app/src/test/java/dev/devdigi/music/connection/` — RED tests for signer (incl. vector), AuthCredentials redacted `toString`, result taxonomy mapping, reducer with rich facts, `AuthSecretStore` with in-memory cipher/key, ViewModel sign-in/sign-out/restore flows with fakes, session-restorer (never expose durable identity on failure).
+- `app/src/test/java/dev/devdigi/music/connection/OkHttpAuthenticatedPingClientTest.kt` (new, WU3) — `MockWebServer` integration: `#40`→`InvalidCredentials`, `#20`→`IncompatibleServer`+incompatible, `#10`/`ok`→`Authenticated` with metadata, malformed JSON→`AuthProtocolError`, socket/timeout→`NetworkError`. Synthetic only — no real server.
+- `openspec/changes/navidrome-account-authentication/{exploration.md, proposal.md, specs/navidrome-account-authentication/spec.md, design.md, tasks.md, verify-report.md}` — full SDD cycle.
+- `openspec/specs/navidrome-account-authentication/spec.md` — ADDED requirements delta layered on `openspec/specs/navidrome-server-connection/spec.md` (#13 archived spec stays canonical for endpoint/profile/repository boundary).
+
+### Approaches
+
+1. **Seam-preserving: keep `PingClient` + add `AuthenticatedPingClient` + new reducer** — `PingClient`/`PingObservation`/`reducePingObservation` stay pure-synthetic for #13 unit tests; `AuthenticatedPingClient` (fun interface) is the production + `MockWebServer` seam; a new `reduceAuthResult` (or richer `reducePingObservation` overload) maps `AuthResult` to `ConnectionFacts` with compatibility/authentication populated. Sign-in ViewModel calls `AuthenticatedPingClient`; session restoration calls it too.
+   - Pros: preserves #13 invariant and tests verbatim; one auth-only seam; one production impl; one MockWebServer-backed test impl; unit tests for the pure math stay hermetic.
+   - Cons: two ping types in the package; ViewModel must hold both for synthetic vs real paths.
+   - Effort: Medium.
+
+2. **Replace `PingClient` with `AuthenticatedPingClient`** — drop `PingClient`/`PingObservation`; `AuthenticatedPingClient.ping(creds, profile): AuthResult` is the only seam; `MockWebServer` only.
+   - Pros: one ping seam; less type surface.
+   - Cons: breaks #13 archived contract (`PingClient Verification Facts` requirement explicitly preserves a synthetic seam); forces every #13 unit test to spin up `MockWebServer`; loses pure-reducer tests.
+   - Effort: Low (code) / High (rewriting #13 contract).
+
+3. **Keep `PingClient` synthetic, fold `AuthResult` into `PingObservation` as new variants** — extend `PingObservation` with `Authenticated(serverType, serverVersion, openSubsonic)`; `PingClient.ping(creds, profile): PingObservation`; one reducer maps everything.
+   - Pros: one sealed type, one reducer; one seam.
+   - Cons: forces every `PingClient` fake/test impl in #13 to take credentials; leaks auth into a seam that the #13 spec calls "synthetic"; widens the blast radius of #13 tests.
+   - Effort: Medium-High.
+
+4. **`AuthSecretStore` placement options** —
+   4a. **Separate Preferences DataStore `auth_secret`**: same approach as `server_profile`, one `byteArrayPreferencesKey` for ciphertext, one `bytesPreferencesKey` (or base64-encoded string) for IV. Excluded from backup via `backup_rules.xml` + `data_extraction_rules.xml`. **Recommended.**
+   4b. Single combined DataStore `server_profile_and_auth_secret` with `stringPreferencesKey("server_endpoint")` + ciphertext. Excluded key-by-key. Violates the explicit "separate DataStore, not ServerProfile's" decision.
+   4c. `EncryptedSharedPreferences`. Explicitly forbidden by the approved plan ("NOT EncryptedSharedPreferences").
+   4d. App-private file with manual JSON. Extra parsing surface, no benefit over `Preferences DataStore`.
+
+5. **JSON parser validation in WU1** — `org.json:json:20240303` testImplementation; a single `JsonProtocolTest` parses `{"status":"ok","version":"1.16.1","serverVersion":"0.54.1","type":"navidrome","openSubsonic":true}` on the JVM and asserts the field values. Failure mode (without the dep) is `RuntimeException: Method not mocked` from `android.jar` stubs — WU1 captures the failure first, then adds the dep and re-greens. **Recommended.**
+
+6. **Session restoration policy** — three options, all fail-closed:
+   6a. On init: read `ServerProfile`, then attempt to read `AuthSecretStore`; if present, derive credentials, perform authenticated ping; only on `Authenticated` expose `ServerAccountIdentity` + `AUTHENTICATED`. **Recommended.**
+   6b. Optimistically expose identity, then asynchronously verify. Risks showing `Authenticated` UI to a revoked account for a frame.
+   6c. Defer all auth UI until user re-enters creds every cold start. Loses the convenience of durable identity.
+
+7. **OkHttp `MockWebServer` vs hand-rolled fake** — `MockWebServer` is the canonical seam for OkHttp and ships from the same group; no behavioral surprises; supports enqueued responses per scenario (`#40`, `#20`, `#10`, malformed JSON, slow/timeout). Adding `mockwebserver` as `testImplementation` only is consistent with the no-runtime-deps-for-tests policy already followed by `androidx.datastore.preferences.core` and `coroutines-test`. **Recommended.**
+
+8. **Work-unit ordering and dependency direction** —
+   - WU1 auth-core (pure): `SubsonicAuthSigner` (incl. Subsonic test vector), `AuthCredentials` (redacted toString), `AuthResult` sealed, `ServerAccountIdentity`/`ServerMetadata`, `reduceAuthResult`. Validates `org.json:json` test dep with `JsonProtocolTest`. Depends on #13 archive only.
+   - WU2 secure-secret-storage: `AuthKeyProvider` + `AndroidKeystoreAuthKeyProvider`, `AuthSecretCipher` + `AndroidKeystoreAuthSecretCipher` (AES/GCM/NoPadding, random IV), `AuthSecretStore` + `DataStoreAuthSecretStore` (separate `auth_secret` DataStore, ciphertext + IV only), `backup_rules.xml` + `data_extraction_rules.xml`. Depends on WU1.
+   - WU3 authenticated-network-boundary: `AuthenticatedPingClient` (fun interface), `OkHttpAuthenticatedPingClient` (production), `OkHttpClient` factory in `MainActivity`, `MockWebServer`-backed test (`#10`, `#20`, `#30`, `#40`, `#41`, `#42`, `#43`, malformed JSON, socket/timeout). Depends on WU1.
+   - WU4 session-ui: `SessionRestorer`, ViewModel sign-in/sign-out/restore, `ServerConnectionScreen` masked password field, `MainActivity` wiring, AndroidManifest `INTERNET` + backup rules. Depends on WU1 + WU2 + WU3.
+   - WU5 real-navidrome-validation: gated by `-PnavidromeIntegration=true`; only on `main` with credentials; matches Jenkinsfile's existing optional stage. Depends on WU1–WU4.
+   - All within one feature branch/PR as approved; no pre-split.
+
+### Recommendation
+
+Seam-preserving Option 1 + Option 4a + Option 5 + Option 6a + Option 7 + Option 8 as numbered. Concretely:
+
+- **One `AuthenticatedPingClient` fun interface** alongside the existing `PingClient`. Two ping types, both narrow; `PingClient` keeps the #13 synthetic seam for pure reducer tests, `AuthenticatedPingClient` is the OkHttp/MockWebServer seam. Add `reduceAuthResult` (or extend the reducer with a richer overload) — do NOT mutate `reducePingObservation`; #13 tests depend on its current shape.
+- **`ServerAccountIdentity(endpoint, username)` is the stable identity**; `ServerMetadata(serverType, serverVersion, openSubsonic)` is a separate value object returned by the ping. `ConnectionFacts` carries the union (auth + reachability + compatibility).
+- **Separate `auth_secret` Preferences DataStore** (one ciphertext bytes key + one IV bytes key). Backup excluded via `data_extraction_rules.xml` (Android 12+) and `backup_rules.xml` (legacy), with `<exclude domain="file" path="auth_secret.preferences_pb" />` style entries. `disableIfNoEncryptionCapabilities` so unencrypted-device restore does not silently bring the secret across.
+- **`org.json:json:20240303` testImplementation only**; WU1 RED test parses a synthetic protocol response on JVM; if the test fails with `Method ... not mocked`, the GREEN step adds the dep and re-runs.
+- **SessionRestorer never exposes durable identity without an authenticated ping.** Read `ServerProfile`, read `AuthSecretStore`, decrypt transiently in memory, perform ping, then either commit identity (`Authenticated`) or clear (`InvalidCredentials`/`NetworkError`/`AuthProtocolError`/`IncompatibleServer`/`UnsupportedAuthentication`). Revoked credentials, missing/invalid key, or network failure all produce the same outcome: no `AUTHENTICATED` UI, no `ServerAccountIdentity` exposed.
+- **WU ordering**: WU1 (auth-core) → WU2 (secure-secret-storage) → WU3 (authenticated-network-boundary) → WU4 (session-ui) → WU5 (real-navidrome-validation, gated). One feature branch/PR, strict TDD on `./gradlew testDebugUnitTest`, build `./gradlew assembleDebug`. Budget ~700 lines added; with strict review-workload guard (400 lines/PR), this exceeds the single-PR budget — recommend splitting into two chained PRs: **PR-A (WU1+WU2+WU3) = auth boundary** (pure math + secure storage + network seam, MockWebServer tests), **PR-B (WU4+WU5) = session UI + gated integration** (ViewModel + Screen + MainActivity + manifest + gated real Navidrome). WU5 lands in a follow-up after WU4 is merged.
+- **Failure-closed invariant**: if any step in the chain (ping ok → keystore unavailable → cipher throws → DataStore write fails) breaks, no durable `ServerAccountIdentity` is created. Test this explicitly in the session-restore tests.
+
+### Risks
+
+- **KeyStore unavailability** (some emulators, broken devices, freshly restored profile on a new device): `AndroidKeystoreAuthKeyProvider.loadOrThrow` must catch `KeyPermanentlyInvalidatedException`/`GeneralSecurityException`, clear the ciphertext, and surface `NotChecked`/`InvalidCredentials`-like state; no crash loop, no toast spam. Add a focused test that simulates a `GeneralSecurityException` and asserts fail-closed.
+- **Backup rules not applied**: if `data_extraction_rules.xml` is referenced but the path glob does not match the actual `auth_secret.preferences_pb` filename, the ciphertext gets restored to a device where the Keystore key is different, decrypt fails, store gets cleared — desirable end-state, but the path glob MUST be tested/verified in WU2.
+- **Logging leak via OkHttp `Request.body` or `Response.body`**: forbid `okhttp3.logging.HttpLoggingInterceptor`. Even without the interceptor, do not pass `AuthCredentials` into any `Request.toString()` path. Add a code review checklist rule and a test that no `Request` carries the password (only the signed query).
+- **Test dep leaking to runtime**: `org.json:json` is `testImplementation` only; `./gradlew assembleDebug` and the APK must not bundle it. Verify with `./gradlew :app:dependencies --configuration debugRuntimeClasspath` in verify.
+- **Username normalization collision**: `ServerAccountIdentity` requires a stable normalization rule (trim + lowercase + NFC). Two users who differ only in case or trailing space would collide; spec must nail this down in WU1.
+- **Salt length & charset**: `SecureRandom` bytes → lowercase hex, length ≥ 6 chars, no `+`/`/` in the wire form (URL-safe). Hex is already URL-safe; length is the real invariant. WU1 RED test asserts ≥ 12 chars of `[0-9a-f]` to leave headroom.
+- **Result taxonomy mapping drift**: `UnsupportedAuthentication` (`#41`/`#42`) must not be conflated with `AuthProtocolError` (`#43`); test matrix in WU3 must enumerate each OpenSubsonic error code → taxonomy cell. `#44` must remain unmapped (API-key auth out of scope) — explicitly assert no mapping in WU3.
+- **Restore races**: `SessionRestorer` MUST complete (or explicitly fail) before any UI is rendered with `AUTHENTICATED`. Use `viewModelScope` + a `Restoring` intermediate state so the screen can show "Verifying saved server…" until ping resolves. Test in WU4.
+- **400-line PR budget**: as recommended, the work is split into PR-A (≤ ~400 lines) + PR-B (≤ ~400 lines). PR-A contains the auth boundary; PR-B contains the session UI + gated integration. This requires user buy-in on the chained-PR delivery strategy — flag explicitly in the proposal.
+- **Jenkinsfile `RUN_NAVIDROME_INTEGRATION` gate**: WU5 only runs with credentials on `main`; matches the existing pipeline. No change to Jenkinsfile required, but the proposal should reference it so the gate stays intact.
+
+### Ready for Proposal
+
+Yes — open `sdd-propose` for `navidrome-account-authentication`. The orchestrator should confirm one architectural fork before proposal: **single PR vs. chained PRs (PR-A auth boundary, PR-B session UI)**. The recommended path is chained PRs to stay under the 400-line review-workload guard; the user already approved "single feature branch/PR (no pre-split)", so this is a real fork that the orchestrator must surface. Also surface: keep `PingClient` + `PingObservation` + `reducePingObservation` unchanged (do NOT mutate them); session restore is always re-authenticated, never trust the store alone. WU1 validates the JSON test-dep decision with a failing-then-green test before any other WU proceeds.
