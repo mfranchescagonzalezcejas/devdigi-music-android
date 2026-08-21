@@ -116,6 +116,79 @@ None.
 - Boundary: three focused security findings only; no WU3/WU4/WU5 or unrelated refactors
 - Changed lines: 144 (well under 300 budget)
 
+## Gen 10 Follow-up: WU2-review-remediation-4 — initial read failure must clear durable credentials
+
+**Evidence goal**: `verified-wu2-initial-read-stale-credential-finding`
+
+### Completed Tasks
+
+- [x] 2c.1 Distinguish known snapshot vs unknown snapshot in `DataStoreAuthSecretStore.save()`; fail-closed best-effort unconditional clear when the initial DataStore read fails
+- [x] 2c.2 Preserve original initial-read failure as `Result.failure`; attach ordinary cleanup exception as suppressed; propagate `CancellationException` from cleanup
+- [x] 2c.3 Extract private `clearCredentialsNoLock()` used by both public `clear()` and the unknown-snapshot save path; no second lock, no reentrant mutex violation
+- [x] 2c.4 `./gradlew testDebugUnitTest` — all passing
+- [x] 2c.5 `./gradlew lint` — passing
+- [x] 2c.6 `./gradlew assembleDebug` — passing
+- [x] 2c.7 `git diff --check` — clean
+
+### TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 2c.1 unknown-snapshot unconditional clear | `AuthSecretStoreTest.kt` | Unit | ✅ 35/35 baseline (AuthSecretStoreTest 27 + SecretCipherTest 8) | ✅ Written | ✅ Passed | ✅ Primary regression + 2 branch cases | ✅ Extracted `clearCredentialsNoLock()` |
+| 2c.2 preserve original failure / suppress cleanup / propagate cancellation | `AuthSecretStoreTest.kt` | Unit | ✅ 35/35 baseline | ✅ Written | ✅ Passed | ✅ 2 branch cases | ✅ Shared helper |
+| 2c.3 no second lock / no reentrant call | `AuthSecretStoreTest.kt` | Unit | ✅ 35/35 baseline | ✅ Written (implied by helper design) | ✅ Passed | N/A | ✅ `clear()` now delegates to `clearCredentialsNoLock()` |
+
+### Production Fix
+
+File: `app/src/main/java/dev/devdigi/music/connection/AuthSecretStore.kt`
+- Added `snapshotRead` flag to distinguish a successfully observed prior snapshot from an unknown snapshot caused by an initial `dataStore.data.first()` failure.
+- When `snapshotRead == true`: keep the existing conditional `clearIfSnapshotStillMatches(priorUsername, priorPayload)` so a concurrently committed newer credential is never erased.
+- When `snapshotRead == false`: perform best-effort unconditional credential clear via new private `clearCredentialsNoLock()`.
+- Extracted `clearCredentialsNoLock()` to remove the username/secret payload without acquiring the mutex; used by both public `clear()` (already inside `mutex.withLock`) and the unknown-snapshot save failure path (already inside the same shared mutex).
+- No second lock introduced; no reentrant call to public `clear()` while holding the shared mutex.
+- Error semantics preserved: original initial-read/storage failure remains the returned `Result.failure`; ordinary cleanup exception is attached as suppressed; `CancellationException` from cleanup propagates; fatal JVM `Error`s are not swallowed.
+
+### RED Tests Added
+
+- `AuthSecretStoreTest.failedSaveOnInitialReadClearsExistingCredential`
+- `AuthSecretStoreTest.failedSaveOnInitialReadCleanupFailurePreservesOriginalFailure`
+- `AuthSecretStoreTest.failedSaveOnInitialReadCleanupCancellationPropagates`
+
+### Gen 10 Verification Results
+
+| Command | Result |
+|---|---|
+| `./gradlew testDebugUnitTest` | ✅ BUILD SUCCESSFUL |
+| `./gradlew lint` | ✅ BUILD SUCCESSFUL |
+| `./gradlew assembleDebug` | ✅ BUILD SUCCESSFUL |
+| `git diff --check` | ✅ clean |
+
+### Gen 10 Guard Confirmations
+
+- compileSdk = 35, targetSdk = 35 (unchanged)
+- No INTERNET permission added
+- No OkHttp / MockWebServer added
+- No new dependencies added
+- No real Navidrome access/credentials in tests or fixtures
+- No secret logging introduced
+
+### Gen 10 Files Changed
+
+| File | Lines | Action |
+|------|-------|--------|
+| `app/src/main/java/dev/devdigi/music/connection/AuthSecretStore.kt` | +15 / −5 | Modified — unknown-snapshot fail-closed cleanup + shared helper |
+| `app/src/test/java/dev/devdigi/music/connection/AuthSecretStoreTest.kt` | +54 / −0 | Modified — RED regression + branch tests |
+| `openspec/changes/navidrome-account-authentication/tasks.md` | +16 / −0 | Modified — Gen 10 remediation tasks marked complete |
+| **Gen 10 total** | **85 / −5** | 90 changed lines |
+
+### Gen 10 Deviations from Design
+
+None — implementation matches the finding specification.
+
+### Gen 10 Issues Found
+
+None.
+
 ## Status
 
-7/7 remediation tasks complete. Ready for verify.
+Gen 9: 7/7 remediation tasks complete. Gen 10: 3/3 remediation tasks complete. Ready for verify.

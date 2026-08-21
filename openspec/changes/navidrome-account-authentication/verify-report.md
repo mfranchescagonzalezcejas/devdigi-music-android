@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:23809d292047a399b5e8c1f3727a7130874539c920b94bb4627b764a7d86861f
+evidence_revision: sha256:543dac24c88cb9dd5cc1e5eb04a71d808d612f0e3af5ed033f73a271688e8df4
 verdict: pass
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 8/8
 scenarios: 18/18
 test_command: ./gradlew testDebugUnitTest
 test_exit_code: 0
-test_output_hash: sha256:4661f65e38e7cab1bb2ae8ec6c69072fcb573a7e640fe49c82d9dfef1605776a
+test_output_hash: sha256:353bd4249b569b3d9e59d03cf79257b7cd4de45c52905a0b006a058c1f3fc2c1
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:92ad15f705256db5c71d0e3297449a014707dc0d6781798cb591eb5bf68eabee
+build_output_hash: sha256:b0ce924006121ffef0756733d643042b91ee84130cc5755ba87445bf509d55c3
 ```
 
 ## Verification Report
@@ -23,8 +23,8 @@ build_output_hash: sha256:92ad15f705256db5c71d0e3297449a014707dc0d6781798cb591eb
 ### Completeness
 | Metric | Value |
 |--------|-------|
-| Tasks total | 2b (Gen 9 WU2-review-remediation-3: 2b.1-2b.7) |
-| Tasks complete | 2b.1-2b.7 |
+| Tasks total | 2c (Gen 10 WU2-review-remediation-4: 2c.1-2c.7) |
+| Tasks complete | 2c.1-2c.7 |
 | Tasks incomplete | 0 |
 
 ### Build & Tests Execution
@@ -36,21 +36,22 @@ build_output_hash: sha256:92ad15f705256db5c71d0e3297449a014707dc0d6781798cb591eb
 
 **Tests**: ✅ passed
 ```text
-./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (32 focused, full suite passing)
+./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (35 focused; full suite passing)
 ```
 
 **Coverage**: ➖ Not available
 
 ### Spec Compliance Matrix
-All 8 requirements / 18 scenarios remain COMPLIANT (unchanged from Gen 8; covered by SecretCipherTest, AuthSecretStoreTest, SubsonicAuthSignerTest, SubsonicResponseParserTest, AuthCredentialsTest, ServerAccountIdentityTest, AuthAadTest).
+All 8 requirements / 18 scenarios remain COMPLIANT (unchanged; covered by existing focal suites).
 
-### Gen 9 remediation evidence (this attempt)
-Three NEW Codex findings (WU2-review-remediation-3) implemented and verified RED -> GREEN:
-1. Encrypt-side `KeyPermanentlyInvalidatedException`: `AesGcmSecretCipher.encrypt()` deletes the invalidated Keystore alias via `deleteKey()` and fails closed (rethrows `GeneralSecurityException`); no same-operation retry; next save/encrypt may generate a fresh key. Old ciphertext is never decrypted with a regenerated key.
-2. Cleanup failure boundary in `save()`: best-effort conditional cleanup exceptions are attached as `addSuppressed` on the ORIGINAL failure (never replacing it); `CancellationException` from cleanup still propagates.
-3. Process-wide serialization: `Mutex` moved to a shared companion object so all `DataStoreAuthSecretStore` wrappers over the same backing DataStore serialize save/read/clear; once `clear()` completes, an earlier in-flight `save()` cannot repopulate credentials; private helpers do not re-acquire the non-reentrant mutex.
+### Gen 10 remediation evidence (this attempt)
+ONE new Codex finding (WU2-review-remediation-4, evidence_goal `verified-wu2-initial-read-stale-credential-finding`) implemented RED -> GREEN:
+- `DataStoreAuthSecretStore.save()` now distinguishes a successfully-read snapshot from an unknown snapshot (initial read failure) via a `snapshotRead` flag.
+- If the snapshot WAS read: the existing conditional cleanup (`clearIfSnapshotStillMatches`) is preserved (clear only if current stored username/payload still match the captured snapshot).
+- If the initial snapshot read FAILED: best-effort UNCONDITIONAL credential clear runs under the existing process-wide shared coroutine Mutex (already held by save). A private no-lock helper `clearCredentialsNoLock()` is shared by both the public `clear()` and the unknown-snapshot save path — no second lock, no reentrant non-reentrant-Mutex call (no deadlock).
+- Error semantics: the ORIGINAL initial-read/storage failure remains the externally observed `Result.failure`; an ordinary unconditional-cleanup exception is attached as suppressed; `CancellationException` from cleanup still propagates.
 
-Preserved guarantees: endpoint+username AES-GCM AAD binding, opaque case-sensitive Unicode-preserving username, deterministic length-prefixed AAD, conditional cleanup, cancellation propagation, ProviderException fail-closed, corruption recovery, process-wide Keystore first-key creation lock, backup exclusions, fail-closed malformed payload.
+Preserved guarantees: process-wide shared Mutex serialization across wrappers; conditional snapshot cleanup when snapshot IS known; original failure preserved when cleanup fails; cleanup CancellationException propagates; encrypt/decrypt KeyPermanentlyInvalidatedException deletes alias + fail-closed + no same-operation retry; AES-GCM endpoint+exact username AAD binding; opaque case-sensitive Unicode-preserving username; ProviderException fail-closed; corruption recovery; backup exclusions; password/token redaction; no stale previous credential after failed replacement.
 
 ### Issues Found
 **CRITICAL**: None
@@ -59,4 +60,4 @@ Preserved guarantees: endpoint+username AES-GCM AAD binding, opaque case-sensiti
 
 ### Verdict
 PASS
-All 3 new Codex findings for Gen 9 remediated; full unit suite, lint, assembleDebug, and git diff --check pass (141 native changed lines, within 300 budget).
+Single Gen 10 finding remediated; full unit suite, lint, assembleDebug, and git diff --check pass (164 native changed lines, within 200 budget).

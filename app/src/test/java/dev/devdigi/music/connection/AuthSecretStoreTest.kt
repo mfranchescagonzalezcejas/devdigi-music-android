@@ -279,6 +279,60 @@ class AuthSecretStoreTest {
     }
 
     @Test
+    fun failedSaveOnInitialReadClearsExistingCredential() = runBlocking {
+        val delegate = dataStore()
+        val cipher = FakeSecretCipher()
+        val store = DataStoreAuthSecretStore(delegate, cipher)
+        store.save(identity(endpointA, "alice"), "old-secret")
+        assertNotNull("preloaded credential must exist", delegate.data.first()[AUTH_SECRET_KEY])
+
+        val failingStore = DataStoreAuthSecretStore(
+            ThrowingOnReadDataStore(delegate, IOException("storage failure")),
+            cipher,
+        )
+        val result = failingStore.save(identity(endpointA, "bob"), "new-secret")
+
+        assertTrue("save must return failure when initial read fails", result.isFailure)
+        val failure = result.exceptionOrNull()
+        assertTrue("original failure must be the initial read error", failure is IOException)
+        assertEquals("storage failure", failure?.message)
+        assertNull("old credential must be cleared after unknown-snapshot save failure", delegate.data.first()[AUTH_SECRET_KEY])
+        assertNull("old username must be cleared after unknown-snapshot save failure", delegate.data.first()[USERNAME_KEY])
+    }
+
+    @Test
+    fun failedSaveOnInitialReadCleanupFailurePreservesOriginalFailure() = runBlocking {
+        val delegate = dataStore()
+        val throwingRead = ThrowingOnReadDataStore(delegate, IOException("initial read failure"))
+        val throwingWrite = ThrowingOnWriteDataStore(throwingRead, IOException("cleanup failure"))
+        val store = DataStoreAuthSecretStore(throwingWrite, FakeSecretCipher())
+
+        val result = store.save(identity(endpointA, "alice"), "secret-password")
+
+        assertTrue(result.isFailure)
+        val failure = result.exceptionOrNull()
+        assertTrue("original failure must be the initial read error", failure is IOException)
+        assertEquals("initial read failure", failure?.message)
+        val suppressed = failure?.suppressedExceptions
+        assertEquals("cleanup failure must be attached as suppressed", 1, suppressed?.size)
+        assertEquals("cleanup failure", suppressed?.first()?.message)
+    }
+
+    @Test
+    fun failedSaveOnInitialReadCleanupCancellationPropagates() = runBlocking {
+        val delegate = dataStore()
+        val throwingRead = ThrowingOnReadDataStore(delegate, IOException("initial read failure"))
+        val throwingWrite = ThrowingOnWriteDataStore(throwingRead, CancellationException("cleanup cancelled"))
+        val store = DataStoreAuthSecretStore(throwingWrite, FakeSecretCipher())
+
+        try {
+            store.save(identity(endpointA, "alice"), "secret-password")
+            fail("expected CancellationException to propagate from cleanup")
+        } catch (_: CancellationException) {
+        }
+    }
+
+    @Test
     fun cancellationPropagatesFromSaveInitialRead() = runBlocking {
         val delegate = dataStore()
         val store = DataStoreAuthSecretStore(

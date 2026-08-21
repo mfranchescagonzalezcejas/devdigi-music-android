@@ -49,11 +49,13 @@ class DataStoreAuthSecretStore(
     override suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit> = mutex.withLock {
         var priorUsername: String? = null
         var priorPayload: String? = null
+        var snapshotRead = false
         val aad = AuthAad.forIdentity(identity.endpoint.value, identity.username)
         return@withLock try {
             val snapshot = dataStore.data.first()
             priorUsername = snapshot[USERNAME_KEY]
             priorPayload = snapshot[SECRET_KEY]
+            snapshotRead = true
             val encrypted = cipher.encrypt(secret.toByteArray(Charsets.UTF_8), aad)
             dataStore.edit { preferences ->
                 preferences[USERNAME_KEY] = identity.username
@@ -64,7 +66,11 @@ class DataStoreAuthSecretStore(
             throw e
         } catch (e: Exception) {
             try {
-                clearIfSnapshotStillMatches(priorUsername, priorPayload)
+                if (snapshotRead) {
+                    clearIfSnapshotStillMatches(priorUsername, priorPayload)
+                } else {
+                    clearCredentialsNoLock()
+                }
             } catch (cleanup: CancellationException) {
                 throw cleanup
             } catch (cleanup: Exception) {
@@ -108,10 +114,14 @@ class DataStoreAuthSecretStore(
 
     override suspend fun clear() {
         mutex.withLock {
-            dataStore.edit { preferences ->
-                preferences.remove(USERNAME_KEY)
-                preferences.remove(SECRET_KEY)
-            }
+            clearCredentialsNoLock()
+        }
+    }
+
+    private suspend fun clearCredentialsNoLock() {
+        dataStore.edit { preferences ->
+            preferences.remove(USERNAME_KEY)
+            preferences.remove(SECRET_KEY)
         }
     }
 
