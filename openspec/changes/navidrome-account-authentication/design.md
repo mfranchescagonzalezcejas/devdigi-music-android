@@ -101,6 +101,8 @@ class SessionRestorer(
 
 The encrypted credential MUST be cryptographically bound to the normalized `ServerEndpoint.value` and the exact opaque username, so a secret stored for server A can never decrypt or be used under server B.
 
+The username is persisted OUTSIDE the ciphertext as non-secret binding metadata. The username is NOT a secret; the password remains encrypted. The stored username participates in AES-GCM AAD authentication: changing or tampering with the stored username causes GCM authentication failure, preventing a ciphertext from being decrypted under a different username binding. The stored username remains exact, opaque, case-sensitive, Unicode-preserving, with no trim, no lowercase, and no NFC normalization.
+
 The future store seam evolves to take the expected endpoint as part of its boundary (equivalent signatures, exact variant may be cleaner):
 
 ```kotlin
@@ -109,9 +111,14 @@ interface AuthSecretStore {
     suspend fun read(expectedEndpoint: ServerEndpoint): Result<StoredCredentials?>
     suspend fun clear()
 }
+
+interface StoredCredentials {
+    val username: String
+    val secret: String
+}
 ```
 
-Cold-start restoration: restore `ServerProfile`, then `authStore.read(profile.endpoint)`. If the ciphertext was created for another endpoint, GCM authentication fails, no credentials are returned, the invalid snapshot is cleared conditionally, and nothing derived from the other account's password is ever sent to the current server.
+Cold-start restoration: restore `ServerProfile`, then `authStore.read(profile.endpoint)`. `read(expectedEndpoint)` reads the stored username first, builds the AAD from the normalized `expectedEndpoint` and the stored exact username, and only then decrypts. On success it returns `StoredCredentials(username, secret)`. If the ciphertext was created for another endpoint, or if the username was tampered with, GCM authentication fails, no credentials are returned, the invalid snapshot is cleared conditionally, and nothing derived from the other account's password is ever sent to the current server.
 
 AAD serialization (deterministic, length-prefixed — no ambiguous concatenation):
 
@@ -132,15 +139,67 @@ Authenticated OpenSubsonic ping requests MUST NOT automatically follow redirects
 
 The signed query parameters (`u`, `t`, `s`, `v`, `c`, `f`) MUST NOT be forwarded to another origin. The client SHALL issue exactly one authenticated request per ping; it SHALL NOT retry the same signed request against a redirect target. Deterministic WU4-style tests SHALL verify that cross-origin 302/307/308 redirects result in `result != Authenticated`, the configured server receives exactly one request, the redirect target receives zero requests, and no username/salt/token reach the redirect target.
 
+## Endpoint Base Path Preservation (WU3)
+
+The authenticated ping URL MUST preserve the configured endpoint path prefix. `ServerEndpoint.parse` already normalizes reverse-proxy/base paths, so the ping client MUST construct the request path by appending `/rest/ping.view` to the normalized endpoint value without stripping or duplicating separators.
+
+- Endpoint root case: `https://music.example.com` → `https://music.example.com/rest/ping.view`
+- Endpoint with base path: `https://music.example.com/navidrome` → `https://music.example.com/navidrome/rest/ping.view`
+- Trailing-slash normalization must not create `//rest/...` (e.g. `https://music.example.com/` → `/rest/ping.view`, NOT `//rest/ping.view`)
+- Encoded path segments must not be decoded/re-encoded incorrectly
+- Query and auth parameter construction must never discard the existing endpoint path
+
+Deterministic MockWebServer acceptance cases SHALL cover: endpoint root `/rest/ping.view`; endpoint with base path `/navidrome/rest/ping.view`; trailing-slash normalization avoiding `//rest/...`; encoded path segments preserved; query/auth construction preserving endpoint path.
+
+## Authenticated Ping Protocol / Query-Parameter Rationale (WU3)
+
+Baseline authenticated ping uses the Subsonic/OpenSubsonic query-parameter authentication mechanism (`u`, `t`, `s`, `v`, `c`, `f`). This is the protocol-compatible mechanism required before extension discovery: the first authenticated ping occurs before the client knows which OpenSubsonic extensions the server advertises, so requiring the optional `formPost` extension would break compatible servers that do not advertise or support it.
+
+Security properties:
+- HTTPS endpoints only; HTTP endpoints SHALL be rejected by `ServerEndpoint` policy (release) or limited to permitted local hosts (debug).
+- Redirects disabled: `followRedirects(false)` (and `followSslRedirects(false)` if applicable).
+- No logging interceptor; application code never logs full authenticated request URLs.
+- `AuthSignature.toString` remains redacted (`salt=***`, `token=***`).
+- Fresh cryptographically random salt on every request; no persistence of token or salt.
+- `token = md5(password + salt)` UTF-8 lowercase hex, computed per-request.
+
+If future server capability discovery confirms `formPost` support, switching later authenticated calls away from query parameters MAY be considered separately. The authenticated ping itself SHALL remain query-parameter based.
+
+## Non-Success HTTP Response Rejection (WU3)
+
+Only HTTP 2xx responses are eligible for OpenSubsonic JSON parsing. A non-2xx response with an otherwise perfectly valid `status: ok` / `openSubsonic: true` body MUST NOT yield `Authenticated`.
+
+Approved mapping for this scope:
+- Non-2xx HTTP response → `AuthProtocolError` BEFORE body interpretation.
+- HTTP 3xx → `AuthProtocolError` (redirects are disabled; see Redirect Policy).
+- Timeout / `IOException` → `NetworkError`.
+
+Deterministic cases SHALL cover 400/401/404/500/502/503 responses that carry a valid success envelope and assert `AuthProtocolError`, not `Authenticated`.
+
 ## Stale In-Flight Auth vs Profile Change (WU4)
 
 Each authentication attempt captures the current `ServerProfile` generation/revision when it begins. When `ServerProfile` is saved, replaced, or deleted: (1) the active authentication job is cancelled AND (2) the profile/auth generation is incremented or otherwise invalidates prior attempts.
 
-Cancellation is NOT the sole guarantee; the generation/revision check is the backstop. Before persisting credentials, exposing `ServerAccountIdentity`, or publishing `AUTHENTICATED`, the attempt MUST verify that the current profile generation matches the captured generation and that the current endpoint/profile still matches the attempt target.
+Cancellation is NOT the sole guarantee; the generation/revision check is the backstop. The final generation/profile validation MUST be atomic with each security-relevant commit of authentication state (persist credentials, expose `ServerAccountIdentity`, publish `AUTHENTICATED`). This atomicity is achieved with a SHORT shared critical section / orchestration mutex covering the sequence: (a) check captured profile generation, (b) check captured endpoint/profile still matches the current profile, (c) commit the state transition. The network request MUST remain OUTSIDE this mutex; never hold the mutex while waiting for the network ping or any long unrelated I/O. Profile save/delete uses the SAME coordination boundary when invalidating auth.
 
-If the attempt is stale: do not publish `AUTHENTICATED`, do not expose identity, do not allow stale credentials to become durable/current; the current/new profile wins; fail closed. Do NOT hold a coroutine `Mutex` across the network ping.
+Before persisting credentials, exposing `ServerAccountIdentity`, or publishing `AUTHENTICATED`, the attempt MUST verify that the current profile generation matches the captured generation and that the current endpoint/profile still matches the attempt target.
 
-Deterministic planned tests SHALL cover profile change: (A) while the authenticated ping is suspended; (B) after ping success but before secure persistence; (C) after persistence but before identity/`AUTHENTICATED` exposure — using `CompletableDeferred`, controlled fakes, latches, and `kotlinx-coroutines-test`, with no `Thread.sleep` or timing races. In all cases the stale attempt loses and the current profile wins.
+If the attempt is stale: do not publish `AUTHENTICATED`, do not expose identity, do not allow stale credentials to become durable/current; the current/new profile wins; fail closed.
+
+Deterministic planned tests SHALL cover profile change: (A) immediately after ping completion; (B) immediately after the final pre-persist check; (C) while persistence is suspended; (D) immediately after the final pre-publish check; (E) stale identity cannot become visible; (F) stale credentials cannot become the current durable snapshot — using `CompletableDeferred`, controlled fakes, latches, and `kotlinx-coroutines-test`, with no `Thread.sleep` or timing races. In all cases the stale attempt loses and the current profile wins.
+
+## Fail-Closed Sign-Out (WU4)
+
+A user MUST NOT be told sign-out succeeded if a recoverable durable credential still exists for the active profile. Successful sign-out requires EITHER (A) secret store `clear()` succeeds, OR (B) an explicitly-designed durable cryptographic invalidation mechanism succeeds such that restoration cannot recover the credential.
+
+For the current scope, prefer option (A): `clear()` MUST succeed before sign-out is committed as successful. If `clear()` fails:
+- Do NOT report successful sign-out.
+- Do NOT silently transition to a state that can restore as authenticated later.
+- Surface a non-secret error/retry state.
+- Keep fail-closed semantics.
+- Never include secret material in errors or logs.
+
+Planned deterministic tests SHALL cover: successful `clear()` leads to signed-out state; `clear()` failure means sign-out is NOT reported successful; subsequent restoration cannot be incorrectly treated as a successful prior logout; cancellation propagates correctly; retry can eventually complete logout.
 
 ## Testing Strategy
 

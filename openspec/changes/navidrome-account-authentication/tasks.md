@@ -2,16 +2,22 @@
 
 ## Review Workload Forecast
 
-Estimated changed lines: ~650-750. 400-line budget risk: High (soft threshold intentionally exceeded).
+Estimated changed lines for this generation: ~150-250 (planning/documentation only).
+400-line budget risk: Low (no production code).
 
 Hard planning ceiling: 800 — respected; forecast is within ceiling.
-Delivery strategy: single-pr
-size:exception: APPROVED (maintainer) — #14 is one cohesive security/authentication capability; splitting WU1+WU2 from WU3+WU4 would create artificial intermediate PR boundaries between authentication core, secure credential persistence, authenticated network behavior, and session state. Forecast remains below the 800 hard ceiling.
+Delivery strategy: chained-prs (canonical, approved)
+(superseded — earlier single-pr / size:exception statements are historical audit context only; canonical strategy is chained PRs: A/#48 planning+WU1, B/#49 WU2, C WU3, D WU4, WU5 gated)
+Chain strategy: stacked-to-main
+PR A / #48: planning + WU1 auth core
+PR B / #49: WU2 secure-secret-storage
+PR C: WU3 authenticated-network-boundary
+PR D: WU4 session/UI
+WU5: gated real-Navidrome validation after WU1-WU4 integration
 
-Decision needed before apply: No (size:exception approved)
-Chained PRs recommended: No (single-pr approved)
-Chain strategy: N/A
-400-line budget risk: High (accepted under size:exception)
+Decision needed before apply: No (canonical chained PR strategy approved)
+Chained PRs recommended: Yes
+400-line budget risk: Low (this generation is documentation-only)
 
 | Unit | Goal | Test command | Rollback boundary |
 |------|------|--------------|-------------------|
@@ -53,13 +59,24 @@ Chain strategy: N/A
 - [x] 1.17 WU3 redirect policy + request-inspection acceptance expanded in Phase 3 (`followRedirects(false)`, no signed-param forwarding, 3xx → `AuthProtocolError`, exact query-param assertions)
 - [x] 1.18 WU4 stale in-flight auth vs profile-change contract added to Phase 4 (generation/revision backstop, cancellation, no Mutex across network ping)
 
+### Generation 13 planning/docs remediation (review 4997606540 on 0f85153)
+
+- [x] 1.19 Finding 1 (3833865653, P1): Preserve endpoint base paths in WU3 planning + design; add deterministic MockWebServer acceptance cases for endpoint root `/rest/ping.view`, endpoint with base path `/navidrome/rest/ping.view`, trailing-slash normalization avoiding `//rest/...`, encoded path segments preserved, query/auth construction preserving endpoint path.
+- [x] 1.20 Finding 2 (3833865657, P1): Clarify in design.md that username is persisted OUTSIDE the ciphertext as non-secret binding metadata; username participates in AES-GCM AAD authentication; `read(expectedEndpoint)` reads stored username first, builds AAD from normalized endpoint + stored exact username, then decrypts; stored username remains exact/opaque/case-sensitive/Unicode-preserving/no trim/no lowercase/no NFC.
+- [x] 1.21 Finding 3 (3833865663, P1): Strengthen WU4 contract in design.md + tasks.md Phase 4 for atomic revision check + auth commit (TOCTOU): final generation/profile validation MUST be atomic with each security-relevant state transition using a SHORT shared critical section / orchestration mutex; network request remains OUTSIDE the mutex; deterministic planned tests expanded to cover profile change immediately after ping completion, after final pre-persist check, while persistence suspended, after final pre-publish check, stale identity not visible, stale credentials not durable snapshot.
+- [x] 1.22 Finding 4 (3833865670, P2): Make delivery strategy consistent across all planning artifacts with canonical CHAINED PR strategy (A/#48 planning+WU1, B/#49 WU2, C WU3, D WU4, WU5 gated); mark stale single-pr / PR-A=WU1+WU2+WU3 / PR-B=WU4+WU5 statements as superseded.
+- [x] 1.23 Finding 5 (3833865674, P1): Document WON'T FIX AS MANDATORY POST rationale in tasks.md + design.md: baseline authenticated ping uses query-param mechanism (u/t/s/v/c/f) required before extension discovery; HTTPS mandatory; HTTP rejected; redirects disabled; no logging interceptor; `AuthSignature.toString` redacted; fresh salt per request; no token/salt persistence; formPost only after capability discovery.
+- [x] 1.24 Finding 6 (3833865679, P1): Strengthen WU4 fail-closed sign-out contract in design.md + tasks.md Phase 4: sign-out MUST NOT report success if recoverable durable credential still exists; prefer `clear()` must succeed; surface non-secret error/retry state; planned tests for success/failure/restoration/cancellation/retry.
+- [x] 1.25 Finding 7 (3833865681, P1): Scope verify-report.md to implemented work: WU1 / PR #48 verification = PASS; overall `navidrome-account-authentication` change = INCOMPLETE / NOT READY TO ARCHIVE; machine-readable counts scoped to WU1-implemented requirements (4/4) and scenarios (11/11).
+- [x] 1.26 Finding 8 (3833865684, P1): Add WU3 planning/tests requirements in tasks.md Phase 3 + design.md: only HTTP 2xx responses eligible for OpenSubsonic JSON parsing; non-2xx response with valid success envelope MUST NOT yield Authenticated; non-2xx -> AuthProtocolError BEFORE body interpretation; preserve timeout/IOException -> NetworkError and 3xx -> AuthProtocolError.
+
 ## Phase 2: Secure Secret Storage (WU2)
 
 ### RED
 
 - [ ] 2.1 Create `AuthSecretCipherTest.kt` — round-trip; wrong key->exception; tampered->fail
 - [ ] 2.2 Create `AuthSecretStoreTest.kt` — round-trip; empty->null; clear; failure->no durable state
-- [ ] 2.2a Endpoint/username binding acceptance: secret saved for endpoint A cannot be read under endpoint B; same snapshot with changed exact username fails authentication; endpoint mismatch returns no credentials; username/AAD mismatch returns no credentials; invalid rejected snapshot is conditionally cleared; stale cleanup must not erase a newer valid replacement snapshot
+- [ ] 2.2a Endpoint/username binding acceptance: secret saved for endpoint A cannot be read under endpoint B; same snapshot with changed exact username fails authentication; endpoint mismatch returns no credentials; username/AAD mismatch returns no credentials; invalid rejected snapshot is conditionally cleared; stale cleanup must not erase a newer valid replacement snapshot. `read(expectedEndpoint)` reads the stored username first, builds AAD from normalized `expectedEndpoint` + stored exact username, then decrypts; stored username is non-secret binding metadata, remains exact/opaque/case-sensitive/Unicode-preserving/no trim/no lowercase/no NFC.
 
 ### GREEN
 
@@ -79,7 +96,10 @@ Chain strategy: N/A
 
 ### RED
 
-- [ ] 3.1 Create `OkHttpAuthenticatedPingClientTest.kt` — MockWebServer: success->Authenticated; #40->InvalidCredentials; #41/#42->Unsupported; #43->AuthProtocolError; #20/#30->IncompatibleServer; malformed/protocol-invalid response->AuthProtocolError; timeout/IOException->NetworkError; #44 unmapped. Request inspection: path `/rest/ping.view`; decoded query params exactly `u`=opaque username, `t`=MD5(password+captured salt) lowercase 32 hex, `s`=fresh salt, `v`=1.13.0, `c`=devdigi-music, `f`=json; `p` absent; plaintext password absent; no duplicate auth params; username NOT trimmed/lowercased/NFC-normalized; salt satisfies format/length; successive requests use different salts. Redirect tests: cross-origin 302/307/308 — configured server receives exactly one request, redirect target receives zero, result != Authenticated, username/salt/token never reach redirect target.
+- [ ] 3.1 Create `OkHttpAuthenticatedPingClientTest.kt` — MockWebServer: success->Authenticated; #40->InvalidCredentials; #41/#42->Unsupported; #43->AuthProtocolError; #20/#30->IncompatibleServer; malformed/protocol-invalid response->AuthProtocolError; timeout/IOException->NetworkError; #44 unmapped. Request inspection: path `/rest/ping.view` when endpoint has no base path; path preserves configured endpoint base path (e.g. `/navidrome/rest/ping.view`); trailing-slash normalization must not create `//rest/...`; encoded path segments must not be decoded/re-encoded incorrectly; query/auth construction must never discard the existing endpoint path; decoded query params exactly `u`=opaque username, `t`=MD5(password+captured salt) lowercase 32 hex, `s`=fresh salt, `v`=1.13.0, `c`=devdigi-music, `f`=json; `p` absent; plaintext password absent; no duplicate auth params; username NOT trimmed/lowercased/NFC-normalized; salt satisfies format/length; successive requests use different salts. Redirect tests: cross-origin 302/307/308 — configured server receives exactly one request, redirect target receives zero, result != Authenticated, username/salt/token never reach redirect target.
+- [ ] 3.1a Endpoint base path preservation acceptance: deterministic MockWebServer cases for endpoint root `/rest/ping.view`, endpoint with base path `/navidrome/rest/ping.view`, trailing-slash normalization avoiding `//rest/...`, encoded path segments preserved, query/auth construction preserving endpoint path.
+- [ ] 3.1b Non-success HTTP response rejection: only HTTP 2xx responses are eligible for OpenSubsonic JSON parsing; non-2xx (400/401/404/500/502/503) with an otherwise valid `status: ok` / `openSubsonic: true` body MUST NOT yield Authenticated; non-2xx -> AuthProtocolError BEFORE body interpretation. Preserve: timeout/IOException -> NetworkError; 3xx -> AuthProtocolError (redirects disabled).
+- [ ] 3.1c Authenticated ping protocol/security rationale (WON'T FIX AS MANDATORY POST): baseline authenticated ping uses query-parameter mechanism (u/t/s/v/c/f) required before extension discovery; HTTPS mandatory; HTTP endpoints rejected; redirects disabled (`followRedirects(false)`); no logging interceptor; application code never logs full authenticated request URLs; `AuthSignature.toString` remains redacted (salt=***, token=***); fresh random salt on every request; no persistence of token/salt. Optional formPost extension MAY be considered separately only after server capability discovery confirms support.
 
 ### GREEN
 
@@ -96,7 +116,8 @@ Chain strategy: N/A
 
 - [ ] 4.1 Create `SessionRestorerTest.kt` — valid->success; missing profile/secret/ping->fail closed
 - [ ] 4.2 Update `ServerConnectionViewModelTest.kt` — sign-in Restoring->AUTHENTICATED; failure->no durable; sign-out clears auth; restore re-authenticates
-- [ ] 4.2a Stale in-flight auth vs profile change: each attempt captures current `ServerProfile` generation/revision; profile save/replace/delete cancels the active job AND increments/invalidates prior attempts; before exposing `AUTHENTICATED`/identity, verify generation still matches and target profile still current; stale attempt loses, current profile wins. Deterministic tests for (A) during suspended ping, (B) after ping success before persistence, (C) after persistence before identity/AUTHENTICATED exposure — using CompletableDeferred/controlled fakes/coroutines-test, no Thread.sleep.
+- [ ] 4.2a Stale in-flight auth vs profile change (TOCTOU): each attempt captures current `ServerProfile` generation/revision; profile save/replace/delete cancels the active job AND increments/invalidates prior attempts; the final generation/profile validation MUST be atomic with each security-relevant commit of authentication state, using a SHORT shared critical section / orchestration mutex covering (check captured profile generation + check captured endpoint/profile + commit the state transition). The network request MUST remain OUTSIDE this mutex; never hold a mutex while waiting for network ping or long unrelated I/O. Cancellation remains defense-in-depth, NOT sole correctness. Before exposing `AUTHENTICATED`/identity, verify generation still matches and target profile still current; stale attempt loses, current profile wins. Deterministic tests for (A) profile change immediately after ping completion; (B) immediately after final pre-persist check; (C) while persistence is suspended; (D) immediately after final pre-publish check; (E) stale identity cannot become visible; (F) stale credentials cannot become the current durable snapshot — using CompletableDeferred/controlled fakes/coroutines-test, no Thread.sleep.
+- [ ] 4.2b Fail-closed sign-out: a user MUST NOT be told sign-out succeeded if a recoverable durable credential still exists for the active profile. Successful sign-out requires EITHER (A) secret store `clear()` succeeds, OR (B) an explicitly-designed durable cryptographic invalidation mechanism succeeds such that restoration cannot recover the credential. For current scope prefer (A): `clear()` must succeed before sign-out is committed as successful. If clear fails: do NOT report successful sign-out; do NOT silently transition to a state that can restore as authenticated later; surface a non-secret error/retry state; keep fail-closed semantics; no secret material in errors/logs. Planned tests: successful clear -> signed out; clear failure -> sign-out not reported successful; subsequent restoration cannot be incorrectly treated as a successful prior logout; cancellation propagates correctly; retry can eventually complete logout.
 
 ### GREEN
 

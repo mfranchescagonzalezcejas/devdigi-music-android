@@ -1,17 +1,17 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:f872b7b1d3977eab68219b9c2ccc5de9380e88b8534205a2b75ed18b01e599c4
+evidence_revision: sha256:2526552f58932766c499c0a22032b25879fcec4cb269b543c1016a5bdedc485f
 verdict: pass
 blockers: 0
 critical_findings: 0
-requirements: 8/8
-scenarios: 18/18
+requirements: 4/4
+scenarios: 11/11
 test_command: ./gradlew testDebugUnitTest
 test_exit_code: 0
-test_output_hash: sha256:c094fc8d9e13f70a808500dae42a9ca13a97626187a9e64a709532d5f1a0b8be
+test_output_hash: sha256:d6263c35e2d22878f0dc6cd485df40789d1cf495b782b14bd5bb070d86f5478e
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:bdcdb53a73d9f7821791f1527e3c99486633361d0219b28dd64a0ed70c238baf
+build_output_hash: sha256:6858e589050262141e54d5249abf6951066f78ca0353eb5081b573e23b69b251
 ```
 
 ## Verification Report
@@ -19,15 +19,21 @@ build_output_hash: sha256:bdcdb53a73d9f7821791f1527e3c99486633361d0219b28dd64a0e
 **Change**: navidrome-account-authentication
 **Version**: N/A
 **Mode**: Strict TDD
+**Implemented scope**: WU1 / PR #48 only (planning + auth core)
+**Overall change complete**: false — `navidrome-account-authentication` remains INCOMPLETE and is NOT READY TO ARCHIVE
 
 ### Completeness
+
 | Metric | Value |
 |--------|-------|
-| Tasks total | Remediation tasks 1.13-1.18 (PR #48 six-finding late review) |
-| Tasks complete | 1.13-1.18 |
-| Tasks incomplete | 0 |
+| Scope of this verification | WU1 / PR #48: Subsonic Token Signing, Authenticated Ping Result Taxonomy, Secret Boundary, Stable Account Identity |
+| Requirements verified (WU1) | 4/4 |
+| Scenarios verified (WU1) | 11/11 |
+| Requirements remaining (WU2–WU5) | 4+ (Cryptographic Endpoint Binding, Fail-Closed Sign-In/Sign-Out, Session Restoration, Secure Secret Storage, Authenticated Network Boundary, etc.) |
+| Scenarios remaining (WU2–WU5) | 7+ |
 
 ### Build & Tests Execution
+
 **Build**: ✅ Passed
 ```text
 ./gradlew assembleDebug -> BUILD SUCCESSFUL
@@ -36,27 +42,55 @@ build_output_hash: sha256:bdcdb53a73d9f7821791f1527e3c99486633361d0219b28dd64a0e
 
 **Tests**: ✅ passed
 ```text
-./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (30/30, incl. 5 new strict-JSON RED tests)
+./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (30/30 existing tests pass)
 ```
 
 **Coverage**: ➖ Not available
 
-### Gen 12 remediation evidence (PR #48, exact HEAD 98c4801)
-Six fresh Codex findings remediated (work_unit WU1-late-review-remediation, evidence_goal verified-pr48-exact-head-codex-remediation):
-1. Strict standard JSON: SubsonicResponseParser rewritten with kotlinx-serialization-json 1.9.0, `Json { isLenient = false }`, JsonElement tree API only (no compiler plugin, no DTO serializers); single quotes/unquoted keys/trailing commas/comments/trailing tokens -> AuthProtocolError (5 RED tests); org.json removed from production and tests. Taxonomy preserved: envelope status+version non-blank strings validated first; openSubsonic missing/false/non-Boolean -> IncompatibleServer; type/serverVersion non-blank strings; error.code actual JSON integer; 40/41-42/43/20-30 mapping unchanged.
-2. WU3 redirect policy documented (design.md + tasks.md): followRedirects(false)/followSslRedirects(false), 3xx rejected locally, signed params never forwarded, no second authenticated request, redirect -> AuthProtocolError; planned 302/307/308 tests (exactly one request to configured server, zero to target, result != Authenticated, no credential leakage).
-3. WU3 complete request assertions documented: path /rest/ping.view, query params u/t/s/v=1.13.0/c=devdigi-music/f=json, p absent, no plaintext password, no duplicate params, username not trimmed/lowercased/NFC-normalized, salt format, token recomputed from password+captured salt, fresh salt per request.
-4. Backup path corrected to datastore/auth_secret.preferences_pb across tasks.md/proposal.md/exploration.md (production XML already correct in PR #49).
-5. WU2 acceptance plan explicitly requires endpoint A secret unreadable under endpoint B, changed-exact-username fails auth, endpoint/username mismatch returns no credentials, conditional clear, stale cleanup never erases newer replacement.
-6. WU4 stale-auth contract added: profile generation captured at attempt start; profile save/replace/delete cancels the job AND increments generation; before persist/expose/publish verify generation + endpoint still match; stale attempt loses, current profile wins; no Mutex across network ping; deterministic planned tests for A/B/C race windows.
+### WU1 / PR #48 requirements verified
 
-Dependencies: added org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0 (implementation); removed org.json:json:20240303 (testImplementation). No OkHttp, no MockWebServer, no INTERNET, compileSdk/targetSdk 35.
+1. **Subsonic Token Signing** — `SubsonicAuthSigner` produces `md5(password + salt)` UTF-8 lowercase hex; per-request `SecureRandom` salt ≥ 6 hex chars; matches published Subsonic vector.
+2. **Authenticated Ping Result Taxonomy** — `AuthResult` sealed variants map correctly from OpenSubsonic error codes; `reduceAuthResult` sets `ConnectionFacts` axes consistently.
+3. **Secret Boundary** — `AuthCredentials.toString` redacts password; no password/token in logs/fixtures/`ServerProfile`.
+4. **Stable Account Identity** — `ServerAccountIdentity` uses normalized endpoint + exact opaque username; `ServerMetadata` is separate and not part of identity.
+
+### Generation 13 planning/docs remediation (review 4997606540 on 0f85153)
+
+Eight fresh Codex findings were dispositioned as planning/documentation updates ONLY; no production code was modified:
+
+1. **Finding 1 (3833865653, P1)**: Endpoint base path preservation added to WU3 planning (tasks.md Phase 3 + design.md); deterministic MockWebServer acceptance cases documented.
+2. **Finding 2 (3833865657, P1)**: Username-before-AAD-decryption contract clarified in design.md: username is non-secret binding metadata, stored outside ciphertext, used in AAD, exact/opaque/case-sensitive/Unicode-preserving.
+3. **Finding 3 (3833865663, P1)**: WU4 TOCTOU contract strengthened: short shared critical section / orchestration mutex covers final generation/profile validation + state commit; network request remains outside mutex.
+4. **Finding 4 (3833865670, P2)**: Delivery strategy made consistent across tasks.md, design.md, exploration.md, proposal.md as canonical chained PRs (A/#48, B/#49, C, D, WU5 gated); stale single-pr / alternate split statements labeled superseded.
+5. **Finding 5 (3833865674, P1)**: WON'T FIX AS MANDATORY POST rationale documented: baseline authenticated ping uses query params (u/t/s/v/c/f) required before extension discovery; HTTPS mandatory; redirects disabled; no logging interceptor; redacted `AuthSignature.toString`; fresh salt per request.
+6. **Finding 6 (3833865679, P1)**: WU4 fail-closed sign-out contract strengthened: sign-out MUST NOT report success if durable recoverable credential remains; `clear()` must succeed; non-secret error/retry state on failure.
+7. **Finding 7 (3833865681, P1)**: verify-report.md scoped to implemented WU1/PR #48 work only; overall change explicitly marked INCOMPLETE / NOT READY TO ARCHIVE.
+8. **Finding 8 (3833865684, P1)**: WU3 planning requires rejecting non-2xx HTTP responses before OpenSubsonic JSON parsing; non-2xx with valid success envelope → `AuthProtocolError`; timeout/IOException → `NetworkError`; 3xx → `AuthProtocolError`.
 
 ### Issues Found
+
 **CRITICAL**: None
 **WARNING**: None
 **SUGGESTION**: None
 
 ### Verdict
-PASS
-All six PR #48 Codex findings remediated; full unit suite, lint, assembleDebug, git diff --check, and debugRuntimeClasspath checks pass (222 native changed lines, within 400 budget).
+
+PASS for WU1 / PR #48 (4/4 requirements, 11/11 scenarios).
+
+The overall `navidrome-account-authentication` change is **INCOMPLETE**: WU2, WU3, WU4, and WU5 remain unimplemented in PR #48. Do NOT archive this OpenSpec change until WU1–WU5 are verified.
+
+### Preserved invariants
+
+- Strict standard JSON parsing (`kotlinx-serialization-json`, `isLenient = false`)
+- Exact opaque case-sensitive Unicode-preserving username
+- Normalized endpoint + endpoint base path preservation
+- `MD5(password + salt)` lowercase hex
+- Fresh `SecureRandom` salt
+- `AuthCredentials` / `AuthSignature` redaction
+- No token/salt persistence
+- Fail-closed taxonomy
+- AES-GCM AAD endpoint+username (planned for WU2)
+- Backup exclusion `datastore/auth_secret.preferences_pb`
+- `server_profile` not excluded
+- `compileSdk` / `targetSdk` 35
+- No OkHttp / MockWebServer / INTERNET added in PR #48

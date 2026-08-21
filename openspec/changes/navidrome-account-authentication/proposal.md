@@ -76,7 +76,9 @@ Seam-preserving (exploration Option 1 + 4a + 5 + 6a + 7): add a parallel `Authen
 
 ## Delivery Note
 
-`delivery_strategy = single-pr` (user-approved, no pre-split). Forecast may exceed the 400-line review budget (~700 est.). The orchestrator will surface the split-vs-`size:exception` decision at tasks forecast time — do NOT pre-split, do NOT assume `size:exception` auto-approved.
+Canonical delivery strategy: **chained PRs** (`stacked-to-main`). PR A / #48 = planning + WU1 auth core; PR B / #49 = WU2 secure-secret-storage; PR C = WU3 authenticated-network-boundary; PR D = WU4 session/UI; WU5 = gated real-Navidrome validation after WU1–WU4 integration. Each PR targets the previous PR's branch (or `main` after the previous merges) to keep every review slice within the 400-line guard.
+
+(superseded — earlier `delivery_strategy = single-pr` / "user-approved, no pre-split" / split-vs-`size:exception` statements are historical audit context only; the authoritative current delivery strategy is chained PRs.)
 
 ## Success Criteria
 
