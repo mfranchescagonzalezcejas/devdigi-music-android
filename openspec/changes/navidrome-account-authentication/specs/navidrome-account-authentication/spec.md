@@ -116,7 +116,7 @@ Process restart: read `ServerProfile`, recover secret via `AuthSecretStore`, fre
 
 ### Requirement: Stable Account Identity
 
-`ServerAccountIdentity` from normalized `ServerEndpoint` + normalized username ONLY. `ServerMetadata` (`serverType`, `serverVersion`, `openSubsonic`) separate, not part of identity.
+`ServerAccountIdentity` is composed from the normalized `ServerEndpoint` and the exact server username used for the successful authentication request. Username identity is case-sensitive and Unicode-preserving: DevDigi Music performs no implicit case folding, whitespace trimming, or Unicode normalization at the identity layer. `ServerMetadata` (`serverType`, `serverVersion`, `openSubsonic`) is separate and not part of identity.
 
 #### Scenario: Identity stable across version changes
 

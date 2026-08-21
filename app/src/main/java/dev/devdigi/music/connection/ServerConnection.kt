@@ -205,12 +205,17 @@ object SubsonicResponseParser {
 
         when (root.optString("status", "")) {
             "ok" -> {
-                val metadata = ServerMetadata(
-                    serverType = root.optString("type", ""),
-                    serverVersion = root.optString("serverVersion", ""),
-                    openSubsonic = root.optBoolean("openSubsonic", false),
-                )
-                AuthResult.Authenticated(metadata)
+                val version = root.optString("version", "")
+                val openSubsonic = root.has("openSubsonic") && root.optBoolean("openSubsonic", false)
+                val serverType = root.optString("type", "")
+                val serverVersion = root.optString("serverVersion", "")
+                when {
+                    version.isBlank() -> AuthResult.AuthProtocolError
+                    !openSubsonic -> AuthResult.IncompatibleServer
+                    serverType.isBlank() -> AuthResult.AuthProtocolError
+                    serverVersion.isBlank() -> AuthResult.AuthProtocolError
+                    else -> AuthResult.Authenticated(ServerMetadata(serverType, serverVersion, true))
+                }
             }
             "failed" -> {
                 val code = root.optJSONObject("error")?.optInt("code", -1) ?: -1
