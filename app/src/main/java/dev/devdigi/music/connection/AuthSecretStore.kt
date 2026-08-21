@@ -5,7 +5,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import java.security.GeneralSecurityException
-import java.util.Base64
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.coroutines.flow.first
 
 interface AuthSecretStore {
@@ -33,6 +34,7 @@ data class StoredCredentials(val username: String, val secret: String) {
  * no credentials and a best-effort clear of the encrypted state. A failed clear after
  * a crypto failure still returns no credentials.
  */
+@OptIn(ExperimentalEncodingApi::class)
 class DataStoreAuthSecretStore(
     private val dataStore: DataStore<Preferences>,
     private val cipher: SecretCipher,
@@ -71,13 +73,13 @@ class DataStoreAuthSecretStore(
     }
 
     private fun encode(encrypted: EncryptedSecret): String =
-        "${Base64.getEncoder().encodeToString(encrypted.iv)}:${Base64.getEncoder().encodeToString(encrypted.ciphertext)}"
+        "${Base64.Default.encode(encrypted.iv)}:${Base64.Default.encode(encrypted.ciphertext)}"
 
     private fun decode(payload: String): EncryptedSecret? {
         val parts = payload.split(':')
         if (parts.size != 2) return null
-        val iv = runCatching { Base64.getDecoder().decode(parts[0]) }.getOrNull() ?: return null
-        val ciphertext = runCatching { Base64.getDecoder().decode(parts[1]) }.getOrNull() ?: return null
+        val iv = runCatching { Base64.Default.decode(parts[0]) }.getOrNull() ?: return null
+        val ciphertext = runCatching { Base64.Default.decode(parts[1]) }.getOrNull() ?: return null
         if (iv.isEmpty() || ciphertext.isEmpty()) return null
         return EncryptedSecret(ciphertext, iv)
     }
