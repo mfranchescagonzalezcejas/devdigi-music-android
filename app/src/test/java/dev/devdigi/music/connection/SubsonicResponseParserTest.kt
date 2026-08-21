@@ -161,10 +161,105 @@ class SubsonicResponseParserTest {
         {
             "subsonic-response": {
                 "status": "failed",
+                "version": "1.16.1",
                 "error": {
                     "code": $code,
                     "message": "$message"
                 }
+            }
+        }
+    """.trimIndent()
+
+    @Test
+    fun versionNumberMapsToAuthProtocolError() {
+        val json = okJsonRaw("\"status\": \"ok\", \"version\": 1, \"type\": \"navidrome\", \"serverVersion\": \"0.54.1\", \"openSubsonic\": true")
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun typeObjectMapsToAuthProtocolError() {
+        val json = okJsonRaw("\"status\": \"ok\", \"version\": \"1.16.1\", \"type\": {}, \"serverVersion\": \"0.54.1\", \"openSubsonic\": true")
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun serverVersionNumberMapsToAuthProtocolError() {
+        val json = okJsonRaw("\"status\": \"ok\", \"version\": \"1.16.1\", \"type\": \"navidrome\", \"serverVersion\": 54, \"openSubsonic\": true")
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun openSubsonicStringMapsToIncompatibleServer() {
+        val json = okJsonRaw("\"status\": \"ok\", \"version\": \"1.16.1\", \"type\": \"navidrome\", \"serverVersion\": \"0.54.1\", \"openSubsonic\": \"true\"")
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.IncompatibleServer)
+    }
+
+    @Test
+    fun nonStringStatusMapsToAuthProtocolError() {
+        val json = okJsonRaw("\"status\": 1, \"version\": \"1.16.1\", \"type\": \"navidrome\", \"serverVersion\": \"0.54.1\", \"openSubsonic\": true")
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun failedEnvelopeWithoutVersionMapsToAuthProtocolError() {
+        val json = """
+            {
+                "subsonic-response": {
+                    "status": "failed",
+                    "error": { "code": 40, "message": "Wrong username or password" }
+                }
+            }
+        """.trimIndent()
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun failedEnvelopeWithNumericVersionMapsToAuthProtocolError() {
+        val json = """
+            {
+                "subsonic-response": {
+                    "status": "failed",
+                    "version": 1,
+                    "error": { "code": 40, "message": "Wrong username or password" }
+                }
+            }
+        """.trimIndent()
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun failedEnvelopeWithStringErrorCodeMapsToAuthProtocolError() {
+        val json = """
+            {
+                "subsonic-response": {
+                    "status": "failed",
+                    "version": "1.16.1",
+                    "error": { "code": "40", "message": "Wrong username or password" }
+                }
+            }
+        """.trimIndent()
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun failedEnvelopeWithValidEnvelopeAndCode40MapsToInvalidCredentials() {
+        val json = errorJson(40, "Wrong username or password")
+
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.InvalidCredentials)
+    }
+
+    private fun okJsonRaw(fields: String): String = """
+        {
+            "subsonic-response": {
+                $fields
             }
         }
     """.trimIndent()

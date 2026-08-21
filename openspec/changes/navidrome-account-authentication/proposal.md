@@ -8,7 +8,7 @@ Implement #14: secure, durable Navidrome account authentication on top of #13's 
 
 ### In Scope
 
-- `ServerAccountIdentity` (normalized endpoint + normalized username) and separate `ServerMetadata` (`serverType`, `serverVersion`, `openSubsonic`).
+- `ServerAccountIdentity` (normalized `ServerEndpoint` + exact opaque username used by the successful authentication request) and separate `ServerMetadata` (`serverType`, `serverVersion`, `openSubsonic`). Username is case-sensitive and Unicode-preserving; no trim, case folding, or Unicode normalization at the identity layer.
 - `AuthCredentials` secret boundary: redacted `toString`, no serialization/logging/telemetry, transient password only.
 - Subsonic token/salt signing: `token = md5(password + salt)` UTF-8 lowercase hex; per-request `SecureRandom` salt (≥6 chars, URL-safe hex, never persisted).
 - `AuthResult` taxonomy: `Authenticated`, `InvalidCredentials` (#40), `UnsupportedAuthentication` (#41/#42), `AuthProtocolError` (#43), `IncompatibleServer` (#20/#30 + invalid protocol), `NetworkError`. #44 unmapped (API-key out of scope).
@@ -58,7 +58,7 @@ Seam-preserving (exploration Option 1 + 4a + 5 + 6a + 7): add a parallel `Authen
 | Backup-rule path glob mismatch restores orphaned ciphertext | Med | Verify `auth_secret.preferences_pb` exclusion in WU2; `disableIfNoEncryptionCapabilities`. |
 | Logging leaks password/token | Low | Forbid logging-interceptor; no credentials in request `toString`; review checklist. |
 | Test dep leaks to runtime (`org.json`) | Low | testImplementation only; verify `debugRuntimeClasspath` in verify. |
-| Username normalization collision | Med | Trim + lowercase + NFC spec nailed in WU1. |
+| Username normalization collision | Low | Username is an opaque, case-sensitive, Unicode-preserving identifier by design; no trim/case-fold/NFC at the identity layer (collisions cannot be collapsed). |
 | Restore race shows stale `AUTHENTICATED` UI | Med | `Restoring` intermediate state; restore completes before auth UI. |
 | Result taxonomy drift (#41/#42 vs #43, #44) | Med | WU3 matrix enumerates each code → cell; assert #44 unmapped. |
 

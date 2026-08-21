@@ -14,7 +14,7 @@ Add a parallel authenticated seam on the archived #13 boundary. Credentials neve
 | Android Keystore AES/GCM/NoPadding, separate `auth_secret` DataStore | `EncryptedSharedPreferences` / combined store | Precise key lifecycle, separate store, backup exclusion |
 | Crypto seams + in-memory fakes | Faking `AndroidKeyStore` on JVM via reflection | Deterministic tests, no reflection |
 | Fail-closed sign-in: ping → persist → expose identity | Optimistic persist before ping | No durable state on partial success |
-| `ServerAccountIdentity` = normalized endpoint + username; `ServerMetadata` separate | Bundling metadata into identity | Identity stable across version changes |
+| `ServerAccountIdentity` = normalized endpoint + exact opaque username (case-sensitive, Unicode-preserving); `ServerMetadata` separate | Bundling metadata into identity / normalizing username | Identity stable across version changes and never collapses distinct server accounts |
 | `AuthCredentials` guarded class with redacted `toString` | Plain `data class` exposing password | Blocks accidental secret leakage |
 | Keep #13 `PingClient`; add `AuthenticatedPingClient` + `reduceAuthResult` | Folding auth into `PingObservation` | Preserves #13 contract and tests |
 
@@ -73,8 +73,8 @@ interface SubsonicAuthSigner {
 data class AuthSignature(val salt: String, val token: String)
 
 interface AuthSecretStore {
-    suspend fun save(credentials: AuthCredentials): Result<Unit>
-    suspend fun read(): Result<AuthCredentials?>
+    suspend fun save(username: String, secret: String): Result<Unit>
+    suspend fun read(): Result<StoredCredentials?>
     suspend fun clear()
 }
 
@@ -96,6 +96,35 @@ class SessionRestorer(
     suspend fun restore(): Result<Pair<ServerAccountIdentity, ServerMetadata>>
 }
 ```
+
+## Endpoint Binding Contract (WU2 / PR B implementation)
+
+The encrypted credential MUST be cryptographically bound to the normalized `ServerEndpoint.value` and the exact opaque username, so a secret stored for server A can never decrypt or be used under server B.
+
+The future store seam evolves to take the expected endpoint as part of its boundary (equivalent signatures, exact variant may be cleaner):
+
+```kotlin
+interface AuthSecretStore {
+    suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit>
+    suspend fun read(expectedEndpoint: ServerEndpoint): Result<StoredCredentials?>
+    suspend fun clear()
+}
+```
+
+Cold-start restoration: restore `ServerProfile`, then `authStore.read(profile.endpoint)`. If the ciphertext was created for another endpoint, GCM authentication fails, no credentials are returned, the invalid snapshot is cleared conditionally, and nothing derived from the other account's password is ever sent to the current server.
+
+AAD serialization (deterministic, length-prefixed — no ambiguous concatenation):
+
+```
+UTF8("devdigi.music.auth.aad.v1")
++ uint32_be(endpointUtf8.size) + endpointUtf8
++ uint32_be(usernameUtf8.size) + usernameUtf8
+```
+where `endpointUtf8 = identity.endpoint.value` (UTF-8) and `usernameUtf8 = identity.username` (UTF-8, unnormalized).
+
+`SecretCipher` evolves to `encrypt(plaintext, associatedData)` / `decrypt(encrypted, associatedData)`, calling `Cipher.updateAAD(aad)` before `doFinal` on both paths. This subsumes the earlier "authenticate the username with the ciphertext" finding with the stronger endpoint+username binding.
+
+ServerProfile change semantics (defense-in-depth, NOT the primary guarantee): changing/deleting `ServerProfile` invalidates current authenticated state and SHOULD best-effort clear `auth_secret`. Because `server_profile` and `auth_secret` are separate DataStores, the cross-store clear is not crash-atomic; even if the clear fails, a stale ciphertext survives, or a process crashes mid-change, AAD endpoint binding still prevents A's secret from being decrypted or used under B. Concrete profile-change/session-invalidation wiring lands in WU4; the invariant is fixed here.
 
 ## Testing Strategy
 
