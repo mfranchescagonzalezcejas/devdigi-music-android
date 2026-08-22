@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:8d2ad05071ca92e17e30c3a0357317fcc85026d4124f9135f5003fe9c610ed2c
+evidence_revision: sha256:a1abfde0248aa4711ef6fb17ea5f9ce382bae640fa592da23dcd98073e605ca6
 verdict: fail
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 2/4
 scenarios: 9/11
 test_command: ./gradlew clean testDebugUnitTest --no-build-cache
 test_exit_code: 0
-test_output_hash: sha256:de2122160e596db7f9ac1b9b58bbc78450f7ac12e986b2e436ca496902bf53d9
+test_output_hash: sha256:7cab9d8c1e3b9fe19d4c88b965fb47254d394cadc768e706e919ec5bbe9dd531
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:5d8fa33dad4410d35757e767d8a6eb463dab7533959f1bd364b26e33c89e9e5d
+build_output_hash: sha256:dafc31ecb9bbb631331e5dd727ea6d1f8960e27ab49faad1c9e1f7c40e6d7489
 ```
 
 ## Verification Report
@@ -42,9 +42,9 @@ build_output_hash: sha256:5d8fa33dad4410d35757e767d8a6eb463dab7533959f1bd364b26e
 
 **Tests**: ✅ passed
 ```text
-./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (72 executed / 72 passed; 0 failures, 0 errors, 0 skipped)
-SubsonicResponseParserTest focal count: 32/32
-Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (10 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 72 executed / 72 passed count is reproducible from a clean build.
+./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (81 executed / 81 passed; 0 failures, 0 errors, 0 skipped)
+SubsonicResponseParserTest focal count: 41/41
+Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (10 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 81 executed / 81 passed count is reproducible from a clean build.
 ```
 
 **Coverage**: ➖ Not available
@@ -93,6 +93,13 @@ Seven fresh Codex findings: one focused WU1 production change with RED→GREEN t
 **CRITICAL**: None
 **WARNING**: None
 **SUGGESTION**: None
+
+### Generation 18 remediation (review 5000298986 on 12e601e)
+- Finding A: failed-envelope present-but-malformed OpenSubsonic metadata fails closed — `openSubsonic` present must be actual Boolean, `type`/`serverVersion` present must be actual nonblank Strings, else AuthProtocolError; absence stays compatible with legacy failed responses; failed + code 40 without malformed metadata remains InvalidCredentials. RED: failedWithWrongTypedOpenSubsonic/Type/ServerVersionMapsToAuthProtocolError (failed pre-change), GREEN.
+- Finding B size: MAX_AUTH_RESPONSE_CHARS = 65_536 (64 KiB, power of two), checked BEFORE parseToJsonElement; oversized -> AuthProtocolError (RED oversizedResponseMapsToAuthProtocolError, GREEN).
+- Finding B depth: controlled probe of kotlinx-serialization-json 1.9.0 demonstrated an unhandled StackOverflowError for ~20k/30k nested arrays (~40-60 KiB, INSIDE the size bound). MAX_AUTH_RESPONSE_DEPTH = 128 with a pre-parse O(n)/O(1) structural scan (ignores braces/brackets inside strings, handles escaped quotes/backslashes); depth > 128 -> AuthProtocolError. No StackOverflowError/Error catch was added. RED: deeplyNestedResponseMapsToAuthProtocolError (failed pre-guard), GREEN; regression: highDepthRegressionMapsToAuthProtocolError (10k nesting) returns AuthProtocolError safely; boundary/string/escape tests pass.
+- WU3 planning (tasks.md 3.3b): transport byte-bound before String materialization; layered defenses (transport byte bound; parser char bound 64 KiB + depth bound 128).
+
 
 ### Verdict
 

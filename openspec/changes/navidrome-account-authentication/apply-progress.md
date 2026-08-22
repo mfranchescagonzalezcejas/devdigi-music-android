@@ -20,7 +20,7 @@ Generation 14 (review 4997606541 on `7824f8e`) previously applied five planning/
 - [x] Finding 4 (3834346843, P1): RED→GREEN fail-closed parser change: `status="ok"` envelope with explicit `error` member is contradictory and MUST map to `AuthProtocolError`. Added `okEnvelopeWithErrorMapsToAuthProtocolError` and `okEnvelopeWithAnyErrorMemberMapsToAuthProtocolError` to `SubsonicResponseParserTest.kt`; added `root.containsKey("error")` guard in `SubsonicResponseParser.parse`.
 - [x] Finding 5 (3834346845, P1): Correct exploration.md restore-policy wording and add canonical restoration behavior to design.md + tasks.md Phase 4: `Authenticated` retains credential; `InvalidCredentials` clears; `NetworkError`/`AuthProtocolError`/`UnsupportedAuthentication`/`IncompatibleServer` retain; unrecoverable crypto failure or explicit sign-out clears; `AUTHENTICATED`/identity exposed only after successful ping. Added planned WU4 tests.
 - [x] Finding 6 (3834346848, P1): Align PR #48 WU2 planning with PR #49 `KeyPermanentlyInvalidatedException` contract in design.md + tasks.md Phase 2: fail current op closed; delete invalidated Keystore alias; clear/conditionally invalidate ciphertext bound to old key; do NOT retry `getOrCreateKey` within same failed op; later op may create fresh key; newly-entered credential encrypts successfully. Referenced existing PR #49 tests.
-- [x] Finding 7 (3834346852, P2): Build explicit WU1 scenario-to-evidence matrix and correct verify-report.md + apply-progress.md machine-readable counts: requirements 2/4, scenarios 9/11 (Req 1 2/2, Req 2 5/6 pending "Network failure" for WU3, Req 6 1/2 pending "No secret in persisted/logged artifacts" for WU4, Req 7 1/1). Preserved real Gradle evidence: testDebugUnitTest = 72 executed / 72 passed after Finding-4 tests.
+- [x] Finding 7 (3834346852, P2): Build explicit WU1 scenario-to-evidence matrix and correct verify-report.md + apply-progress.md machine-readable counts: requirements 2/4, scenarios 9/11 (Req 1 2/2, Req 2 5/6 pending "Network failure" for WU3, Req 6 1/2 pending "No secret in persisted/logged artifacts" for WU4, Req 7 1/1). Preserved real Gradle evidence: testDebugUnitTest = 81 executed / 81 passed after Finding-4 tests.
 
 ## Files Changed
 
@@ -33,7 +33,7 @@ Generation 14 (review 4997606541 on `7824f8e`) previously applied five planning/
 | `openspec/changes/navidrome-account-authentication/exploration.md` | Modified | Updated taxonomy wording; corrected restore-policy implication; corrected 400-line wording in three places. |
 | `openspec/changes/navidrome-account-authentication/design.md` | Modified | Added OpenSubsonic Success Envelope Rationale (Finding 1); Session Restoration Policy (Finding 5); Key Permanently Invalidated Contract (Finding 6). |
 | `openspec/changes/navidrome-account-authentication/tasks.md` | Modified | Updated Review Workload Forecast; added Generation 15 remediation checklist; added Phase 2 task 2.2c for KeyPermanentlyInvalidated; added Phase 4 task 4.2c for restoration credential-retention policy. |
-| `openspec/changes/navidrome-account-authentication/verify-report.md` | Rewritten | Corrected machine-readable counts to 2/4 requirements and 9/11 scenarios; added full scenario-to-evidence matrix; updated test counts to 72/72. |
+| `openspec/changes/navidrome-account-authentication/verify-report.md` | Rewritten | Corrected machine-readable counts to 2/4 requirements and 9/11 scenarios; added full scenario-to-evidence matrix; updated test counts to 81/81. |
 | `openspec/changes/navidrome-account-authentication/apply-progress.md` | Rewritten | Generation 15 apply-progress with TDD evidence, validation results, and disposition of all seven findings. |
 
 ## TDD Cycle Evidence
@@ -45,8 +45,8 @@ Generation 14 (review 4997606541 on `7824f8e`) previously applied five planning/
 ### Test Summary
 
 - **Total tests written**: 2
-- **Total tests passing**: 72/72 (full `./gradlew testDebugUnitTest` suite)
-- **Focal `SubsonicResponseParserTest` count**: 32/32
+- **Total tests passing**: 81/81 (full `./gradlew testDebugUnitTest` suite)
+- **Focal `SubsonicResponseParserTest` count**: 41/41
 - **Layers used**: Unit
 - **Approval tests**: None — no refactoring tasks
 - **Pure functions created**: None — parser is already a pure object function
@@ -63,7 +63,7 @@ Generation 14 (review 4997606541 on `7824f8e`) previously applied five planning/
 
 | Check | Command | Result |
 |-------|---------|--------|
-| Unit tests | `./gradlew testDebugUnitTest` | ✅ PASS (72 executed / 72 passed; 0 failures, 0 errors, 0 skipped) |
+| Unit tests | `./gradlew testDebugUnitTest` | ✅ PASS (81 executed / 81 passed; 0 failures, 0 errors, 0 skipped) |
 | Lint | `./gradlew lint` | ✅ PASS |
 | Debug build | `./gradlew assembleDebug` | ✅ PASS |
 | Diff whitespace | `git diff --check` | ✅ PASS (no output) |

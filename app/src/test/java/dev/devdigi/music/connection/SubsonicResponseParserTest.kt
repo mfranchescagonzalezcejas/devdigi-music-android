@@ -349,10 +349,121 @@ class SubsonicResponseParserTest {
         assertTrue("Expected AuthProtocolError, got $result", result is AuthResult.AuthProtocolError)
     }
 
+    @Test
+    fun deeplyNestedResponseMapsToAuthProtocolError() {
+        val depth = SubsonicResponseParser.MAX_AUTH_RESPONSE_DEPTH + 1
+        val json = envelopeWithExtraNesting(depth)
+
+        assertTrue(
+            "Expected AuthProtocolError for nesting above MAX_AUTH_RESPONSE_DEPTH",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun nestedUnknownFieldBelowDepthLimitParsesNormally() {
+        val json = envelopeWithExtraNesting(depth = 20)
+
+        assertTrue(
+            "Reasonable legal nesting below the limit must parse normally",
+            SubsonicResponseParser.parse(json) is AuthResult.Authenticated,
+        )
+    }
+
+    @Test
+    fun structuralCharsInsideStringsDoNotAffectDepth() {
+        val json = envelopeWithExtraString("\"text [ { ] }\"")
+
+        assertTrue(
+            "Structural characters inside a JSON string must not count as nesting",
+            SubsonicResponseParser.parse(json) is AuthResult.Authenticated,
+        )
+    }
+
+    @Test
+    fun escapedQuotesInsideStringsDoNotAffectDepth() {
+        val json = envelopeWithExtraString("\"escaped quote: \\\" [[[ {{{ \\\"\"")
+
+        assertTrue(
+            "Escaped quotes inside a JSON string must not end the string early",
+            SubsonicResponseParser.parse(json) is AuthResult.Authenticated,
+        )
+    }
+
+    @Test
+    fun highDepthRegressionMapsToAuthProtocolError() {
+        // Representative of the discovered vulnerability: ~10k nested arrays,
+        // still below MAX_AUTH_RESPONSE_CHARS; must be rejected pre-parse with no StackOverflowError.
+        val depth = 10_000
+        val json = envelopeWithExtraNesting(depth)
+        assertTrue(json.length < SubsonicResponseParser.MAX_AUTH_RESPONSE_CHARS)
+
+        assertTrue(
+            "Expected AuthProtocolError for pathologically deep nesting, got ${SubsonicResponseParser.parse(json)}",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    private fun envelopeWithExtraNesting(depth: Int): String =
+        """{"subsonic-response":{"status":"ok","version":"1.16.1","openSubsonic":true,"type":"navidrome","serverVersion":"0.54.1","extra":${"[".repeat(depth)}0${"]".repeat(depth)}}}"""
+
+    private fun envelopeWithExtraString(extraValue: String): String =
+        """{"subsonic-response":{"status":"ok","version":"1.16.1","openSubsonic":true,"type":"navidrome","serverVersion":"0.54.1","extra":$extraValue}}"""
+
     private fun okJsonRaw(fields: String): String = """
         {
             "subsonic-response": {
                 $fields
+            }
+        }
+    """.trimIndent()
+
+    @Test
+    fun failedWithWrongTypedOpenSubsonicMapsToAuthProtocolError() {
+        val json = failedJsonRaw(metadata = "\"openSubsonic\": \"true\"", code = 40)
+
+        assertTrue("Expected AuthProtocolError for wrong-typed openSubsonic on failed envelope, got ${
+            SubsonicResponseParser.parse(json)
+        }", SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun failedWithWrongTypedTypeMapsToAuthProtocolError() {
+        val json = failedJsonRaw(metadata = "\"type\": 123", code = 40)
+
+        assertTrue("Expected AuthProtocolError for wrong-typed type on failed envelope, got ${
+            SubsonicResponseParser.parse(json)
+        }", SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun failedWithWrongTypedServerVersionMapsToAuthProtocolError() {
+        val json = failedJsonRaw(metadata = "\"serverVersion\": {}", code = 40)
+
+        assertTrue("Expected AuthProtocolError for wrong-typed serverVersion on failed envelope, got ${
+            SubsonicResponseParser.parse(json)
+        }", SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun oversizedResponseMapsToAuthProtocolError() {
+        val padding = "x".repeat(SubsonicResponseParser.MAX_AUTH_RESPONSE_CHARS)
+        val json =
+            """{"subsonic-response":{"status":"ok","version":"1.16.1","openSubsonic":true,"type":"navidrome","serverVersion":"$padding"}}"""
+
+        assertTrue(
+            "Expected AuthProtocolError for oversized input",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    private fun failedJsonRaw(metadata: String, code: Int): String = """
+        {
+            "subsonic-response": {
+                "status": "failed",
+                "version": "1.16.1",
+                $metadata,
+                "error": { "code": $code }
             }
         }
     """.trimIndent()

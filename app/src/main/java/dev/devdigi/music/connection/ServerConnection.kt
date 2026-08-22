@@ -205,9 +205,31 @@ fun reduceAuthResult(result: AuthResult): ConnectionFacts = when (result) {
 }
 
 object SubsonicResponseParser {
+    /**
+     * Defensive input bound for an authenticated-ping response (64 KiB, power of two).
+     * A normal OpenSubsonic ping response is well under 1 KiB; 64 KiB comfortably
+     * accommodates legitimate server metadata while bounding the heap/stack cost of
+     * materializing the JsonElement tree. WU3 will additionally enforce a byte bound
+     * at the network boundary before a String is created (bytes != characters for
+     * arbitrary UTF-8, so the two limits are separate defense layers).
+     */
+    internal const val MAX_AUTH_RESPONSE_CHARS = 65_536
+
+    /**
+     * Independent structural guard: pathological object/array nesting must never
+     * reach [parseToJsonElement] (kotlinx-serialization materializes the tree
+     * recursively and deep nesting caused an unhandled StackOverflowError in a
+     * controlled probe, even below the 64 KiB size bound). OpenSubsonic auth
+     * envelopes are extremely shallow; 128 is generous compatibility headroom and
+     * deliberately not derived from any JVM crash threshold.
+     */
+    internal const val MAX_AUTH_RESPONSE_DEPTH = 128
+
     private val strictJson = Json { isLenient = false }
 
     fun parse(json: String): AuthResult {
+        if (json.length > MAX_AUTH_RESPONSE_CHARS) return AuthResult.AuthProtocolError
+        if (exceedsJsonNestingDepth(json, MAX_AUTH_RESPONSE_DEPTH)) return AuthResult.AuthProtocolError
         val root = try {
             val element = strictJson.parseToJsonElement(json)
             (element as? JsonObject)?.get("subsonic-response") as? JsonObject
@@ -239,6 +261,9 @@ object SubsonicResponseParser {
                 }
             }
             "failed" -> {
+                // Present-but-malformed OpenSubsonic metadata fails closed. Absence stays
+                // compatible with legacy failed responses; wrong types/blank strings do not.
+                if (!root.hasValidOptionalFailedMetadata()) return AuthResult.AuthProtocolError
                 val error = root["error"] as? JsonObject ?: return AuthResult.AuthProtocolError
                 val code = error.intField("code")
                 when (code) {
@@ -261,4 +286,42 @@ object SubsonicResponseParser {
 
     private fun JsonObject.intField(key: String): Int? =
         (get(key) as? JsonPrimitive)?.takeIf { !it.isString }?.intOrNull
+
+    private fun JsonObject.hasValidOptionalFailedMetadata(): Boolean {
+        if (containsKey("openSubsonic") && booleanField("openSubsonic") == null) return false
+        if (containsKey("type") && stringField("type").isNullOrBlank()) return false
+        if (containsKey("serverVersion") && stringField("serverVersion").isNullOrBlank()) return false
+        return true
+    }
+
+    /**
+     * Structural pre-scan: O(n) time, O(1) auxiliary memory. Counts `{`/`[` nesting,
+     * decrements on `}`/`]`, ignores structural characters inside JSON strings, and
+     * tracks escaped quotes so a string does not end early. It is NOT a JSON parser:
+     * grammar/type/escape validation remains with [strictJson].
+     */
+    private fun exceedsJsonNestingDepth(json: String, maxDepth: Int): Boolean {
+        var depth = 0
+        var inString = false
+        var escaped = false
+        for (c in json) {
+            if (inString) {
+                when {
+                    escaped -> escaped = false
+                    c == '\\' -> escaped = true
+                    c == '"' -> inString = false
+                }
+                continue
+            }
+            when (c) {
+                '"' -> inString = true
+                '{', '[' -> {
+                    depth++
+                    if (depth > maxDepth) return true
+                }
+                '}', ']' -> if (depth > 0) depth--
+            }
+        }
+        return false
+    }
 }

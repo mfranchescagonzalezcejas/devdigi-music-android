@@ -107,6 +107,7 @@ Chained PRs recommended: Yes
 
 - [ ] 3.2 Create `OkHttpAuthenticatedPingClient.kt` — OkHttp impl, SubsonicAuthSigner, strict `kotlinx-serialization-json` parsing
 - [ ] 3.3 OkHttp client factory — no logging-interceptor; `followRedirects(false)`; `followSslRedirects(false)` if applicable; any 3xx rejected locally as `AuthProtocolError`
+- [ ] 3.3b WU3 transport response MUST be byte-bounded BEFORE full String materialization (never an unbounded `responseBody.string()`); oversized transport response -> `AuthProtocolError`, no parsing, no `Authenticated`, no secret logged. WU3 byte bound + WU1 parser limits are layered defenses: transport = byte bound; parser = character bound (`MAX_AUTH_RESPONSE_CHARS` 64 KiB) + nesting-depth bound (`MAX_AUTH_RESPONSE_DEPTH` 128).
 
 ### Verify
 
