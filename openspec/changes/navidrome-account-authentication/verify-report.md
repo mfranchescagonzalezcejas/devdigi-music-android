@@ -1,17 +1,17 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:66e4043136ac9d4a74a9a6e7e838477dfdb090d3bd00260efd128941e8d48abb
+evidence_revision: sha256:8d2ad05071ca92e17e30c3a0357317fcc85026d4124f9135f5003fe9c610ed2c
 verdict: fail
 blockers: 0
 critical_findings: 0
 requirements: 2/4
 scenarios: 9/11
-test_command: ./gradlew testDebugUnitTest
+test_command: ./gradlew clean testDebugUnitTest --no-build-cache
 test_exit_code: 0
-test_output_hash: sha256:8efeca9f21b0dbf0a75b06fa70c7fe3e308b18dc1d6100e7141eb4fca03ad343
+test_output_hash: sha256:de2122160e596db7f9ac1b9b58bbc78450f7ac12e986b2e436ca496902bf53d9
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:21b8f9ad126060931a8b0b2f8bbc44f1f9a158edced6b111465d49a90537ca43
+build_output_hash: sha256:5d8fa33dad4410d35757e767d8a6eb463dab7533959f1bd364b26e33c89e9e5d
 ```
 
 ## Verification Report
@@ -44,6 +44,7 @@ build_output_hash: sha256:21b8f9ad126060931a8b0b2f8bbc44f1f9a158edced6b111465d49
 ```text
 ./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (72 executed / 72 passed; 0 failures, 0 errors, 0 skipped)
 SubsonicResponseParserTest focal count: 32/32
+Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (10 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 72 executed / 72 passed count is reproducible from a clean build.
 ```
 
 **Coverage**: ➖ Not available

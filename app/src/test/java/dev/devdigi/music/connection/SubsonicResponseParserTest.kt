@@ -245,10 +245,10 @@ class SubsonicResponseParserTest {
     }
 
     @Test
-    fun openSubsonicStringMapsToIncompatibleServer() {
+    fun openSubsonicStringMapsToAuthProtocolError() {
         val json = okJsonRaw("\"status\": \"ok\", \"version\": \"1.16.1\", \"type\": \"navidrome\", \"serverVersion\": \"0.54.1\", \"openSubsonic\": \"true\"")
 
-        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.IncompatibleServer)
+        assertTrue(SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError)
     }
 
     @Test

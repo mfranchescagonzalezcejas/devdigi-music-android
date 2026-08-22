@@ -225,11 +225,14 @@ object SubsonicResponseParser {
         return when (status) {
             "ok" -> {
                 if (root.containsKey("error")) return AuthResult.AuthProtocolError
-                val openSubsonic = root.booleanField("openSubsonic")
+                // Distinguish field PRESENCE from Boolean value: absent/false -> IncompatibleServer,
+                // present-but-wrong-typed (string/number/object/array/null) -> AuthProtocolError.
+                if (!root.containsKey("openSubsonic")) return AuthResult.IncompatibleServer
+                val openSubsonic = root.booleanField("openSubsonic") ?: return AuthResult.AuthProtocolError
+                if (!openSubsonic) return AuthResult.IncompatibleServer
                 val serverType = root.stringField("type")
                 val serverVersion = root.stringField("serverVersion")
                 when {
-                    openSubsonic == null || !openSubsonic -> AuthResult.IncompatibleServer
                     serverType.isNullOrBlank() -> AuthResult.AuthProtocolError
                     serverVersion.isNullOrBlank() -> AuthResult.AuthProtocolError
                     else -> AuthResult.Authenticated(ServerMetadata(serverType, serverVersion, true))
