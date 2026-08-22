@@ -11,8 +11,10 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 interface AuthSecretStore {
     suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit>
@@ -63,6 +65,22 @@ class DataStoreAuthSecretStore(
             }
             Result.success(Unit)
         } catch (e: CancellationException) {
+            // Cancellation AFTER the prior snapshot was captured: perform best-effort
+            // CONDITIONAL cleanup of the captured prior snapshot in a tightly scoped
+            // NonCancellable context, then rethrow the ORIGINAL CancellationException.
+            // A cancelled replacement persistence must not silently leave the prior
+            // credential restorable.
+            if (snapshotRead) {
+                try {
+                    withContext(NonCancellable) {
+                        clearIfSnapshotStillMatches(priorUsername, priorPayload)
+                    }
+                } catch (cleanup: CancellationException) {
+                    if (cleanup !== e) e.addSuppressed(cleanup)
+                } catch (cleanup: Exception) {
+                    e.addSuppressed(cleanup)
+                }
+            }
             throw e
         } catch (e: Exception) {
             try {

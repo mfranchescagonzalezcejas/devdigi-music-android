@@ -172,19 +172,27 @@ class AuthSecretStoreTest {
 
     @Test
     fun conditionalCleanupDoesNotEraseReplacementSnapshot() = runBlocking {
-        val dataStore = dataStore()
-        val store = DataStoreAuthSecretStore(dataStore, FakeSecretCipher())
-        // Old invalid snapshot A is present.
-        dataStore.edit { it[AUTH_SECRET_KEY] = "invalid-A" }
-        // A concurrent valid save lands, replacing the snapshot.
-        store.save(identity(endpointA, "bob"), "newer-secret")
+        val delegate = dataStore()
+        // Invalid snapshot A (invalid payload, no username).
+        delegate.edit { it[AUTH_SECRET_KEY] = "invalid-A" }
 
-        // A read must see the valid replacement and never erase it.
+        // read() captures A; BEFORE its conditional-cleanup edit, the wrapper commits
+        // a valid replacement snapshot B to the backing delegate. Conditional cleanup
+        // must observe current B != captured A and must NOT erase B.
+        val wrapped = ReplacingBeforeCleanupDataStore(delegate) {
+            delegate.edit {
+                it[USERNAME_KEY] = "bob"
+                it[AUTH_SECRET_KEY] = encode(FakeSecretCipher().encrypt("newer-secret".toByteArray(), ByteArray(0)))
+            }
+        }
+        val store = DataStoreAuthSecretStore(wrapped, FakeSecretCipher())
+
         val result = store.read(endpointA)
 
-        assertEquals(StoredCredentials("bob", "newer-secret"), result.getOrNull())
-        assertNotNull("replacement snapshot must survive reads", dataStore.data.first()[AUTH_SECRET_KEY])
-        assertEquals("bob", dataStore.data.first()[USERNAME_KEY])
+        assertTrue(result.isSuccess)
+        assertNull("rejected snapshot A must yield no credentials", result.getOrNull())
+        assertNotNull("replacement snapshot B must survive conditional cleanup", delegate.data.first()[AUTH_SECRET_KEY])
+        assertEquals("bob", delegate.data.first()[USERNAME_KEY])
     }
 
     @Test
@@ -525,6 +533,24 @@ private class ThrowingOnWriteDataStore(
         throw error
 }
 
+private class ReplacingBeforeCleanupDataStore(
+    private val delegate: DataStore<Preferences>,
+    private val replacement: suspend () -> Unit,
+) : DataStore<Preferences> {
+    private val replaced = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    override val data: Flow<Preferences> = delegate.data
+
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+        if (replaced.compareAndSet(false, true)) {
+            // Deterministically commit the replacement snapshot B before the cleanup
+            // transform runs against the CURRENT (B) backing state.
+            replacement()
+        }
+        return delegate.updateData(transform)
+    }
+}
+
 private class PausingOnFirstUpdateDataStore(
     private val delegate: DataStore<Preferences>,
 ) : DataStore<Preferences> {
@@ -595,5 +621,30 @@ private class InvalidatedStoreAuthKeyProvider : AuthKeyProvider {
     override fun getOrCreateKey(): SecretKey = throw android.security.keystore.KeyPermanentlyInvalidatedException("invalidated")
     override fun deleteKey() {
         deleteCalled = true
+    }
+}
+
+class CancelledReplacementSaveTest {
+    @org.junit.Test
+    fun cancelledReplacementSaveClearsCapturedPriorCredentialAndRethrowsCancellation() = runBlocking {
+        val delegate = PreferenceDataStoreFactory.create { File.createTempFile("auth-secret", ".preferences_pb").apply { delete() } }
+        val endpoint = (ServerEndpoint.parse("https://music.example.com") as EndpointParseResult.Valid).endpoint
+        val identityA = ServerAccountIdentity(endpoint, "alice")
+        val storeA = DataStoreAuthSecretStore(delegate, FakeSecretCipher())
+        storeA.save(identityA, "old-secret")
+        org.junit.Assert.assertNotNull(delegate.data.first()[stringPreferencesKey("auth_secret")])
+
+        // Replacement save whose encrypt() throws CancellationException AFTER the
+        // prior snapshot was captured.
+        val replacingStore = DataStoreAuthSecretStore(delegate, CancellingSecretCipher())
+        try {
+            replacingStore.save(identityA, "new-secret")
+            fail("expected CancellationException to propagate")
+        } catch (_: CancellationException) {
+        }
+
+        // The captured stale prior credential must be cleared.
+        org.junit.Assert.assertNull("stale prior credential must be cleared after cancelled replacement save", delegate.data.first()[stringPreferencesKey("auth_secret")])
+        org.junit.Assert.assertNull("stale prior username must be cleared", delegate.data.first()[stringPreferencesKey("username")])
     }
 }

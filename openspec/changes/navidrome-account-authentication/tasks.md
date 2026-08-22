@@ -160,7 +160,7 @@ Recalculated exactly from git after the Gen 10 commit (base `98c4801`, head = Ge
 - [x] 2.5 Create `AuthSecretStore.kt` — interface + DataStore impl, separate auth_secret
 - [x] 2.6 Create `res/xml/backup_rules.xml` — exclude `datastore/auth_secret.preferences_pb`
 - [x] 2.7 Create `res/xml/data_extraction_rules.xml` — exclude `datastore/auth_secret.preferences_pb`
-- [x] 2.8 Update `AndroidManifest.xml` — fullBackupContent, dataExtractionRules, disableIfNoEncryption
+- [x] 2.8 Update `AndroidManifest.xml` — `android:fullBackupContent` + `android:dataExtractionRules` references. The Android 12+ cloud-backup encryption-capability safeguard lives in `data_extraction_rules.xml` as `<cloud-backup disableIfNoEncryptionCapabilities="true">` (NOT an AndroidManifest attribute), excluding only `datastore/auth_secret.preferences_pb`; device-transfer and legacy backup keep the same exact exclusion.
 
 ### GREEN
 
@@ -169,7 +169,7 @@ Recalculated exactly from git after the Gen 10 commit (base `98c4801`, head = Ge
 - [x] 2.5 Create `AuthSecretStore.kt` — interface + DataStore impl, separate auth_secret; exact username metadata + IV + ciphertext persisted; username is non-secret binding metadata
 - [x] 2.6 Create `res/xml/backup_rules.xml` — exclude `datastore/auth_secret.preferences_pb`
 - [x] 2.7 Create `res/xml/data_extraction_rules.xml` — exclude `datastore/auth_secret.preferences_pb` (cloud-backup + device-transfer)
-- [x] 2.8 Update `AndroidManifest.xml` — fullBackupContent, dataExtractionRules, disableIfNoEncryption
+- [x] 2.8 Update `AndroidManifest.xml` — `android:fullBackupContent` + `android:dataExtractionRules` references. The Android 12+ cloud-backup encryption-capability safeguard lives in `data_extraction_rules.xml` as `<cloud-backup disableIfNoEncryptionCapabilities="true">` (NOT an AndroidManifest attribute), excluding only `datastore/auth_secret.preferences_pb`; device-transfer and legacy backup keep the same exact exclusion.
 
 ### Verify
 

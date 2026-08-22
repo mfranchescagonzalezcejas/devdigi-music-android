@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:c61804fce721d1fe7591ee86f670a379c12f4ea34cfeb3044e4d466f046106dc
+evidence_revision: sha256:f25a14222b35035c297127fbc3b159d4660cd924249cdc0e058773a04d7d67d3
 verdict: fail
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 2/4
 scenarios: 9/11
 test_command: ./gradlew clean testDebugUnitTest --no-build-cache
 test_exit_code: 0
-test_output_hash: sha256:49413a1ffd80637418b3af5d41008be568398c06f8b55e99d39561df6b4654a7
+test_output_hash: sha256:2ce2c249f0d0dd6c5a5420b24a99ef3469d0e337a353f0580f9f65f55ae1a9e1
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:585355836107977cb4894b28ebe4a2255a72b62a9733a43b4a36d34bea3f9232
+build_output_hash: sha256:604dcb24a0f477df25aaf671c64c86e8be9636400c13fe64453097627bee50be
 ```
 
 ## Verification Report
@@ -19,14 +19,14 @@ build_output_hash: sha256:585355836107977cb4894b28ebe4a2255a72b62a9733a43b4a36d3
 **Change**: navidrome-account-authentication
 **Version**: N/A
 **Mode**: Strict TDD
-**Implemented scope**: WU1 / PR #48 only (planning + auth core)
+**Implemented scope**: WU1 + WU2 — PR #48 / WU1 merged into develop; PR #49 / WU2 secure-secret-storage current. WU1 scenario matrices below are historical WU1-scoped evidence.
 **Overall change complete**: false — `navidrome-account-authentication` remains INCOMPLETE and is NOT READY TO ARCHIVE
 
 ### Completeness
 
 | Metric | Value |
 |--------|-------|
-| Scope of this verification | WU1 / PR #48: Subsonic Token Signing, Authenticated Ping Result Taxonomy, Secret Boundary, Stable Account Identity |
+| Scope of this verification | WU1 + WU2 (PR #48 merged into develop; PR #49 current): WU1 auth core (Subsonic Token Signing, Authenticated Ping Result Taxonomy, Secret Boundary, Stable Account Identity) + WU2 secure-secret-storage (Keystore/AES-GCM/AAD, DataStore auth_secret, backup exclusions, fail-closed recovery) |
 | Requirements verified (WU1) | 2/4 |
 | Scenarios verified (WU1) | 9/11 |
 | Requirements remaining (WU2–WU5) | 4+ (Cryptographic Endpoint Binding, Fail-Closed Sign-In/Sign-Out, Session Restoration, Secure Secret Storage, Authenticated Network Boundary, etc.) |
@@ -42,8 +42,8 @@ build_output_hash: sha256:585355836107977cb4894b28ebe4a2255a72b62a9733a43b4a36d3
 
 **Tests**: ✅ passed
 ```text
-./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (92 executed / 92 passed; 0 failures, 0 errors, 0 skipped)
-SubsonicResponseParserTest focal count: 52/52
+./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (135 executed / 135 passed; 0 failures, 0 errors, 0 skipped)
+WU2 focal tests (AuthAadTest + AuthCredentialsBoundaryTest + AuthSecretStoreTest + SecretCipherTest + CancelledReplacementSaveTest): 43; WU1 parser focal (SubsonicResponseParserTest): 52
 Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (10 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 92 executed / 92 passed count is reproducible from a clean build.
 ```
 

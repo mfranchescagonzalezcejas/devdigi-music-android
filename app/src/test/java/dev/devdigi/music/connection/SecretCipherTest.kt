@@ -86,19 +86,27 @@ class SecretCipherTest {
 
     @Test
     fun missingKeyFailsClosed() {
-        val cipher = AesGcmSecretCipher(FailingAuthKeyProvider())
+        val encryptCipher = AesGcmSecretCipher(FailingAuthKeyProvider())
 
         try {
-            cipher.encrypt("secret".toByteArray(), aad)
+            encryptCipher.encrypt("secret".toByteArray(), aad)
             fail("expected key failure on encrypt")
         } catch (_: GeneralSecurityException) {
         }
 
+        // The decrypt half must actually reach the key provider: a structurally valid
+        // payload (non-empty ciphertext, 12-byte IV) passes input validation and the
+        // missing key is the reason decryption fails.
+        val decryptProvider = CountingFailingAuthKeyProvider()
+        val decryptCipher = AesGcmSecretCipher(decryptProvider)
+
         try {
-            cipher.decrypt(EncryptedSecret(ByteArray(0), ByteArray(0)), aad)
+            decryptCipher.decrypt(EncryptedSecret(ByteArray(16) { 1 }, ByteArray(12) { 2 }), aad)
             fail("expected key failure on decrypt")
         } catch (_: GeneralSecurityException) {
         }
+
+        assertTrue("decrypt must invoke the key provider", decryptProvider.getOrCreateCalls > 0)
     }
 
     @Test
@@ -145,6 +153,15 @@ private class FakeAuthKeyProvider(private val key: SecretKey) : AuthKeyProvider 
 
 private class FailingAuthKeyProvider : AuthKeyProvider {
     override fun getOrCreateKey(): SecretKey = throw GeneralSecurityException("no key")
+    override fun deleteKey() = Unit
+}
+
+private class CountingFailingAuthKeyProvider : AuthKeyProvider {
+    var getOrCreateCalls = 0
+    override fun getOrCreateKey(): SecretKey {
+        getOrCreateCalls++
+        throw GeneralSecurityException("no key")
+    }
     override fun deleteKey() = Unit
 }
 
