@@ -26,7 +26,7 @@
 
 | Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
 |------|-----------|-------|------------|-----|-------|-------------|----------|
-| 2b.1 encrypt invalidation | `SecretCipherTest.kt` | Unit | ✅ 9/9 baseline | ✅ Written | ✅ Passed | ✅ 2 paths (encrypt fail + later succeed) | ✅ Clean |
+| 2b.1 encrypt invalidation | `SecretCipherTest.kt` | Unit | ✅ 8/8 baseline | ✅ Written | ✅ Passed | ✅ 2 paths (encrypt fail + later succeed) | ✅ Clean |
 | 2b.2 cleanup failure boundary | `AuthSecretStoreTest.kt` | Unit | ✅ 24/24 baseline | ✅ Written | ✅ Passed | ✅ 2 cases (ordinary suppressed + cancellation propagates) | ✅ Clean |
 | 2b.3 shared mutex | `AuthSecretStoreTest.kt` | Unit | ✅ 24/24 baseline | ✅ Written | ✅ Passed | ✅ 2-instance concurrent scenario | ✅ Clean |
 
@@ -36,7 +36,7 @@
 |---|---|
 | Focused test command and exact result | `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.SecretCipherTest" --tests "dev.devdigi.music.connection.AuthSecretStoreTest"` → 32 tests completed, 0 failed; then `./gradlew testDebugUnitTest` → full suite passing |
 | Runtime harness command/scenario and exact result | `./gradlew assembleDebug` → BUILD SUCCESSFUL; `./gradlew lint` → BUILD SUCCESSFUL; `git diff --check` → no output |
-| Rollback boundary | Revert `AuthSecretStore.kt` + `SecretCipher.kt` + `AuthSecretStoreTest.kt` + `SecretCipherTest.kt`; no other files touched |
+| Rollback boundary | Revert the complete Gen 9 commit `03de4e7`: `AuthSecretStore.kt` + `SecretCipher.kt` + `AuthSecretStoreTest.kt` + `SecretCipherTest.kt` + `apply-progress.md` + `tasks.md` + `verify-report.md` |
 
 ## Production Fixes
 

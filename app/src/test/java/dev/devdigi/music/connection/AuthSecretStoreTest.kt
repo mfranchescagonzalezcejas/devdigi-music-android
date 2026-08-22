@@ -462,7 +462,7 @@ class AuthSecretStoreTest {
     fun corruptedPreferencesRecoversToEmptyAndPermitsLaterSave() = runBlocking {
         val file = temporaryFile()
         file.writeBytes(byteArrayOf(0x00, 0x01, 0x02, 0x03, 0x7f))
-        val dataStore = AuthSecretDataStoreFactory.create { file }
+        val dataStore = AuthSecretDataStoreFactory.createForTest { file }
         val store = DataStoreAuthSecretStore(dataStore, FakeSecretCipher())
 
         val read = store.read(endpointA)

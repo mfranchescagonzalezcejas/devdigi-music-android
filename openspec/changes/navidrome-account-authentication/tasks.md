@@ -88,11 +88,11 @@ Final measured workload for PR #49 @ d85027e (approved audit, maintainer):
 - `size:exception = REAFFIRMED / APPROVED` · `split = NO`
 - The historical ~800 and 1200 values are advisory/review guards, NOT repository hard policies.
 
-### Final PR three-dot workload after Gen 10 commit
-Recalculated exactly from git after the Gen 10 commit (base `98c4801`, head = Gen 10 HEAD):
-- additions: **see git diff --numstat 98c4801...HEAD**
-- deletions: **see git diff --numstat 98c4801...HEAD**
-- total changed: **see git diff --numstat 98c4801...HEAD**
+### Final PR #49 workload vs develop (measured)
+Measured exactly from git against the canonical current base `origin/develop` (PR #48 merged; PR #49 retargeted to develop):
+- additions: **1706**
+- deletions: **31**
+- total changed: **1737**
 
 | Unit | Goal | Test command | Rollback boundary |
 |------|------|--------------|-------------------|
