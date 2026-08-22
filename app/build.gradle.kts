@@ -42,8 +42,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.datastore.preferences.core)
     testImplementation(libs.coroutines.test)
-    testImplementation(libs.orgjson)
 }

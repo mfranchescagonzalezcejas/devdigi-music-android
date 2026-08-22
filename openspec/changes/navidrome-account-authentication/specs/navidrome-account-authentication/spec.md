@@ -25,7 +25,9 @@
 
 ### Requirement: Authenticated Ping Result Taxonomy
 
-`AuthenticatedPingClient` returns `AuthResult` sealed to: `Authenticated(metadata)`, `InvalidCredentials`, `UnsupportedAuthentication`, `AuthProtocolError`, `IncompatibleServer`, `NetworkError`. Mapping: `#40` → `InvalidCredentials`; `#41`/`#42` → `UnsupportedAuthentication`; `#43` → `AuthProtocolError`; `#20`/`#30` + invalid protocol → `IncompatibleServer`; IO/timeout → `NetworkError`. `#44` unmapped.
+`AuthenticatedPingClient` returns `AuthResult` sealed to: `Authenticated(metadata)`, `InvalidCredentials`, `UnsupportedAuthentication`, `AuthProtocolError`, `IncompatibleServer`, `NetworkError`. Mapping: `#40` → `InvalidCredentials`; `#41`/`#42` → `UnsupportedAuthentication`; `#43` → `AuthProtocolError`; `#20`/`#30` → `IncompatibleServer`; unknown/unmapped failure code → `AuthProtocolError`; IO/timeout → `NetworkError`. `#44` unmapped.
+
+A response is classified as `IncompatibleServer` only when the envelope is well-formed and the server explicitly reports incompatibility (`error.code = 20` or `error.code = 30`) or when a valid success envelope proves the server does not satisfy the required OpenSubsonic semantics (e.g. `openSubsonic` missing or `false` under the approved compatibility contract). Malformed JSON syntax, a malformed envelope, missing or wrong-typed required protocol fields, a contradictory protocol payload, duplicate JSON object member names within the same object (including escape-equivalent spellings such as `status` vs `sta\u0074us`), or any unmapped failure code MUST map to `AuthProtocolError`, never to `IncompatibleServer`. `error.message` is OPTIONAL; when present it MUST be an actual JSON String (blank allowed), otherwise the response is an `AuthProtocolError`.
 
 On the `ConnectionFacts.authentication` axis: `Authenticated` → `AUTHENTICATED`; `InvalidCredentials` (`#40`) → `REJECTED`; `UnsupportedAuthentication` (`#41`/`#42`), `AuthProtocolError` (`#43`), `IncompatibleServer`, and `NetworkError` → `NOT_CHECKED`. `REJECTED` SHALL be used only when credentials were actually evaluated and rejected; an unsupported mechanism or protocol conflict MUST NOT imply invalid credentials.
 
@@ -53,7 +55,7 @@ On the `ConnectionFacts.authentication` axis: `Authenticated` → `AUTHENTICATED
 
 #### Scenario: Incompatible server or protocol
 
-- WHEN server responds with error code `#20` or `#30` and invalid protocol response
+- WHEN server responds with error code `#20` or `#30`
 - THEN result MUST be `IncompatibleServer`
 
 #### Scenario: Network failure
