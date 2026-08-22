@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:f25a14222b35035c297127fbc3b159d4660cd924249cdc0e058773a04d7d67d3
+evidence_revision: sha256:f4d3f5d89778bb9cc83552e34602384bb29a1e06d870aa4fe87ef574475711e7
 verdict: fail
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 2/4
 scenarios: 9/11
 test_command: ./gradlew clean testDebugUnitTest --no-build-cache
 test_exit_code: 0
-test_output_hash: sha256:2ce2c249f0d0dd6c5a5420b24a99ef3469d0e337a353f0580f9f65f55ae1a9e1
+test_output_hash: sha256:95fd70c8452f15093324793bb16cc1d9251fa1291f80f77cfaa9aa24881887ae
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:604dcb24a0f477df25aaf671c64c86e8be9636400c13fe64453097627bee50be
+build_output_hash: sha256:e15ed80017cba26618fc965641096c162f90757f326d3d6e7987b98f0ae8eab4
 ```
 
 ## Verification Report
@@ -44,7 +44,7 @@ build_output_hash: sha256:604dcb24a0f477df25aaf671c64c86e8be9636400c13fe64453097
 ```text
 ./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (135 executed / 135 passed; 0 failures, 0 errors, 0 skipped)
 WU2 focal tests (AuthAadTest + AuthCredentialsBoundaryTest + AuthSecretStoreTest + SecretCipherTest + CancelledReplacementSaveTest): 43; WU1 parser focal (SubsonicResponseParserTest): 52
-Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (10 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 92 executed / 92 passed count is reproducible from a clean build.
+Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (15 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 135 executed / 135 passed count (0 failures, 0 errors, 0 skipped) is reproducible from a clean build; WU2 focal tests = 43 (AuthAadTest 5 + AuthCredentialsBoundaryTest 2 + AuthSecretStoreTest 27 + SecretCipherTest 8 + CancelledReplacementSaveTest 1). Historical WU1-era clean-run summaries (e.g. 92/92 / 10 classes) are historical evidence only and are superseded by this current record.
 ```
 
 **Coverage**: ➖ Not available
@@ -104,7 +104,7 @@ Seven fresh Codex findings: one focused WU1 production change with RED→GREEN t
 ### Generation 20 remediation (review 5000298986 follow-up on cb6a911)
 - Finding A: duplicate JSON object member names rejected BEFORE parseToJsonElement via a security lexical pre-scan (per-object seen-key sets on a frame stack; strings/escapes ignored; escape-equivalent keys decoded through strictJson so `status` vs `sta\u0074us` collide). Duplicate status/openSubsonic/error.code and escape-equivalent duplicates -> AuthProtocolError (RED: duplicateStatusKeysMapToAuthProtocolError, duplicateOpenSubsonicKeysMapToAuthProtocolError, duplicateErrorCodeKeysMapToAuthProtocolError, escapeEquivalentDuplicateKeysMapToAuthProtocolError — all failed pre-change, GREEN). Controls: same key in different objects allowed (sameKeyInDifferentObjectsIsAllowed), key-like text inside strings ignored (keyLikeTextInsideStringIsIgnored). Ordering: size -> depth -> duplicate keys -> strict parse -> semantic.
 - Finding B: error.message remains OPTIONAL but when PRESENT must be an actual JSON String (blank allowed). Non-string/null message -> AuthProtocolError (RED: failedWithNumeric/Boolean/Object/NullErrorMessageMapsToAuthProtocolError — all failed pre-change, GREEN). Blank message remains InvalidCredentials (blankErrorMessageRemainsInvalidCredentials); absent message and String message remain InvalidCredentials.
-- Fresh clean evidence: 92 executed / 92 passed / 10 classes; parser focal 52/52.
+- Fresh clean evidence (historical WU1-era record for Gen 20, superseded by the current WU1+WU2 clean summary): 92 executed / 92 passed / 10 classes; parser focal 52/52.
 
 
 ### Verdict
