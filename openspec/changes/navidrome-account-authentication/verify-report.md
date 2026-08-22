@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:a1abfde0248aa4711ef6fb17ea5f9ce382bae640fa592da23dcd98073e605ca6
+evidence_revision: sha256:c61804fce721d1fe7591ee86f670a379c12f4ea34cfeb3044e4d466f046106dc
 verdict: fail
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 2/4
 scenarios: 9/11
 test_command: ./gradlew clean testDebugUnitTest --no-build-cache
 test_exit_code: 0
-test_output_hash: sha256:7cab9d8c1e3b9fe19d4c88b965fb47254d394cadc768e706e919ec5bbe9dd531
+test_output_hash: sha256:49413a1ffd80637418b3af5d41008be568398c06f8b55e99d39561df6b4654a7
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:dafc31ecb9bbb631331e5dd727ea6d1f8960e27ab49faad1c9e1f7c40e6d7489
+build_output_hash: sha256:585355836107977cb4894b28ebe4a2255a72b62a9733a43b4a36d34bea3f9232
 ```
 
 ## Verification Report
@@ -42,9 +42,9 @@ build_output_hash: sha256:dafc31ecb9bbb631331e5dd727ea6d1f8960e27ab49faad1c9e1f7
 
 **Tests**: ✅ passed
 ```text
-./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (81 executed / 81 passed; 0 failures, 0 errors, 0 skipped)
-SubsonicResponseParserTest focal count: 41/41
-Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (10 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 81 executed / 81 passed count is reproducible from a clean build.
+./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (92 executed / 92 passed; 0 failures, 0 errors, 0 skipped)
+SubsonicResponseParserTest focal count: 52/52
+Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (10 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 92 executed / 92 passed count is reproducible from a clean build.
 ```
 
 **Coverage**: ➖ Not available
@@ -99,6 +99,12 @@ Seven fresh Codex findings: one focused WU1 production change with RED→GREEN t
 - Finding B size: MAX_AUTH_RESPONSE_CHARS = 65_536 (64 KiB, power of two), checked BEFORE parseToJsonElement; oversized -> AuthProtocolError (RED oversizedResponseMapsToAuthProtocolError, GREEN).
 - Finding B depth: controlled probe of kotlinx-serialization-json 1.9.0 demonstrated an unhandled StackOverflowError for ~20k/30k nested arrays (~40-60 KiB, INSIDE the size bound). MAX_AUTH_RESPONSE_DEPTH = 128 with a pre-parse O(n)/O(1) structural scan (ignores braces/brackets inside strings, handles escaped quotes/backslashes); depth > 128 -> AuthProtocolError. No StackOverflowError/Error catch was added. RED: deeplyNestedResponseMapsToAuthProtocolError (failed pre-guard), GREEN; regression: highDepthRegressionMapsToAuthProtocolError (10k nesting) returns AuthProtocolError safely; boundary/string/escape tests pass.
 - WU3 planning (tasks.md 3.3b): transport byte-bound before String materialization; layered defenses (transport byte bound; parser char bound 64 KiB + depth bound 128).
+
+
+### Generation 20 remediation (review 5000298986 follow-up on cb6a911)
+- Finding A: duplicate JSON object member names rejected BEFORE parseToJsonElement via a security lexical pre-scan (per-object seen-key sets on a frame stack; strings/escapes ignored; escape-equivalent keys decoded through strictJson so `status` vs `sta\u0074us` collide). Duplicate status/openSubsonic/error.code and escape-equivalent duplicates -> AuthProtocolError (RED: duplicateStatusKeysMapToAuthProtocolError, duplicateOpenSubsonicKeysMapToAuthProtocolError, duplicateErrorCodeKeysMapToAuthProtocolError, escapeEquivalentDuplicateKeysMapToAuthProtocolError — all failed pre-change, GREEN). Controls: same key in different objects allowed (sameKeyInDifferentObjectsIsAllowed), key-like text inside strings ignored (keyLikeTextInsideStringIsIgnored). Ordering: size -> depth -> duplicate keys -> strict parse -> semantic.
+- Finding B: error.message remains OPTIONAL but when PRESENT must be an actual JSON String (blank allowed). Non-string/null message -> AuthProtocolError (RED: failedWithNumeric/Boolean/Object/NullErrorMessageMapsToAuthProtocolError — all failed pre-change, GREEN). Blank message remains InvalidCredentials (blankErrorMessageRemainsInvalidCredentials); absent message and String message remain InvalidCredentials.
+- Fresh clean evidence: 92 executed / 92 passed / 10 classes; parser focal 52/52.
 
 
 ### Verdict

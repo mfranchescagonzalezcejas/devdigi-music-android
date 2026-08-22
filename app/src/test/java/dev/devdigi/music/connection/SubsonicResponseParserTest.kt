@@ -467,4 +467,114 @@ class SubsonicResponseParserTest {
             }
         }
     """.trimIndent()
+
+    @Test
+    fun duplicateStatusKeysMapToAuthProtocolError() {
+        val json = """{"subsonic-response":{"status":"failed","status":"ok","version":"1.16.1","openSubsonic":true,"type":"navidrome","serverVersion":"0.54.1"}}"""
+
+        assertTrue(
+            "Duplicate status keys must never authenticate",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun duplicateOpenSubsonicKeysMapToAuthProtocolError() {
+        val json = """{"subsonic-response":{"status":"ok","version":"1.16.1","openSubsonic":false,"openSubsonic":true,"type":"navidrome","serverVersion":"0.54.1"}}"""
+
+        assertTrue(
+            "Duplicate openSubsonic keys must fail closed",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun duplicateErrorCodeKeysMapToAuthProtocolError() {
+        val json = """{"subsonic-response":{"status":"failed","version":"1.16.1","error":{"code":40,"code":41}}}"""
+
+        assertTrue(
+            "Duplicate error.code keys must fail closed",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun escapeEquivalentDuplicateKeysMapToAuthProtocolError() {
+        val json = """{"subsonic-response":{"status":"failed","sta\u0074us":"ok","version":"1.16.1","openSubsonic":true,"type":"navidrome","serverVersion":"0.54.1"}}"""
+
+        assertTrue(
+            "Escape-equivalent duplicate keys must collide",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun sameKeyInDifferentObjectsIsAllowed() {
+        val json = """{"subsonic-response":{"status":"ok","version":"1.16.1","openSubsonic":true,"type":"navidrome","serverVersion":"0.54.1","extra":{"status":"inner"}}}"""
+
+        assertTrue(
+            "Same key spelling in a nested object must not conflict",
+            SubsonicResponseParser.parse(json) is AuthResult.Authenticated,
+        )
+    }
+
+    @Test
+    fun keyLikeTextInsideStringIsIgnored() {
+        val json = """{"subsonic-response":{"status":"ok","version":"1.16.1","openSubsonic":true,"type":"navidrome","serverVersion":"0.54.1","extra":"\"status\":\"ok\""}}"""
+
+        assertTrue(
+            "Key-like text inside a string must not create duplicate keys",
+            SubsonicResponseParser.parse(json) is AuthResult.Authenticated,
+        )
+    }
+
+    @Test
+    fun failedWithNumericErrorMessageMapsToAuthProtocolError() {
+        val json = """{"subsonic-response":{"status":"failed","version":"1.16.1","error":{"code":40,"message":123}}}"""
+
+        assertTrue(
+            "Non-string error.message must fail closed",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun failedWithBooleanErrorMessageMapsToAuthProtocolError() {
+        val json = """{"subsonic-response":{"status":"failed","version":"1.16.1","error":{"code":40,"message":true}}}"""
+
+        assertTrue(
+            "Boolean error.message must fail closed",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun failedWithObjectErrorMessageMapsToAuthProtocolError() {
+        val json = """{"subsonic-response":{"status":"failed","version":"1.16.1","error":{"code":40,"message":{}}}}"""
+
+        assertTrue(
+            "Object error.message must fail closed",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun failedWithNullErrorMessageMapsToAuthProtocolError() {
+        val json = """{"subsonic-response":{"status":"failed","version":"1.16.1","error":{"code":40,"message":null}}}"""
+
+        assertTrue(
+            "Null error.message must fail closed",
+            SubsonicResponseParser.parse(json) is AuthResult.AuthProtocolError,
+        )
+    }
+
+    @Test
+    fun blankErrorMessageRemainsInvalidCredentials() {
+        val json = """{"subsonic-response":{"status":"failed","version":"1.16.1","error":{"code":40,"message":""}}}"""
+
+        assertTrue(
+            "Empty-string error.message is still a valid optional String",
+            SubsonicResponseParser.parse(json) is AuthResult.InvalidCredentials,
+        )
+    }
 }

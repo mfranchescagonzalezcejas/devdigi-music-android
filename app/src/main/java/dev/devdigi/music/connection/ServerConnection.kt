@@ -230,6 +230,7 @@ object SubsonicResponseParser {
     fun parse(json: String): AuthResult {
         if (json.length > MAX_AUTH_RESPONSE_CHARS) return AuthResult.AuthProtocolError
         if (exceedsJsonNestingDepth(json, MAX_AUTH_RESPONSE_DEPTH)) return AuthResult.AuthProtocolError
+        if (hasDuplicateJsonObjectKeys(json)) return AuthResult.AuthProtocolError
         val root = try {
             val element = strictJson.parseToJsonElement(json)
             (element as? JsonObject)?.get("subsonic-response") as? JsonObject
@@ -265,6 +266,10 @@ object SubsonicResponseParser {
                 // compatible with legacy failed responses; wrong types/blank strings do not.
                 if (!root.hasValidOptionalFailedMetadata()) return AuthResult.AuthProtocolError
                 val error = root["error"] as? JsonObject ?: return AuthResult.AuthProtocolError
+                // error.message is OPTIONAL, but when present must be an actual JSON String.
+                if (error.containsKey("message") && error.stringField("message") == null) {
+                    return AuthResult.AuthProtocolError
+                }
                 val code = error.intField("code")
                 when (code) {
                     40 -> AuthResult.InvalidCredentials
@@ -324,4 +329,92 @@ object SubsonicResponseParser {
         }
         return false
     }
+
+    /**
+     * Security lexical guard: rejects duplicate JSON object member names within the
+     * SAME object BEFORE [parseToJsonElement] collapses them. Scans once, tracks
+     * per-object seen-key sets on a small frame stack (object frame -> MutableSet,
+     * array frame -> null); string/escape handling mirrors the depth scanner; a
+     * quoted token followed (ignoring whitespace) by `:` inside an object scope is
+     * a member name. Keys are decoded through [strictJson] so escape-equivalent
+     * spellings (e.g. `status` vs `sta\u0074us`) collide. It is NOT a JSON parser:
+     * grammar/type validation remains with [strictJson]. On any un-decodable key it
+     * fails closed (treated as a duplicate).
+     */
+    private fun hasDuplicateJsonObjectKeys(json: String): Boolean {
+        val frames = ArrayDeque<MutableSet<String>?>()
+        var i = 0
+        val n = json.length
+        var inString = false
+        var escaped = false
+        while (i < n) {
+            val c = json[i]
+            if (inString) {
+                when {
+                    escaped -> escaped = false
+                    c == '\\' -> escaped = true
+                    c == '"' -> inString = false
+                }
+                i++
+                continue
+            }
+            when (c) {
+                '"' -> {
+                    val start = i
+                    i++
+                    var esc = false
+                    while (i < n) {
+                        val sc = json[i]
+                        when {
+                            esc -> esc = false
+                            sc == '\\' -> esc = true
+                            sc == '"' -> {
+                                i++
+                                break
+                            }
+                            else -> {}
+                        }
+                        i++
+                    }
+                    // Peek after the quoted token: member name iff followed by ':'.
+                    var j = i
+                    while (j < n && json[j].isWhitespace()) j++
+                    if (j < n && json[j] == ':' && frames.isNotEmpty() && frames.last() != null) {
+                        val rawToken = json.substring(start, i)
+                        val decoded = decodeKeyToken(rawToken)
+                        if (decoded == null || !frames.last()!!.add(decoded)) return true
+                        i = j + 1
+                        continue
+                    }
+                    // Not a key: value string already consumed; resume at the next char.
+                    i = j
+                }
+                '{' -> {
+                    frames.addLast(mutableSetOf())
+                    i++
+                }
+                '[' -> {
+                    frames.addLast(null)
+                    i++
+                }
+                '}' -> {
+                    if (frames.isNotEmpty()) frames.removeLast()
+                    i++
+                }
+                ']' -> {
+                    if (frames.isNotEmpty()) frames.removeLast()
+                    i++
+                }
+                else -> i++
+            }
+        }
+        return false
+    }
+
+    private fun decodeKeyToken(rawQuotedToken: String): String? =
+        try {
+            (strictJson.parseToJsonElement(rawQuotedToken) as? JsonPrimitive)?.takeIf { it.isString }?.content
+        } catch (_: SerializationException) {
+            null
+        }
 }
