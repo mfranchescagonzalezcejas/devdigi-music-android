@@ -94,12 +94,16 @@ File: `app/src/main/java/dev/devdigi/music/connection/AuthSecretStore.kt`
 
 | File | Lines | Action |
 |------|-------|--------|
-| `app/src/main/java/dev/devdigi/music/connection/SecretCipher.kt` | +7 / −1 | Modified — encrypt invalidation handling |
-| `app/src/main/java/dev/devdigi/music/connection/AuthSecretStore.kt` | +10 / −2 | Modified — cleanup suppression + shared mutex |
-| `app/src/test/java/dev/devdigi/music/connection/SecretCipherTest.kt` | +33 / −0 | Modified — RED test + helper |
+| `app/src/main/java/dev/devdigi/music/connection/AuthSecretStore.kt` | +8 / −2 | Modified — cleanup suppression + shared mutex |
+| `app/src/main/java/dev/devdigi/music/connection/SecretCipher.kt` | +6 / −1 | Modified — encrypt invalidation handling |
 | `app/src/test/java/dev/devdigi/music/connection/AuthSecretStoreTest.kt` | +76 / −0 | Modified — RED tests + helpers |
-| `openspec/changes/navidrome-account-authentication/tasks.md` | +15 / −0 | Modified — remediation tasks marked complete |
-| **Total** | **141 / −3** | 144 changed lines |
+| `app/src/test/java/dev/devdigi/music/connection/SecretCipherTest.kt` | +33 / −0 | Modified — RED test + helper |
+| `openspec/changes/navidrome-account-authentication/apply-progress.md` | +121 / −0 | Added — this apply-progress record |
+| `openspec/changes/navidrome-account-authentication/tasks.md` | +22 / −0 | Modified — remediation tasks marked complete |
+| `openspec/changes/navidrome-account-authentication/verify-report.md` | +14 / −35 | Modified — evidence refresh |
+| **Full commit delta (git show 03de4e7)** | **+280 / −38** | 7 files · 318 changed lines |
+
+Native generation changed_lines (separate metric, NOT the commit delta): 141 insertions / 3 deletions (144 changed lines).
 
 ## Deviations from Design
 
@@ -184,8 +188,12 @@ File: `app/src/main/java/dev/devdigi/music/connection/AuthSecretStore.kt`
 |------|-------|--------|
 | `app/src/main/java/dev/devdigi/music/connection/AuthSecretStore.kt` | +15 / −5 | Modified — unknown-snapshot fail-closed cleanup + shared helper |
 | `app/src/test/java/dev/devdigi/music/connection/AuthSecretStoreTest.kt` | +54 / −0 | Modified — RED regression + branch tests |
-| `openspec/changes/navidrome-account-authentication/tasks.md` | +16 / −0 | Modified — Gen 10 remediation tasks marked complete |
-| **Gen 10 total** | **85 / −5** | 90 changed lines |
+| `openspec/changes/navidrome-account-authentication/apply-progress.md` | +74 / −1 | Modified — this apply-progress record |
+| `openspec/changes/navidrome-account-authentication/tasks.md` | +37 / −4 | Modified — Gen 10 remediation tasks marked complete |
+| `openspec/changes/navidrome-account-authentication/verify-report.md` | +15 / −14 | Modified — evidence refresh |
+| **Full commit delta (git show b23e076)** | **+195 / −24** | 5 files · 219 changed lines |
+
+Native generation changed_lines (separate metric, NOT the commit delta): 85 insertions / 5 deletions (90 changed lines).
 
 ### Gen 10 Deviations from Design
 

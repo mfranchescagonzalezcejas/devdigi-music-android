@@ -51,6 +51,9 @@ class DataStoreAuthSecretStore(
     override suspend fun save(identity: ServerAccountIdentity, secret: String): Result<Unit> = mutex.withLock {
         var priorUsername: String? = null
         var priorPayload: String? = null
+        var candidateUsername: String? = null
+        var candidatePayload: String? = null
+        var candidatePrepared = false
         var snapshotRead = false
         val aad = AuthAad.forIdentity(identity.endpoint.value, identity.username)
         return@withLock try {
@@ -59,21 +62,26 @@ class DataStoreAuthSecretStore(
             priorPayload = snapshot[SECRET_KEY]
             snapshotRead = true
             val encrypted = cipher.encrypt(secret.toByteArray(Charsets.UTF_8), aad)
+            candidateUsername = identity.username
+            candidatePayload = encode(encrypted)
+            candidatePrepared = true
             dataStore.edit { preferences ->
                 preferences[USERNAME_KEY] = identity.username
-                preferences[SECRET_KEY] = encode(encrypted)
+                preferences[SECRET_KEY] = candidatePayload!!
             }
             Result.success(Unit)
         } catch (e: CancellationException) {
-            // Cancellation AFTER the prior snapshot was captured: perform best-effort
-            // CONDITIONAL cleanup of the captured prior snapshot in a tightly scoped
-            // NonCancellable context, then rethrow the ORIGINAL CancellationException.
-            // A cancelled replacement persistence must not silently leave the prior
-            // credential restorable.
+            // Cancellation AFTER the prior snapshot was captured: best-effort
+            // A-or-B conditional cleanup in a tightly scoped NonCancellable context,
+            // then rethrow the ORIGINAL CancellationException. If the candidate was
+            // committed before the late cancellation, it must not remain durable.
             if (snapshotRead) {
                 try {
                     withContext(NonCancellable) {
-                        clearIfSnapshotStillMatches(priorUsername, priorPayload)
+                        clearIfSnapshotMatchesEither(
+                            priorUsername, priorPayload,
+                            candidateUsername, candidatePayload, candidatePrepared,
+                        )
                     }
                 } catch (cleanup: CancellationException) {
                     if (cleanup !== e) e.addSuppressed(cleanup)
@@ -85,7 +93,10 @@ class DataStoreAuthSecretStore(
         } catch (e: Exception) {
             try {
                 if (snapshotRead) {
-                    clearIfSnapshotStillMatches(priorUsername, priorPayload)
+                    clearIfSnapshotMatchesEither(
+                        priorUsername, priorPayload,
+                        candidateUsername, candidatePayload, candidatePrepared,
+                    )
                 } else {
                     clearCredentialsNoLock()
                 }
@@ -146,6 +157,31 @@ class DataStoreAuthSecretStore(
     private suspend fun clearIfSnapshotStillMatches(username: String?, payload: String?) {
         dataStore.edit { preferences ->
             if (preferences[USERNAME_KEY] == username && preferences[SECRET_KEY] == payload) {
+                preferences.remove(USERNAME_KEY)
+                preferences.remove(SECRET_KEY)
+            }
+        }
+    }
+
+    /**
+     * Fail-closed cleanup for save(): clears ONLY if the current durable snapshot is
+     * the captured prior credential A OR the candidate credential B written by this
+     * failing save. An unrelated later replacement C is never erased.
+     */
+    private suspend fun clearIfSnapshotMatchesEither(
+        priorUsername: String?,
+        priorPayload: String?,
+        candidateUsername: String?,
+        candidatePayload: String?,
+        candidatePrepared: Boolean,
+    ) {
+        dataStore.edit { preferences ->
+            val currentUsername = preferences[USERNAME_KEY]
+            val currentPayload = preferences[SECRET_KEY]
+            val matchesPrior = currentUsername == priorUsername && currentPayload == priorPayload
+            val matchesCandidate = candidatePrepared &&
+                currentUsername == candidateUsername && currentPayload == candidatePayload
+            if (matchesPrior || matchesCandidate) {
                 preferences.remove(USERNAME_KEY)
                 preferences.remove(SECRET_KEY)
             }

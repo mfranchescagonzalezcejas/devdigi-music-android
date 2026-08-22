@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:06334fa5f3e2fe4f755144d6fb558dab8eec554a3fe466dbb11faa0508d05017
+evidence_revision: sha256:d69c471fc91537362cf7b64cd2a84bfb595023bcda085654ba5ad0c9ad125db0
 verdict: fail
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 2/4
 scenarios: 9/11
 test_command: ./gradlew clean testDebugUnitTest --no-build-cache
 test_exit_code: 0
-test_output_hash: sha256:5e49278e1b176eccd8ad3de76ead02d62dee97d6a454f76332a2174f29a7f7b3
+test_output_hash: sha256:b34c6583e60cc82ef366868c24ba53412e3a888c2662094e33c10b37f0fac3f4
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:5d8fa33dad4410d35757e767d8a6eb463dab7533959f1bd364b26e33c89e9e5d
+build_output_hash: sha256:5ff92de6acb48a091f4a84c3c6b3d3b888522d8b88d48899092b8de604e1708e
 ```
 
 ## Verification Report
@@ -29,7 +29,7 @@ build_output_hash: sha256:5d8fa33dad4410d35757e767d8a6eb463dab7533959f1bd364b26e
 | Scope of this verification | WU1 + WU2 (PR #48 merged into develop; PR #49 current): WU1 auth core (Subsonic Token Signing, Authenticated Ping Result Taxonomy, Secret Boundary, Stable Account Identity) + WU2 secure-secret-storage (Keystore/AES-GCM/AAD, DataStore auth_secret, backup exclusions, fail-closed recovery) |
 | Requirements verified (WU1 scope) | 2/4 (Subsonic Token Signing, Stable Account Identity fully verified; Authenticated Ping Result Taxonomy and Secret Boundary partially) |
 | Scenarios verified (WU1 scope) | 9/11 executable (Network failure → WU3; no-secret-in-persisted/logged → WU4) |
-| WU2 scope | Secure secret storage IMPLEMENTED and verified by the WU2 focal suite (43 tests): Keystore/AES-GCM/AAD, DataStore auth_secret, backup/device-transfer exclusions, fail-closed recovery. See WU2 verification matrix below. |
+| WU2 scope | Secure secret storage IMPLEMENTED and verified by the WU2 focal suite (48 tests): Keystore/AES-GCM/AAD, DataStore auth_secret, backup/device-transfer exclusions, fail-closed recovery. See WU2 verification matrix below. |
 | Requirements remaining (WU3–WU5 only) | Authenticated Network Boundary (WU3), Session + UI (WU4), gated real-Navidrome validation (WU5) |
 | Scenarios remaining (WU3–WU5 only) | Network failure → WU3; sign-in/sign-out/restore end-to-end flows → WU4; WU5 gated |
 
@@ -43,9 +43,9 @@ build_output_hash: sha256:5d8fa33dad4410d35757e767d8a6eb463dab7533959f1bd364b26e
 
 **Tests**: ✅ passed
 ```text
-./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (137 executed / 137 passed; 0 failures, 0 errors, 0 skipped)
-WU2 focal tests (AuthAadTest + AuthCredentialsBoundaryTest + AuthSecretStoreTest + SecretCipherTest + CancelledReplacementSaveTest + AuthSecretDataStoreFactoryTest): 45; WU1 parser focal (SubsonicResponseParserTest): 52
-Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (16 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 135 executed / 135 passed count (0 failures, 0 errors, 0 skipped) is reproducible from a clean build; WU2 focal tests = 43 (AuthAadTest 5 + AuthCredentialsBoundaryTest 2 + AuthSecretStoreTest 27 + SecretCipherTest 8 + CancelledReplacementSaveTest 1). Historical WU1-era clean-run summaries (e.g. 92/92 / 10 classes) are historical evidence only and are superseded by this current record.
+./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (140 executed / 140 passed; 0 failures, 0 errors, 0 skipped)
+WU2 focal tests (AuthAadTest + AuthCredentialsBoundaryTest + AuthSecretStoreTest + SecretCipherTest + CancelledReplacementSaveTest + AuthSecretDataStoreFactoryTest + PostCommitFailureTest): 48; WU1 parser focal (SubsonicResponseParserTest): 52
+Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (17 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 140 executed / 140 passed count (0 failures, 0 errors, 0 skipped) is reproducible from a clean build; WU2 focal tests = 48 (AuthAadTest 5 + AuthCredentialsBoundaryTest 2 + AuthSecretStoreTest 27 + SecretCipherTest 8 + CancelledReplacementSaveTest 1 + AuthSecretDataStoreFactoryTest 2 + PostCommitFailureTest 3). Historical WU1-era clean-run summaries (e.g. 92/92 / 10 classes) are historical evidence only and are superseded by this current record.
 ```
 
 **Coverage**: ➖ Not available
@@ -82,7 +82,7 @@ The previous report claimed 4/4 requirements and 11/11 scenarios for WU1, overst
 | Fail-Closed Sign-In and Secret Persistence | Secure-store failure after valid ping fails closed | No (flow → WU4) | store failure boundary tested; end-to-end → WU4 |
 | Session Restoration | Restore after process restart | No (flow → WU4) | `SessionRestorer` → WU4 |
 
-WU2 focal suite (45 tests): AuthAadTest 5, AuthCredentialsBoundaryTest 2, AuthSecretStoreTest 27, SecretCipherTest 8, CancelledReplacementSaveTest 1, AuthSecretDataStoreFactoryTest 2.
+WU2 focal suite (48 tests): AuthAadTest 5, AuthCredentialsBoundaryTest 2, AuthSecretStoreTest 27, SecretCipherTest 8, CancelledReplacementSaveTest 1, AuthSecretDataStoreFactoryTest 2, PostCommitFailureTest 3.
 
 ### WU1 / PR #48 Requirements Partially Summarized
 

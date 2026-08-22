@@ -648,3 +648,112 @@ class CancelledReplacementSaveTest {
         org.junit.Assert.assertNull("stale prior username must be cleared", delegate.data.first()[stringPreferencesKey("username")])
     }
 }
+
+class PostCommitFailureTest {
+    @org.junit.Test
+    fun candidateCommittedThenOrdinaryFailureClearsCandidateAndReturnsFailure() = runBlocking {
+        val delegate = PreferenceDataStoreFactory.create { File.createTempFile("auth-secret", ".preferences_pb").apply { delete() } }
+        val endpoint = (ServerEndpoint.parse("https://music.example.com") as EndpointParseResult.Valid).endpoint
+        val storeA = DataStoreAuthSecretStore(delegate, FakeSecretCipher())
+        storeA.save(ServerAccountIdentity(endpoint, "alice"), "old-secret")
+        org.junit.Assert.assertNotNull(delegate.data.first()[stringPreferencesKey("auth_secret")])
+
+        val committing = CommitThenThrowDataStore(delegate, IOException("late persistence failure"))
+        committing.arm()
+        val store = DataStoreAuthSecretStore(committing, FakeSecretCipher())
+
+        val result = store.save(ServerAccountIdentity(endpoint, "bob"), "new-secret")
+
+        org.junit.Assert.assertTrue("save must report failure", result.isFailure)
+        org.junit.Assert.assertTrue("failure must be the ORIGINAL IOException", result.exceptionOrNull() is IOException)
+        org.junit.Assert.assertNull("candidate B must not remain durable", delegate.data.first()[stringPreferencesKey("auth_secret")])
+        org.junit.Assert.assertNull(delegate.data.first()[stringPreferencesKey("username")])
+    }
+
+    @org.junit.Test
+    fun candidateCommittedThenCancellationClearsCandidateAndRethrows() = runBlocking {
+        val delegate = PreferenceDataStoreFactory.create { File.createTempFile("auth-secret", ".preferences_pb").apply { delete() } }
+        val endpoint = (ServerEndpoint.parse("https://music.example.com") as EndpointParseResult.Valid).endpoint
+        val storeA = DataStoreAuthSecretStore(delegate, FakeSecretCipher())
+        storeA.save(ServerAccountIdentity(endpoint, "alice"), "old-secret")
+
+        val committing = CommitThenThrowDataStore(delegate, CancellationException("late cancellation"))
+        committing.arm()
+        val store = DataStoreAuthSecretStore(committing, FakeSecretCipher())
+
+        try {
+            store.save(ServerAccountIdentity(endpoint, "bob"), "new-secret")
+            fail("expected CancellationException to propagate")
+        } catch (_: CancellationException) {
+        }
+
+        org.junit.Assert.assertNull("candidate B must not remain durable", delegate.data.first()[stringPreferencesKey("auth_secret")])
+        org.junit.Assert.assertNull(delegate.data.first()[stringPreferencesKey("username")])
+    }
+
+    @org.junit.Test
+    fun unrelatedReplacementCSurvivesFailedCandidateCleanup() = runBlocking {
+        val delegate = PreferenceDataStoreFactory.create { File.createTempFile("auth-secret", ".preferences_pb").apply { delete() } }
+        val endpoint = (ServerEndpoint.parse("https://music.example.com") as EndpointParseResult.Valid).endpoint
+        val storeA = DataStoreAuthSecretStore(delegate, FakeSecretCipher())
+        storeA.save(ServerAccountIdentity(endpoint, "alice"), "old-secret")
+
+        val committing = CommitThenThrowThenReplaceDataStore(delegate, IOException("late")) {
+            delegate.edit {
+                it[stringPreferencesKey("username")] = "carol"
+                it[stringPreferencesKey("auth_secret")] = encodePostCommitTest(FakeSecretCipher().encrypt("carol-secret".toByteArray(), ByteArray(0)))
+            }
+        }
+        committing.arm()
+        val store = DataStoreAuthSecretStore(committing, FakeSecretCipher())
+
+        val result = store.save(ServerAccountIdentity(endpoint, "bob"), "new-secret")
+
+        org.junit.Assert.assertTrue(result.isFailure)
+        org.junit.Assert.assertNotNull("unrelated replacement C must survive", delegate.data.first()[stringPreferencesKey("auth_secret")])
+        org.junit.Assert.assertEquals("carol", delegate.data.first()[stringPreferencesKey("username")])
+    }
+}
+
+private fun encodePostCommitTest(secret: EncryptedSecret): String =
+    "${java.util.Base64.getEncoder().encodeToString(secret.iv)}:${java.util.Base64.getEncoder().encodeToString(secret.ciphertext)}"
+
+private class CommitThenThrowDataStore(
+    private val delegate: DataStore<Preferences>,
+    private val error: Throwable,
+) : DataStore<Preferences> {
+    private val armed = java.util.concurrent.atomic.AtomicBoolean(false)
+    override val data: Flow<Preferences> = delegate.data
+
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+        val result = delegate.updateData(transform)
+        if (armed.compareAndSet(true, false)) throw error
+        return result
+    }
+
+    fun arm() {
+        armed.set(true)
+    }
+}
+
+private class CommitThenThrowThenReplaceDataStore(
+    private val delegate: DataStore<Preferences>,
+    private val error: Throwable,
+    private val replacement: suspend () -> Unit,
+) : DataStore<Preferences> {
+    private val armed = java.util.concurrent.atomic.AtomicBoolean(false)
+    override val data: Flow<Preferences> = delegate.data
+
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+        val result = delegate.updateData(transform)
+        if (armed.compareAndSet(true, false)) {
+            replacement()
+            throw error
+        }
+        return result
+    }
+
+    fun arm() {
+        armed.set(true)
+    }
+}

@@ -90,9 +90,9 @@ Final measured workload for PR #49 @ d85027e (approved audit, maintainer):
 
 ### Final PR #49 workload vs develop (measured)
 Measured exactly from git against the canonical current base `origin/develop` (PR #48 merged; PR #49 retargeted to develop):
-- additions: **1761**
+- additions: **1913**
 - deletions: **31**
-- total changed: **1792**
+- total changed: **1944**
 
 | Unit | Goal | Test command | Rollback boundary |
 |------|------|--------------|-------------------|
