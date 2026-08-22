@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Data extraction rules (Android 12+ / API 31+).
+     Exclude ONLY the auth-secret DataStore from BOTH cloud-backup and
+     device-transfer: ciphertext must not be restored independently of its
+     Android Keystore key. The non-secret server_profile store is NOT excluded. -->
+<data-extraction-rules>
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
+        <exclude domain="file" path="datastore/auth_secret.preferences_pb" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="datastore/auth_secret.preferences_pb" />
+    </device-transfer>
+</data-extraction-rules>

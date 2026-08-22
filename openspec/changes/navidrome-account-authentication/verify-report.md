@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:c61804fce721d1fe7591ee86f670a379c12f4ea34cfeb3044e4d466f046106dc
+evidence_revision: sha256:d69c471fc91537362cf7b64cd2a84bfb595023bcda085654ba5ad0c9ad125db0
 verdict: fail
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 2/4
 scenarios: 9/11
 test_command: ./gradlew clean testDebugUnitTest --no-build-cache
 test_exit_code: 0
-test_output_hash: sha256:49413a1ffd80637418b3af5d41008be568398c06f8b55e99d39561df6b4654a7
+test_output_hash: sha256:b34c6583e60cc82ef366868c24ba53412e3a888c2662094e33c10b37f0fac3f4
 build_command: ./gradlew assembleDebug
 build_exit_code: 0
-build_output_hash: sha256:585355836107977cb4894b28ebe4a2255a72b62a9733a43b4a36d34bea3f9232
+build_output_hash: sha256:5ff92de6acb48a091f4a84c3c6b3d3b888522d8b88d48899092b8de604e1708e
 ```
 
 ## Verification Report
@@ -19,18 +19,19 @@ build_output_hash: sha256:585355836107977cb4894b28ebe4a2255a72b62a9733a43b4a36d3
 **Change**: navidrome-account-authentication
 **Version**: N/A
 **Mode**: Strict TDD
-**Implemented scope**: WU1 / PR #48 only (planning + auth core)
+**Implemented scope**: WU1 + WU2 — PR #48 / WU1 merged into develop; PR #49 / WU2 secure-secret-storage current. WU1 scenario matrices below are historical WU1-scoped evidence.
 **Overall change complete**: false — `navidrome-account-authentication` remains INCOMPLETE and is NOT READY TO ARCHIVE
 
 ### Completeness
 
 | Metric | Value |
 |--------|-------|
-| Scope of this verification | WU1 / PR #48: Subsonic Token Signing, Authenticated Ping Result Taxonomy, Secret Boundary, Stable Account Identity |
-| Requirements verified (WU1) | 2/4 |
-| Scenarios verified (WU1) | 9/11 |
-| Requirements remaining (WU2–WU5) | 4+ (Cryptographic Endpoint Binding, Fail-Closed Sign-In/Sign-Out, Session Restoration, Secure Secret Storage, Authenticated Network Boundary, etc.) |
-| Scenarios remaining (WU2–WU5) | 7+ |
+| Scope of this verification | WU1 + WU2 (PR #48 merged into develop; PR #49 current): WU1 auth core (Subsonic Token Signing, Authenticated Ping Result Taxonomy, Secret Boundary, Stable Account Identity) + WU2 secure-secret-storage (Keystore/AES-GCM/AAD, DataStore auth_secret, backup exclusions, fail-closed recovery) |
+| Requirements verified (WU1 scope) | 2/4 (Subsonic Token Signing, Stable Account Identity fully verified; Authenticated Ping Result Taxonomy and Secret Boundary partially) |
+| Scenarios verified (WU1 scope) | 9/11 executable (Network failure → WU3; no-secret-in-persisted/logged → WU4) |
+| WU2 scope | Secure secret storage IMPLEMENTED and verified by the WU2 focal suite (48 tests): Keystore/AES-GCM/AAD, DataStore auth_secret, backup/device-transfer exclusions, fail-closed recovery. See WU2 verification matrix below. |
+| Requirements remaining (WU3–WU5 only) | Authenticated Network Boundary (WU3), Session + UI (WU4), gated real-Navidrome validation (WU5) |
+| Scenarios remaining (WU3–WU5 only) | Network failure → WU3; sign-in/sign-out/restore end-to-end flows → WU4; WU5 gated |
 
 ### Build & Tests Execution
 
@@ -42,9 +43,9 @@ build_output_hash: sha256:585355836107977cb4894b28ebe4a2255a72b62a9733a43b4a36d3
 
 **Tests**: ✅ passed
 ```text
-./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (92 executed / 92 passed; 0 failures, 0 errors, 0 skipped)
-SubsonicResponseParserTest focal count: 52/52
-Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (10 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 92 executed / 92 passed count is reproducible from a clean build.
+./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (140 executed / 140 passed; 0 failures, 0 errors, 0 skipped)
+WU2 focal tests (AuthAadTest + AuthCredentialsBoundaryTest + AuthSecretStoreTest + SecretCipherTest + CancelledReplacementSaveTest + AuthSecretDataStoreFactoryTest + PostCommitFailureTest): 48; WU1 parser focal (SubsonicResponseParserTest): 52
+Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (17 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 140 executed / 140 passed count (0 failures, 0 errors, 0 skipped) is reproducible from a clean build; WU2 focal tests = 48 (AuthAadTest 5 + AuthCredentialsBoundaryTest 2 + AuthSecretStoreTest 27 + SecretCipherTest 8 + CancelledReplacementSaveTest 1 + AuthSecretDataStoreFactoryTest 2 + PostCommitFailureTest 3). Historical WU1-era clean-run summaries (e.g. 92/92 / 10 classes) are historical evidence only and are superseded by this current record.
 ```
 
 **Coverage**: ➖ Not available
@@ -68,6 +69,20 @@ The previous report claimed 4/4 requirements and 11/11 scenarios for WU1, overst
 | **Req 7 Stable Account Identity** | Identity stable across version changes | yes | `ServerAccountIdentityTest` |
 
 **Totals**: requirements fully verified 2 of 4 (Req 1, Req 7); requirements partially verified 2 of 4 (Req 2 5/6, Req 6 1/2); scenarios executable 9 of 11; scenarios pending 2 of 11 (Network failure → WU3, No secret in persisted/logged artifacts → WU4).
+
+### WU2 Verification Matrix (PR #49 — secure secret storage, store-level executable evidence)
+
+| Requirement | Scenario | Executable now? | Evidence / pending |
+|---|---|---|---|
+| Cryptographic Endpoint Binding | Secret from server A fails under server B | YES | `AuthSecretStoreTest.secretFromServerAIsUnusableUnderServerB` |
+| Cryptographic Endpoint Binding | Changing ServerProfile is defense-in-depth only | Partial | AAD endpoint binding tested (`AuthAadTest`, `tamperedUsernameFailsGcmAuthenticationAndClears`); profile-change wiring → WU4 |
+| Session Restoration | Invalidated or missing Keystore key | Partial (store-level) | `keyPermanentlyInvalidatedDuringReadDeletesAliasAndClears`, `SecretCipherTest` invalidated-key cases; full process-restart restore → WU4 |
+| Sign-Out | Sign out preserves the saved server | Partial (store-level) | `clearRemovesCredentials` / `clearIsIdempotent`; sign-out flow → WU4 |
+| Fail-Closed Sign-In and Secret Persistence | Persist secret only after successful auth | No (flow → WU4) | store `save()`/fail-closed tested; ping-before-persist flow → WU4 |
+| Fail-Closed Sign-In and Secret Persistence | Secure-store failure after valid ping fails closed | No (flow → WU4) | store failure boundary tested; end-to-end → WU4 |
+| Session Restoration | Restore after process restart | No (flow → WU4) | `SessionRestorer` → WU4 |
+
+WU2 focal suite (48 tests): AuthAadTest 5, AuthCredentialsBoundaryTest 2, AuthSecretStoreTest 27, SecretCipherTest 8, CancelledReplacementSaveTest 1, AuthSecretDataStoreFactoryTest 2, PostCommitFailureTest 3.
 
 ### WU1 / PR #48 Requirements Partially Summarized
 
@@ -104,14 +119,33 @@ Seven fresh Codex findings: one focused WU1 production change with RED→GREEN t
 ### Generation 20 remediation (review 5000298986 follow-up on cb6a911)
 - Finding A: duplicate JSON object member names rejected BEFORE parseToJsonElement via a security lexical pre-scan (per-object seen-key sets on a frame stack; strings/escapes ignored; escape-equivalent keys decoded through strictJson so `status` vs `sta\u0074us` collide). Duplicate status/openSubsonic/error.code and escape-equivalent duplicates -> AuthProtocolError (RED: duplicateStatusKeysMapToAuthProtocolError, duplicateOpenSubsonicKeysMapToAuthProtocolError, duplicateErrorCodeKeysMapToAuthProtocolError, escapeEquivalentDuplicateKeysMapToAuthProtocolError — all failed pre-change, GREEN). Controls: same key in different objects allowed (sameKeyInDifferentObjectsIsAllowed), key-like text inside strings ignored (keyLikeTextInsideStringIsIgnored). Ordering: size -> depth -> duplicate keys -> strict parse -> semantic.
 - Finding B: error.message remains OPTIONAL but when PRESENT must be an actual JSON String (blank allowed). Non-string/null message -> AuthProtocolError (RED: failedWithNumeric/Boolean/Object/NullErrorMessageMapsToAuthProtocolError — all failed pre-change, GREEN). Blank message remains InvalidCredentials (blankErrorMessageRemainsInvalidCredentials); absent message and String message remain InvalidCredentials.
-- Fresh clean evidence: 92 executed / 92 passed / 10 classes; parser focal 52/52.
+- Fresh clean evidence (historical WU1-era record for Gen 20, superseded by the current WU1+WU2 clean summary): 92 executed / 92 passed / 10 classes; parser focal 52/52.
 
 
 ### Verdict
 
-PASS for WU1 / PR #48 (2/4 requirements fully verified, 9/11 scenarios executable).
+PASS for WU1 / PR #48 (merged into develop) and WU2 secure-secret-storage (implemented in PR #49). Normative executable scope: 2/4 requirements fully verified, 9/11 scenarios executable.
 
-The overall `navidrome-account-authentication` change is **INCOMPLETE**: WU2, WU3, WU4, and WU5 remain unimplemented in PR #48. Do NOT archive this OpenSpec change until WU1–WU5 are verified.
+The overall `navidrome-account-authentication` change is **INCOMPLETE**: WU3 (authenticated network boundary), WU4 (session/UI), and WU5 (gated real-Navidrome validation) remain unimplemented. Do NOT archive this OpenSpec change until WU1–WU5 are verified.
+
+### WU2 implementation evidence (PR #49, after ancestry integration)
+
+### Gen 10 remediation evidence (this attempt)
+ONE new Codex finding (WU2-review-remediation-4, evidence_goal `verified-wu2-initial-read-stale-credential-finding`) implemented RED -> GREEN:
+- `DataStoreAuthSecretStore.save()` now distinguishes a successfully-read snapshot from an unknown snapshot (initial read failure) via a `snapshotRead` flag.
+- If the snapshot WAS read: the existing conditional cleanup (`clearIfSnapshotStillMatches`) is preserved (clear only if current stored username/payload still match the captured snapshot).
+- If the initial snapshot read FAILED: best-effort UNCONDITIONAL credential clear runs under the existing process-wide shared coroutine Mutex (already held by save). A private no-lock helper `clearCredentialsNoLock()` is shared by both the public `clear()` and the unknown-snapshot save path — no second lock, no reentrant non-reentrant-Mutex call (no deadlock).
+- Error semantics: the ORIGINAL initial-read/storage failure remains the externally observed `Result.failure`; an ordinary unconditional-cleanup exception is attached as suppressed; `CancellationException` from cleanup still propagates.
+
+Preserved guarantees: process-wide shared Mutex serialization across wrappers; conditional snapshot cleanup when snapshot IS known; original failure preserved when cleanup fails; cleanup CancellationException propagates; encrypt/decrypt KeyPermanentlyInvalidatedException deletes alias + fail-closed + no same-operation retry; AES-GCM endpoint+exact username AAD binding; opaque case-sensitive Unicode-preserving username; ProviderException fail-closed; corruption recovery; backup exclusions; password/token redaction; no stale previous credential after failed replacement.
+
+### Issues Found
+**CRITICAL**: None
+**WARNING**: None
+**SUGGESTION**: None
+
+
+
 
 ### Preserved invariants
 
