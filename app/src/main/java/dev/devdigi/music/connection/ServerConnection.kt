@@ -224,6 +224,7 @@ object SubsonicResponseParser {
 
         return when (status) {
             "ok" -> {
+                if (root.containsKey("error")) return AuthResult.AuthProtocolError
                 val openSubsonic = root.booleanField("openSubsonic")
                 val serverType = root.stringField("type")
                 val serverVersion = root.stringField("serverVersion")

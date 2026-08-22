@@ -131,6 +131,19 @@ where `endpointUtf8 = identity.endpoint.value` (UTF-8) and `usernameUtf8 = ident
 
 `SecretCipher` evolves to `encrypt(plaintext, associatedData)` / `decrypt(encrypted, associatedData)`, calling `Cipher.updateAAD(aad)` before `doFinal` on both paths. Every encryption MUST use a fresh cryptographically random IV; the IV size is 12 bytes (96 bits), the standard GCM nonce length. Two encryptions under the same key and same plaintext MUST produce distinct IVs and therefore distinct ciphertexts; a constant or reused IV is forbidden because AES-GCM nonce reuse destroys confidentiality and authenticity. This subsumes the earlier "authenticate the username with the ciphertext" finding with the stronger endpoint+username binding.
 
+### Key Permanently Invalidated Contract (WU2 / PR #49)
+
+`KeyPermanentlyInvalidatedException` (or an equivalent `GeneralSecurityException` indicating the Android Keystore key is no longer usable) MUST be handled as follows:
+
+1. Fail the current cryptographic operation closed (no plaintext emitted, no `Authenticated` state derived from the broken key).
+2. Delete the invalidated Android Keystore alias so the key cannot be reused in any future operation.
+3. Clear or conditionally invalidate the ciphertext bound to the old key; deleting ciphertext alone is insufficient because a future decrypt would re-encounter the same permanently invalidated alias.
+4. Do NOT retry `getOrCreateKey` within the same failed operation; retrying inside the failing path risks loops and does not fix the invalidated key.
+5. A LATER user-triggered or auth-triggered operation MAY create a fresh replacement key.
+6. A newly-entered credential can then be encrypted successfully under the fresh key.
+
+This contract aligns PR #48 planning with the existing PR #49 implementation (see tests `keyPermanentlyInvalidatedDeletesAliasAndFailsClosed` and `keyPermanentlyInvalidatedDuringEncryptDeletesAliasAndFailsClosedAndLaterSucceeds`). PR #48 does not duplicate WU2 implementation.
+
 ServerProfile change semantics (defense-in-depth, NOT the primary guarantee): changing/deleting `ServerProfile` invalidates current authenticated state and SHOULD best-effort clear `auth_secret`. Because `server_profile` and `auth_secret` are separate DataStores, the cross-store clear is not crash-atomic; even if the clear fails, a stale ciphertext survives, or a process crashes mid-change, AAD endpoint binding still prevents A's secret from being decrypted or used under B. Concrete profile-change/session-invalidation wiring lands in WU4; the invariant is fixed here.
 
 ## Redirect Policy (WU3)
@@ -180,6 +193,10 @@ Deterministic cases SHALL cover 400/401/404/500/502/503 responses that carry a v
 
 Per the official OpenSubsonic schema, the `error` object inside a `subsonic-response` envelope requires `error.code` (integer) and makes `error.message` optional ("The optional error message" / "A human readable error message"). Therefore a failed response that carries only a valid integer `error.code` — for example `{"status":"failed","version":"1.16.1","error":{"code":40}}` — is protocol-valid. The parser maps code 40 to `InvalidCredentials` without requiring `error.message` to be present. Code 10 ("Required parameter is missing.") is a protocol-level failure and MUST map to `AuthProtocolError`; it MUST NEVER produce `Authenticated`.
 
+## OpenSubsonic Success Envelope Rationale
+
+Per the official OpenSubsonic `subsonic-response` schema, for a response claiming OpenSubsonic support (`openSubsonic: true`), the fields `type` and `serverVersion` are MANDATORY strings ("Mandatory to help clients adapt to actual Subsonic API support"; "Mandatory for clients to be able to detect servers updates"). The parser therefore requires actual non-blank string values for both fields before yielding `Authenticated`. There are no defaults for missing descriptive metadata; `ServerMetadata.serverType` and `ServerMetadata.serverVersion` remain non-nullable. A success envelope that also contains an `error` member is contradictory and MUST fail closed as `AuthProtocolError`.
+
 ## Stale In-Flight Auth vs Profile Change (WU4)
 
 Each authentication attempt captures the current `ServerProfile` generation/revision when it begins. When `ServerProfile` is saved, replaced, or deleted: (1) the active authentication job is cancelled AND (2) the profile/auth generation is incremented or otherwise invalidates prior attempts.
@@ -191,6 +208,23 @@ Before persisting credentials, exposing `ServerAccountIdentity`, or publishing `
 If the attempt is stale: do not publish `AUTHENTICATED`, do not expose identity, do not allow stale credentials to become durable/current; the current/new profile wins; fail closed.
 
 Deterministic planned tests SHALL cover profile change: (A) immediately after ping completion; (B) immediately after the final pre-persist check; (C) while persistence is suspended; (D) immediately after the final pre-publish check; (E) stale identity cannot become visible; (F) stale credentials cannot become the current durable snapshot — using `CompletableDeferred`, controlled fakes, latches, and `kotlinx-coroutines-test`, with no `Thread.sleep` or timing races. In all cases the stale attempt loses and the current profile wins.
+
+## Session Restoration Policy (WU4)
+
+Cold-start restoration MUST re-authenticate via `AuthenticatedPingClient` before exposing any durable identity or `AUTHENTICATED` state. The durable encrypted credential in `auth_secret` is retained or cleared according to the outcome:
+
+- A. `Authenticated` → expose `ServerAccountIdentity` and `ServerMetadata` per the atomic-generation contract; RETAIN the encrypted credential so later cold starts can re-authenticate without re-entering the password.
+- B. `InvalidCredentials` → credentials were explicitly evaluated and rejected; expose no `AUTHENTICATED`/identity; the stored credential MAY/SHOULD be cleared to force re-entry.
+- C. `NetworkError` → expose no `AUTHENTICATED`/identity; RETAIN the encrypted credential; this is a retryable, non-secret state; a later retry with a fresh salt/token may succeed; a transient outage MUST NOT destroy the durable credential.
+- D. `AuthProtocolError` → expose no `AUTHENTICATED`/identity; RETAIN the encrypted credential (the failure does not prove the password wrong).
+- E. `UnsupportedAuthentication` → expose no `AUTHENTICATED`/identity; RETAIN the encrypted credential (the failure does not prove the password wrong).
+- F. `IncompatibleServer` → expose no `AUTHENTICATED`/identity; RETAIN the encrypted credential (the failure does not prove the password wrong).
+- G. Missing/unrecoverable key, invalid ciphertext, GCM authentication failure, or any permanently invalidated key → no safe recovery; clear the invalid snapshot per WU2 fail-closed rules and expose no `AUTHENTICATED`/identity.
+- H. Explicit sign-out → clear the credential; only report success after `clear()` succeeds (see Fail-Closed Sign-Out below).
+
+The credential is NEVER retained merely to imply `AUTHENTICATED`; `AUTHENTICATED` and `ServerAccountIdentity` are exposed only after a successful authenticated ping.
+
+Planned deterministic WU4 tests SHALL cover: `NetworkError` retains the secret and exposes no identity; a retry with the retained secret authenticates without re-entering the password; `AuthProtocolError`, `UnsupportedAuthentication`, and `IncompatibleServer` retain the secret; `InvalidCredentials` clears the secret; an unrecoverable crypto failure clears the invalid snapshot; explicit sign-out clears the credential.
 
 ## Fail-Closed Sign-Out (WU4)
 

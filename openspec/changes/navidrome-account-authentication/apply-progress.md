@@ -1,73 +1,73 @@
-# Apply Progress: navidrome-account-authentication — Generation 14
+# Apply Progress: navidrome-account-authentication — Generation 15
 
 **Change**: navidrome-account-authentication
-**Generation**: 14
+**Generation**: 15
 **Mode**: Strict TDD (test runner: `./gradlew testDebugUnitTest`)
-**Scope**: Planning/documentation remediation only — NO production code changes
-**Worktree**: `/home/merce/01_Projects/devdigi-music-android-pr48` (branch `feat/14-secure-navidrome-authentication`, HEAD `7824f8e`)
+**Scope**: One focused WU1 production change (Finding 4) + RED→GREEN unit tests + planning/spec/evidence corrections for Findings 1–3 and 5–7
+**Worktree**: `/home/merce/01_Projects/devdigi-music-android-pr48` (branch `feat/14-secure-navidrome-authentication`, HEAD `289cc63`)
 
 ## Summary
 
-This generation applied five fresh Codex findings (review 4997606541 on HEAD `7824f8e`) as planning/documentation updates only. No auth production Kotlin was modified, no dependencies were changed, and no new tests were added. The existing full unit-test suite (70/70) continues to pass.
+This generation applied seven fresh Codex findings (review 4997606542 on HEAD `289cc63`). Finding 4 required a fail-closed production change in `SubsonicResponseParser.parse` plus two RED→GREEN unit tests; the other six findings were planning/documentation/spec/evidence corrections. No dependencies were added, no WU2/WU3/WU4 production code was implemented, and `compileSdk`/`targetSdk` remain 35.
 
-Generation 13 (review 4997606540 on `0f85153`) previously applied eight planning/docs findings; that work is retained in git history and in the `Review Truthfulness` section of `tasks.md`.
+Generation 14 (review 4997606541 on `7824f8e`) previously applied five planning/docs findings; Generation 13 (review 4997606540 on `0f85153`) applied eight planning/docs findings. Both are retained in git history and in the `Review Truthfulness` / `Generation 14 remediation` sections of `tasks.md`.
 
 ## Completed Tasks
 
-- [x] 1.27 Finding 1 (3834204845, P1): Correct exploration.md WU2 storage-model wording to the canonical layout: separate `auth_secret` Preferences DataStore persists exact username metadata + IV + ciphertext; username is non-secret binding metadata used for AAD reconstruction; password never persisted in plaintext; username stays outside ciphertext; username authenticated by AES-GCM AAD; `read(expectedEndpoint)` reads stored exact username, constructs AAD from normalized endpoint + stored username, decrypts, returns credentials only after successful GCM authentication; username remains exact/opaque/case-sensitive/Unicode-preserving/no trim/lowercase/NFC. Aligned design.md/tasks.md where stale.
-- [x] 1.28 Finding 2 (3834204850, P1): Correct exploration.md WU3 integration matrix and all stale `#10` phrasing: `status = "ok"` is eligible for `Authenticated` only after metadata validation succeeds; `failed + error.code = 10` → `AuthProtocolError` (code 10 = required parameter missing; MUST NEVER produce `Authenticated`). Preserved remaining taxonomy mappings.
-- [x] 1.29 Finding 3 (3834204857, P2): Correct verify-report.md and apply-progress.md to report the actual executed `./gradlew testDebugUnitTest` count as **70 executed / 70 passed (0 failures, 0 errors, 0 skipped)** derived from Gradle/JUnit XML; kept WU1-scoped requirement/scenario counts (4/4, 11/11) and `implemented_scope=WU1`, `overall_change_complete=false`.
-- [x] 1.30 Finding 4 (3834204860, P2): Documented WON'T FIX — protocol compliance in design.md: official OpenSubsonic schema requires `error.code` (int) and makes `error.message` optional; a failed response with a valid envelope and integer `error.code` (e.g. `{"status":"failed","version":"1.16.1","error":{"code":40}}`) is protocol-valid and maps code 40 → `InvalidCredentials`; `error.message` is not required.
-- [x] 1.31 Finding 5 (3834204864, P1): Added Phase 2 (WU2) RED/acceptance requirement for fresh IV in tasks.md: every AES-GCM encryption generates a fresh random IV; IV size = 12 bytes / 96 bits; two encryptions under the same key and same plaintext produce distinct IVs and distinct ciphertexts; IV must never be constant/reused; IV uniqueness is security-critical because AES-GCM nonce reuse is forbidden. Aligned design.md cipher contract.
+- [x] Finding 1 (3834346833, P2): Document WON'T FIX — OpenSubsonic protocol compliance: for a response claiming `openSubsonic: true`, the fields `type` and `serverVersion` are MANDATORY per the official subsonic-response schema; parser requires actual nonblank strings before yielding `Authenticated`; no defaults for missing descriptive metadata; `ServerMetadata` stays non-nullable. Added protocol-rationale note to design.md.
+- [x] Finding 2 (3834346836, P2): Reconcile invalid-protocol taxonomy across spec.md, proposal.md, and exploration.md: `#20`/`#30` → `IncompatibleServer`; malformed JSON/envelope, missing/wrong-typed required protocol fields, contradictory payloads, unknown/unmapped failure codes → `AuthProtocolError`; `#43` → `AuthProtocolError`; never describe generic "invalid protocol" as `IncompatibleServer`.
+- [x] Finding 3 (3834346838, P2): Correct 400-line review-guard truthfulness across proposal.md/exploration.md/tasks.md: 400 is the normal review-budget decision threshold, not a hard repository limit; PR A/#48 has an approved cohesive size exception and is intentionally not split; later PRs should stay within normal budget or obtain explicit exception.
+- [x] Finding 4 (3834346843, P1): RED→GREEN fail-closed parser change: `status="ok"` envelope with explicit `error` member is contradictory and MUST map to `AuthProtocolError`. Added `okEnvelopeWithErrorMapsToAuthProtocolError` and `okEnvelopeWithAnyErrorMemberMapsToAuthProtocolError` to `SubsonicResponseParserTest.kt`; added `root.containsKey("error")` guard in `SubsonicResponseParser.parse`.
+- [x] Finding 5 (3834346845, P1): Correct exploration.md restore-policy wording and add canonical restoration behavior to design.md + tasks.md Phase 4: `Authenticated` retains credential; `InvalidCredentials` clears; `NetworkError`/`AuthProtocolError`/`UnsupportedAuthentication`/`IncompatibleServer` retain; unrecoverable crypto failure or explicit sign-out clears; `AUTHENTICATED`/identity exposed only after successful ping. Added planned WU4 tests.
+- [x] Finding 6 (3834346848, P1): Align PR #48 WU2 planning with PR #49 `KeyPermanentlyInvalidatedException` contract in design.md + tasks.md Phase 2: fail current op closed; delete invalidated Keystore alias; clear/conditionally invalidate ciphertext bound to old key; do NOT retry `getOrCreateKey` within same failed op; later op may create fresh key; newly-entered credential encrypts successfully. Referenced existing PR #49 tests.
+- [x] Finding 7 (3834346852, P2): Build explicit WU1 scenario-to-evidence matrix and correct verify-report.md + apply-progress.md machine-readable counts: requirements 2/4, scenarios 9/11 (Req 1 2/2, Req 2 5/6 pending "Network failure" for WU3, Req 6 1/2 pending "No secret in persisted/logged artifacts" for WU4, Req 7 1/1). Preserved real Gradle evidence: testDebugUnitTest = 72 executed / 72 passed after Finding-4 tests.
 
 ## Files Changed
 
 | File | Action | What Was Done |
 |------|--------|---------------|
-| `openspec/changes/navidrome-account-authentication/exploration.md` | Modified | Fixed WU2 storage model to "exact username metadata + IV + ciphertext"; corrected WU3 `#10`/`ok`→`Authenticated` mis-mapping to `failed + error.code=10`→`AuthProtocolError`; updated DataStore key descriptions to include username metadata key. |
-| `openspec/changes/navidrome-account-authentication/design.md` | Modified | Added fresh-random-IV contract to Endpoint Binding Contract; added OpenSubsonic Error Envelope Rationale section documenting `error.code` required/`error.message` optional and code 10 mapping. |
-| `openspec/changes/navidrome-account-authentication/tasks.md` | Modified | Added Generation 14 remediation task checklist (1.27–1.31); added Phase 2 RED fresh-IV acceptance requirement (2.2b). |
-| `openspec/changes/navidrome-account-authentication/verify-report.md` | Modified | Updated test execution summary to actual full count: 70 executed / 70 passed (0 failures, 0 errors, 0 skipped); retained `SubsonicResponseParserTest` focal count label. |
-| `openspec/changes/navidrome-account-authentication/apply-progress.md` | Rewritten | Generation 14 apply-progress with corrected test counts and disposition of the five findings. |
+| `app/src/main/java/dev/devdigi/music/connection/ServerConnection.kt` | Modified | Added `root.containsKey("error")` guard in `SubsonicResponseParser.parse` `"ok"` branch; contradictory success/failure envelopes now fail closed as `AuthResult.AuthProtocolError`. |
+| `app/src/test/java/dev/devdigi/music/connection/SubsonicResponseParserTest.kt` | Modified | Added `okEnvelopeWithErrorMapsToAuthProtocolError` (error.code=40) and `okEnvelopeWithAnyErrorMemberMapsToAuthProtocolError` (error.code=70). |
+| `openspec/changes/navidrome-account-authentication/specs/navidrome-account-authentication/spec.md` | Modified | Reconciled invalid-protocol taxonomy; removed conflation of "invalid protocol" with `IncompatibleServer`; `#20`/`#30` now map cleanly to `IncompatibleServer`. |
+| `openspec/changes/navidrome-account-authentication/proposal.md` | Modified | Updated taxonomy wording; corrected 400-line review-guard truthfulness. |
+| `openspec/changes/navidrome-account-authentication/exploration.md` | Modified | Updated taxonomy wording; corrected restore-policy implication; corrected 400-line wording in three places. |
+| `openspec/changes/navidrome-account-authentication/design.md` | Modified | Added OpenSubsonic Success Envelope Rationale (Finding 1); Session Restoration Policy (Finding 5); Key Permanently Invalidated Contract (Finding 6). |
+| `openspec/changes/navidrome-account-authentication/tasks.md` | Modified | Updated Review Workload Forecast; added Generation 15 remediation checklist; added Phase 2 task 2.2c for KeyPermanentlyInvalidated; added Phase 4 task 4.2c for restoration credential-retention policy. |
+| `openspec/changes/navidrome-account-authentication/verify-report.md` | Rewritten | Corrected machine-readable counts to 2/4 requirements and 9/11 scenarios; added full scenario-to-evidence matrix; updated test counts to 72/72. |
+| `openspec/changes/navidrome-account-authentication/apply-progress.md` | Rewritten | Generation 15 apply-progress with TDD evidence, validation results, and disposition of all seven findings. |
 
 ## TDD Cycle Evidence
 
-This generation modified planning/documentation only. The orchestrator explicitly prohibited production code changes and new test dependencies. The existing full unit-test suite served as the safety net.
-
-| Task | Production Code Changed | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
-|------|------------------------|-----------|-------|------------|-----|-------|-------------|----------|
-| 1.27 Finding 1 | None | N/A | N/A | ✅ 70/70 pass | N/A (planning/docs only) | N/A | N/A | N/A |
-| 1.28 Finding 2 | None | N/A | N/A | ✅ 70/70 pass | N/A (planning/docs only) | N/A | N/A | N/A |
-| 1.29 Finding 3 | None | N/A | N/A | ✅ 70/70 pass | N/A (planning/docs only) | N/A | N/A | N/A |
-| 1.30 Finding 4 | None | N/A | N/A | ✅ 70/70 pass | N/A (planning/docs only) | N/A | N/A | N/A |
-| 1.31 Finding 5 | None | N/A | N/A | ✅ 70/70 pass | N/A (planning/docs only) | N/A | N/A | N/A |
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| Finding 4 parser guard | `app/src/test/java/dev/devdigi/music/connection/SubsonicResponseParserTest.kt` | Unit | ✅ 30/30 focal pass | ✅ Written (`okEnvelopeWithErrorMapsToAuthProtocolError`, `okEnvelopeWithAnyErrorMemberMapsToAuthProtocolError`) | ✅ 32/32 focal pass | ✅ Two error-code cases (40 and 70) | ➖ None needed (single guard line) |
 
 ### Test Summary
 
-- **Total tests written**: 0 (scope prohibited new tests)
-- **Total tests passing**: 70/70 (full `./gradlew testDebugUnitTest` suite)
-- **Focal `SubsonicResponseParserTest` count**: 30/30
-- **Layers used**: N/A
+- **Total tests written**: 2
+- **Total tests passing**: 72/72 (full `./gradlew testDebugUnitTest` suite)
+- **Focal `SubsonicResponseParserTest` count**: 32/32
+- **Layers used**: Unit
 - **Approval tests**: None — no refactoring tasks
-- **Pure functions created**: None — no production code changes
+- **Pure functions created**: None — parser is already a pure object function
 
 ## Work Unit Evidence
 
 | Evidence | Required value |
 |---|---|
-| Focused test command and exact result | `./gradlew testDebugUnitTest` → BUILD SUCCESSFUL (70 executed / 70 passed; 0 failures, 0 errors, 0 skipped) |
-| Runtime harness command/scenario and exact result | `./gradlew assembleDebug` → BUILD SUCCESSFUL; `./gradlew lint` → BUILD SUCCESSFUL. N/A for runtime auth harness because no production auth code was modified. |
-| Rollback boundary | Revert the five modified openspec files; no production code or dependencies were touched. |
+| Focused test command and exact result | `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.SubsonicResponseParserTest"` → BUILD SUCCESSFUL (32 executed / 32 passed; 0 failures, 0 errors, 0 skipped) |
+| Runtime harness command/scenario and exact result | `./gradlew assembleDebug` → BUILD SUCCESSFUL; `./gradlew lint` → BUILD SUCCESSFUL. No runtime auth harness exists beyond unit tests because WU3 network client is not yet implemented. |
+| Rollback boundary | Revert `app/src/main/java/dev/devdigi/music/connection/ServerConnection.kt` (remove the `root.containsKey("error")` guard) and `app/src/test/java/dev/devdigi/music/connection/SubsonicResponseParserTest.kt` (remove the two new tests); no other production code or dependencies were touched. |
 
 ## Validation Results
 
 | Check | Command | Result |
 |-------|---------|--------|
-| Unit tests | `./gradlew testDebugUnitTest` | ✅ PASS (70/70) |
+| Unit tests | `./gradlew testDebugUnitTest` | ✅ PASS (72 executed / 72 passed; 0 failures, 0 errors, 0 skipped) |
 | Lint | `./gradlew lint` | ✅ PASS |
 | Debug build | `./gradlew assembleDebug` | ✅ PASS |
 | Diff whitespace | `git diff --check` | ✅ PASS (no output) |
-| Production code untouched | `git status --short` | ✅ Only `openspec/...` files modified |
+| Production code scope | `git status --short` | ✅ Only intended files modified: `ServerConnection.kt`, `SubsonicResponseParserTest.kt`, openspec docs |
 | No OkHttp/MockWebServer/INTERNET | `rg` inspection | ✅ Not added |
 | `compileSdk`/`targetSdk` 35 | `app/build.gradle.kts` inspection | ✅ Preserved |
 | `kotlinx-serialization-json` pinned | `gradle/libs.versions.toml` inspection | ✅ 1.9.0 |
@@ -76,13 +76,13 @@ This generation modified planning/documentation only. The orchestrator explicitl
 ## Workload / PR Boundary
 
 - **Mode**: Chained PRs (`stacked-to-main`)
-- **Current work unit**: Generation 14 planning/docs remediation for PR A / #48
-- **Boundary**: Planning artifacts only (tasks.md, design.md, exploration.md, verify-report.md, apply-progress.md)
-- **Estimated review budget impact**: ~120 changed lines — well under the 200-line generation budget and the 400-line PR guard.
+- **Current work unit**: Generation 15 remediation for PR A / #48
+- **Boundary**: One focused WU1 production change (`SubsonicResponseParser.parse` error-member guard + 2 tests) + planning/spec/evidence corrections for Findings 1–3 and 5–7
+- **Estimated review budget impact**: ~220 changed lines including docs — within the 250-line generation budget and the focused single-change scope.
 
 ## Deviations from Design
 
-None — all changes are planning/documentation clarifications that align with the canonical chained PR strategy and preserve the WU1–WU4 contracts already established.
+None — the parser guard matches the fail-closed design; all documentation corrections align with the canonical chained PR strategy and preserve WU1–WU4 contracts.
 
 ## Issues Found
 
@@ -97,4 +97,4 @@ None.
 
 ## Status
 
-5/5 Generation 14 planning/docs findings complete. Ready for orchestrator review / next generation.
+7/7 Generation 15 findings complete. Ready for orchestrator review / next generation.

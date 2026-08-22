@@ -309,6 +309,46 @@ class SubsonicResponseParserTest {
         assertTrue(SubsonicResponseParser.parse(json) is AuthResult.InvalidCredentials)
     }
 
+    @Test
+    fun okEnvelopeWithErrorMapsToAuthProtocolError() {
+        val json = """
+            {
+                "subsonic-response": {
+                    "status": "ok",
+                    "version": "1.16.1",
+                    "type": "navidrome",
+                    "serverVersion": "0.54.1",
+                    "openSubsonic": true,
+                    "error": { "code": 40 }
+                }
+            }
+        """.trimIndent()
+
+        val result = SubsonicResponseParser.parse(json)
+
+        assertTrue("Expected AuthProtocolError, got $result", result is AuthResult.AuthProtocolError)
+    }
+
+    @Test
+    fun okEnvelopeWithAnyErrorMemberMapsToAuthProtocolError() {
+        val json = """
+            {
+                "subsonic-response": {
+                    "status": "ok",
+                    "version": "1.16.1",
+                    "type": "navidrome",
+                    "serverVersion": "0.54.1",
+                    "openSubsonic": true,
+                    "error": { "code": 70 }
+                }
+            }
+        """.trimIndent()
+
+        val result = SubsonicResponseParser.parse(json)
+
+        assertTrue("Expected AuthProtocolError, got $result", result is AuthResult.AuthProtocolError)
+    }
+
     private fun okJsonRaw(fields: String): String = """
         {
             "subsonic-response": {

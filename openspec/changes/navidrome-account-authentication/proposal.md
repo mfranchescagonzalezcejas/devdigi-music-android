@@ -11,7 +11,7 @@ Implement #14: secure, durable Navidrome account authentication on top of #13's 
 - `ServerAccountIdentity` (normalized `ServerEndpoint` + exact opaque username used by the successful authentication request) and separate `ServerMetadata` (`serverType`, `serverVersion`, `openSubsonic`). Username is case-sensitive and Unicode-preserving; no trim, case folding, or Unicode normalization at the identity layer.
 - `AuthCredentials` secret boundary: redacted `toString`, no serialization/logging/telemetry, transient password only.
 - Subsonic token/salt signing: `token = md5(password + salt)` UTF-8 lowercase hex; per-request `SecureRandom` salt (≥6 chars, URL-safe hex, never persisted).
-- `AuthResult` taxonomy: `Authenticated`, `InvalidCredentials` (#40), `UnsupportedAuthentication` (#41/#42), `AuthProtocolError` (#43), `IncompatibleServer` (#20/#30 + invalid protocol), `NetworkError`. #44 unmapped (API-key out of scope).
+- `AuthResult` taxonomy: `Authenticated`, `InvalidCredentials` (#40), `UnsupportedAuthentication` (#41/#42), `AuthProtocolError` (#43), `IncompatibleServer` (#20/#30), `NetworkError`. #44 unmapped (API-key out of scope). Malformed JSON/envelope, missing or wrong-typed required protocol fields, contradictory payloads, and unmapped failure codes map to `AuthProtocolError`, not `IncompatibleServer`.
 - Android Keystore AES/GCM/NoPadding ciphertext in separate `auth_secret` Preferences DataStore, excluded from backup/restore; invalid/missing key → clear + forced re-login (NOT `EncryptedSharedPreferences`).
 - Fail-closed sign-in; sign-out (clear secret + auth state, preserve `ServerProfile`); re-authenticated session restoration.
 - Authenticated network boundary via OkHttp 5.4.0 (no logging-interceptor); `kotlinx-serialization-json` 1.9.0 runtime; `mockwebserver` testImplementation only.
@@ -76,9 +76,9 @@ Seam-preserving (exploration Option 1 + 4a + 5 + 6a + 7): add a parallel `Authen
 
 ## Delivery Note
 
-Canonical delivery strategy: **chained PRs** (`stacked-to-main`). PR A / #48 = planning + WU1 auth core; PR B / #49 = WU2 secure-secret-storage; PR C = WU3 authenticated-network-boundary; PR D = WU4 session/UI; WU5 = gated real-Navidrome validation after WU1–WU4 integration. Each PR targets the previous PR's branch (or `main` after the previous merges) to keep every review slice within the 400-line guard.
+Canonical delivery strategy: **chained PRs** (`stacked-to-main`). PR A / #48 = planning + WU1 auth core; PR B / #49 = WU2 secure-secret-storage; PR C = WU3 authenticated-network-boundary; PR D = WU4 session/UI; WU5 = gated real-Navidrome validation after WU1–WU4 integration. 400 lines is the normal review-budget decision threshold, not a hard repository limit; PR A / #48 has an approved cohesive size exception and is intentionally not split after multiple review/remediation rounds. Later PRs should stay within the normal review budget where practical or obtain their own explicit exception; never game line counts.
 
-(superseded — earlier `delivery_strategy = single-pr` / "user-approved, no pre-split" / split-vs-`size:exception` statements are historical audit context only; the authoritative current delivery strategy is chained PRs.)
+(superseded — earlier `delivery_strategy = single-pr` / "user-approved, no pre-split" / split-vs-`size:exception` / "every chained PR stays under 400 lines" statements are historical audit context only; the authoritative current delivery strategy is chained PRs.)
 
 ## Success Criteria
 
