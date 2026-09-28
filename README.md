@@ -1,7 +1,12 @@
 # DevDigi Music Android
 
-Minimal native Android bootstrap for DevDigi Music. It intentionally contains
-no server, account, library, or playback implementation yet.
+DevDigi Music is a native Kotlin and Jetpack Compose Android client for
+user-provided Navidrome/OpenSubsonic servers.
+
+The current bootstrap implements server URL validation and persistence,
+authentication contracts, protocol parsing and encrypted credential storage.
+Interactive authentication, authenticated networking, music browsing and
+Media3 playback are not yet available.
 
 ## First Sound
 
@@ -10,6 +15,15 @@ Navidrome/OpenSubsonic server (BYON), authenticate safely, browse recent
 albums and tracks, and play FLAC through Media3 with Android system playback
 integration. The app must not hardcode a server or assume a Tailnet, LAN, or
 other deployment topology.
+
+## BYON and security
+
+Each user supplies their own server and account. The current screen can
+save a server URL, but saving it does not authenticate or contact the server.
+
+See [BYON setup and security](docs/byon-security.md) for implemented and
+planned security boundaries, and [Android architecture](docs/android-architecture.md)
+for the native architecture and migration policy.
 
 ## Verify
 
