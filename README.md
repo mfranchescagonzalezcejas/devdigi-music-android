@@ -38,6 +38,9 @@ No license has been selected. See GitHub issue #19 before reusing or contributin
 
 ## Branch protection
 
-`main` is intentionally unprotected while this is a sole-maintainer bootstrap. Require checks and pull-request reviews when another maintainer or external contribution flow exists.
+Both `main` and `develop` are protected. Normal integration requires pull
+requests, resolved review conversations and the Jenkins `pr-merge` check.
+The repository uses merge commits and GitFlow. See
+[GitFlow and branch governance](docs/gitflow-governance.md) for the full policy.
 
 
