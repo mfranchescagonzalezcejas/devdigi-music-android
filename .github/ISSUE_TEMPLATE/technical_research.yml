@@ -1,0 +1,132 @@
+name: Technical research
+description: Investigate a technical uncertainty before approving production implementation.
+labels:
+  - type:research
+  - status:needs-review
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues first. Keep the investigation reproducible and privacy-safe. Research does not authorize production implementation.
+  - type: textarea
+    id: research_question
+    attributes:
+      label: Technical question or uncertainty
+      description: What needs to be understood or validated?
+    validations:
+      required: true
+  - type: textarea
+    id: research_decision
+    attributes:
+      label: Decision needed
+      description: What decision should this investigation enable?
+    validations:
+      required: true
+  - type: textarea
+    id: research_evidence
+    attributes:
+      label: Current evidence and assumptions
+      description: Summarize verified evidence separately from assumptions that still need validation.
+    validations:
+      required: true
+  - type: textarea
+    id: research_scope
+    attributes:
+      label: Scope and out of scope
+      description: What will this investigation cover, and what will it explicitly exclude?
+    validations:
+      required: true
+  - type: dropdown
+    id: research_areas
+    attributes:
+      label: Affected areas
+      description: Select every area that is affected.
+      multiple: true
+      options:
+        - area:android
+        - area:architecture
+        - area:auth
+        - area:discovery
+        - area:navidrome
+        - area:offline
+        - area:playback
+        - area:security
+        - area:server
+        - area:testing
+        - area:ui
+        - Other / cross-cutting
+    validations:
+      required: true
+  - type: textarea
+    id: research_options
+    attributes:
+      label: Options or hypotheses
+      description: List the options or hypotheses that should be compared or tested.
+    validations:
+      required: true
+  - type: textarea
+    id: research_validation_plan
+    attributes:
+      label: Evidence and reproducibility plan
+      description: Explain how evidence will be gathered, reproduced, and recorded safely.
+    validations:
+      required: true
+  - type: textarea
+    id: research_decision_criteria
+    attributes:
+      label: Decision criteria
+      description: Define measurable criteria for evaluating the options or hypotheses.
+    validations:
+      required: true
+  - type: textarea
+    id: research_deliverables
+    attributes:
+      label: Deliverables and definition of done
+      description: State the expected evidence, recommendation, decision record, or explicit follow-up gate.
+    validations:
+      required: true
+  - type: dropdown
+    id: research_openspec_impact
+    attributes:
+      label: OpenSpec impact
+      options:
+        - No specification change expected
+        - Existing behavior/specification must change
+        - New capability/specification may be needed
+        - Unsure — maintainer review needed
+    validations:
+      required: true
+  - type: textarea
+    id: research_security_privacy
+    attributes:
+      label: Sanitized security or privacy impact
+      description: Describe any security or privacy impact without exploitable details, secrets, or personal data. Enter "None known" when applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: research_dependencies
+    attributes:
+      label: Dependencies, risks, and rollback constraints
+      description: Optional. Identify dependencies, risks, constraints, and anything that could make a later rollback difficult.
+    validations:
+      required: false
+  - type: textarea
+    id: research_context
+    attributes:
+      label: Additional context
+      description: Optional. Add only safe, relevant context.
+    validations:
+      required: false
+  - type: checkboxes
+    id: research_duplicate_check
+    attributes:
+      label: Duplicate check
+      options:
+        - label: I searched existing issues for duplicates.
+          required: true
+  - type: checkboxes
+    id: research_safe_disclosure
+    attributes:
+      label: Safe disclosure
+      options:
+        - label: I removed secrets, credentials, tokens, personal data, private endpoints, and local paths.
+          required: true
