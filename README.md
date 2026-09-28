@@ -27,18 +27,31 @@ for the native architecture and migration policy.
 
 ## Verify
 
-Requires Android SDK platform 35. Gradle runs on JDK 25; Android
-compilation remains on Java 17 bytecode.
+Requires Android SDK platform 35. Local verification succeeded
+with Gradle 9.5.0 on JDK 17; Android compilation targets Java 17 bytecode.
 
-For Android Studio sync, set **Settings/Preferences > Build, Execution,
-Deployment > Build Tools > Gradle > Gradle JDK** to an installed **JDK 25**.
-Current Android Studio versions support this Gradle runtime. Use JDK 17 only
-as a fallback where JDK 25 is unavailable; the project keeps Java 17 for
-Android compilation.
+For Android Studio sync, select a Gradle JDK compatible with the project's
+Gradle and Android Gradle Plugin versions. Verify the Jenkins Gradle runtime
+independently of the Jenkins agent JVM.
 
 ```sh
+git fetch --no-tags origin \
+    +refs/heads/develop:refs/remotes/origin/develop
+./gradlew spotlessCheck
 ./gradlew lint testDebugUnitTest
 ```
+
+When formatting is needed, run it manually:
+
+```sh
+./gradlew spotlessApply
+git diff --check
+git diff
+```
+
+Spotless Ratchet checks entire files modified relative to `origin/develop`,
+not just the changed lines. Review every formatting change before staging.
+Jenkins runs `spotlessCheck` only; it never applies formatting automatically.
 
 ## Privacy
 

@@ -20,7 +20,15 @@ pipeline {
 
         stage('Formatting/static analysis') {
             steps {
-                echo 'Formatting/static analysis is deferred: this bootstrap project has no formatter or static-analysis tool configured.'
+                echo 'Spotless formatting gate. Detekt and coverage remain deferred.'
+                sh '''
+                    set -eu
+                    # Jenkins PR-merge checkouts may not have origin/develop.
+                    git fetch --no-tags origin +refs/heads/develop:refs/remotes/origin/develop
+                    git rev-parse --verify 'refs/remotes/origin/develop^{commit}' >/dev/null
+                    git merge-base HEAD origin/develop >/dev/null
+                    ./gradlew spotlessCheck
+                '''
             }
         }
 

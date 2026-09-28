@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.spotless)
 }
 
 android {
@@ -27,7 +28,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
 }
 
 kotlin {
@@ -46,4 +46,21 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.androidx.datastore.preferences.core)
     testImplementation(libs.coroutines.test)
+}
+
+spotless {
+    ratchetFrom("origin/develop")
+    kotlin {
+        // Android source sets are not inferred reliably by Spotless.
+        target("src/**/*.kt")
+        ktlint("1.8.0")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint("1.8.0")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }

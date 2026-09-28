@@ -6,9 +6,9 @@ Jenkins is the primary CI system. GitHub Actions CI has been removed to avoid a 
 
 CI-0 Basic pipeline is complete. The root `Jenkinsfile` runs visible formatting/static-analysis, unit-test, lint, and debug-assembly stages. It publishes JUnit XML and archives available debug APK, unit-test, and lint artifacts even when an earlier stage fails.
 
-CI-2 / #33 is complete. The formatting/static-analysis stage is an intentional visible diagnostic placeholder, not a gate: it explains that formatter and static-analysis tooling is deferred for the bootstrap project. It does not run Gradle `check`, tests, or lint. Unit tests run once in their dedicated `testDebugUnitTest` stage and Android lint runs once in its dedicated `lint` stage, with the existing reports and artifacts preserved.
+CI-2 / #33 removed duplicate verification. Issue #62 adds a Spotless + ktlint formatting gate to the existing formatting/static-analysis stage. Its Gradle command is only `spotlessCheck`: unit tests and Android lint still run once in their separate stages, and report/artifact handling is unchanged.
 
-No formatter, ktlint, detekt, or coverage plugin is configured. Coverage is explicitly deferred until behavior-focused tests exist; the current generated application-ID test does not provide a meaningful baseline.
+Spotless 8.10.3 and ktlint 1.8.0 are pinned. `.editorconfig` establishes the 140-character limit and permits PascalCase `@Composable` function names. Ratchet compares against `origin/develop`: legacy Kotlin files remain untouched until changed, at which point the *entire changed file* must meet formatting rules. Some line-length violations need manual fixes. Run `./gradlew spotlessApply` manually when appropriate, then review `git diff` before staging. Jenkins never applies formatting. Detekt and coverage are not configured and remain deferred.
 
 CI-1 Multibranch integration is complete. Jenkins is configured as a Multibranch Pipeline for branches and pull requests, uses a fine-grained GitHub credential with the least permissions needed for repository access and commit statuses, and reports build results to GitHub.
 
@@ -19,8 +19,8 @@ GitHub webhooks now trigger Jenkins automatically for supported push and pull-re
 The Jenkins controller coordinates multibranch discovery, credentials, webhook-triggered discovery, and GitHub status reporting. An agent selected by the `android` label executes the Android build.
 
 - The Android agent runs Jenkins with JDK 21 and has a pre-provisioned Android SDK containing Android API 35 and Build Tools 35.0.0.
-- The project build requires Gradle runtime JDK 25, while Android compilation targets Java 17. The controller must provision or select a compatible JDK 25 runtime for the Gradle invocation; the agent JVM version alone does not satisfy that requirement.
-- Agents need a POSIX shell and permission to execute `./gradlew`.
+- Gradle 9.5.0 and AGP 9.3.1 were verified locally using JDK 17; Android compilation targets Java 17. Jenkins may use another compatible Gradle runtime JDK. Verify its actual launcher and daemon versions using the pipeline diagnostics rather than assuming they match the agent JVM.
+- Agents need a POSIX shell, Git access to the repository's `develop` branch, and permission to execute `./gradlew`. The formatting stage fetches `origin/develop` explicitly before `spotlessCheck` and fails if the Git baseline/merge-base cannot be resolved. The multibranch PR checkout must retain enough Git history to find that common ancestor; the required Jenkins PR check must verify this.
 - No SDK or JDK path is encoded in the repository. Gradle build caching is configured through `gradle.properties`, so each agent can use its own portable Gradle user home.
 
 ## Pull requests and credentials
@@ -37,7 +37,7 @@ The interactive Jenkins UI remains protected. Machine-triggered webhook access i
 | ---- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | CI-0 | Complete | Basic Android verification, reports, and debug artifacts.                                                                                  |
 | CI-1 | Complete | Multibranch branch/PR discovery, GitHub webhook triggering, and commit statuses.                                                           |
-| CI-2 | Complete | #33 removed duplicated verification; the visible quality diagnostic defers tooling and coverage until behavior-focused tests justify them. |
+| CI-2 | Implemented | #33 eliminated duplicate tests/lint; #62 introduces ratcheted Spotless as a separate formatting gate. |
 | CI-3 | Planned  | Reproducible synthetic Navidrome integration environment.                                                                                  |
 | CI-4 | Planned  | Investigate and add useful Android instrumented CI testing.                                                                                |
 | CI-5 | Planned  | Secure Android release signing from trusted refs.                                                                                          |
