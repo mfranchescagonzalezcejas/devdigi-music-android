@@ -17,10 +17,12 @@ import kotlin.random.Random
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -343,15 +345,159 @@ class AuthSecretStoreTest {
     @Test
     fun cancellationPropagatesFromSaveInitialRead() = runBlocking {
         val delegate = dataStore()
-        val store = DataStoreAuthSecretStore(
-            ThrowingOnReadDataStore(delegate, CancellationException("cancelled")),
-            FakeSecretCipher(),
+        val cipher = FakeSecretCipher()
+
+        // Persist credential A before attempting replacement B.
+        val originalStore = DataStoreAuthSecretStore(delegate, cipher)
+
+        assertTrue(
+            originalStore.save(
+                identity(endpointA, "alice"),
+                "original-secret",
+            ).isSuccess,
+        )
+
+        assertNotNull(delegate.data.first()[AUTH_SECRET_KEY])
+
+        // Simulate cancellation during the initial snapshot read.
+        val cancellation = CancellationException("snapshot cancelled")
+
+        val replacementStore = DataStoreAuthSecretStore(
+            ThrowingOnReadDataStore(delegate, cancellation),
+            cipher,
         )
 
         try {
-            store.save(identity(endpointA, "alice"), "secret-password")
+            replacementStore.save(
+                identity(endpointA, "bob"),
+                "replacement-secret",
+            )
+
             fail("expected CancellationException to propagate")
-        } catch (_: CancellationException) {
+        } catch (caught: CancellationException) {
+            assertTrue(
+                "original cancellation must be preserved",
+                caught === cancellation,
+            )
+        }
+
+        // A cancelled replacement must not leave credential A durable.
+        assertNull(
+            "old credential survived initial-read cancellation",
+            delegate.data.first()[AUTH_SECRET_KEY],
+        )
+
+        assertNull(
+            "old username survived initial-read cancellation",
+            delegate.data.first()[USERNAME_KEY],
+        )
+    }
+
+    @Test
+    fun cancellingSuspendedInitialReadClearsPriorCredentials() = runBlocking {
+        val delegate = dataStore()
+        val cipher = FakeSecretCipher()
+
+        val originalStore = DataStoreAuthSecretStore(delegate, cipher)
+
+        originalStore.save(
+            identity(endpointA, "alice"),
+            "original-secret",
+        ).getOrThrow()
+
+        assertNotNull(delegate.data.first()[AUTH_SECRET_KEY])
+
+        val pausing = PausingOnInitialReadDataStore(delegate)
+        val replacementStore = DataStoreAuthSecretStore(pausing, cipher)
+        val observedCancellation =
+            CompletableDeferred<CancellationException>()
+
+        val saveJob = launch {
+            try {
+                replacementStore.save(
+                    identity(endpointA, "bob"),
+                    "replacement-secret",
+                )
+                fail("expected save to be cancelled")
+            } catch (error: CancellationException) {
+                observedCancellation.complete(error)
+                throw error
+            }
+        }
+
+        // Confirm that the initial snapshot read is suspended.
+        withTimeout(5_000) {
+            pausing.entered.await()
+        }
+
+        val cancellation =
+            CancellationException("cancel suspended snapshot read")
+
+        saveJob.cancel(cancellation)
+
+        withTimeout(5_000) {
+            saveJob.join()
+            observedCancellation.await()
+        }
+
+        assertTrue(saveJob.isCancelled)
+
+        // Neither the old account nor the attempted replacement may survive.
+        assertNull(
+            "prior credential survived suspended-read cancellation",
+            delegate.data.first()[AUTH_SECRET_KEY],
+        )
+        assertNull(
+            "prior username survived suspended-read cancellation",
+            delegate.data.first()[USERNAME_KEY],
+        )
+    }
+
+    @Test
+    fun cancelledInitialReadCleanupFailurePreservesOriginalCancellation() = runBlocking {
+        val delegate = dataStore()
+        val cipher = FakeSecretCipher()
+
+        DataStoreAuthSecretStore(delegate, cipher)
+            .save(identity(endpointA, "alice"), "original-secret")
+            .getOrThrow()
+
+        assertNotNull(delegate.data.first()[AUTH_SECRET_KEY])
+
+        val cancellation = CancellationException("initial read cancelled")
+        val cleanupFailure = IOException("cleanup unavailable")
+
+        val wrapped = ThrowingOnWriteDataStore(
+            ThrowingOnReadDataStore(delegate, cancellation),
+            cleanupFailure,
+        )
+
+        val store = DataStoreAuthSecretStore(wrapped, cipher)
+
+        try {
+            store.save(
+                identity(endpointA, "bob"),
+                "replacement-secret",
+            )
+            fail("expected original cancellation")
+        } catch (caught: CancellationException) {
+            assertTrue(
+                "original cancellation must be propagated",
+                caught === cancellation,
+            )
+            assertEquals(1, caught.suppressedExceptions.size)
+            val suppressed = caught.suppressedExceptions.single()
+
+            assertTrue(
+                "expected IOException; found ${suppressed::class.java.name}: ${suppressed.message}",
+                suppressed is IOException,
+            )
+
+            assertEquals(
+                "cleanup failure message",
+                cleanupFailure.message,
+                suppressed.message,
+            )
         }
     }
 
@@ -499,6 +645,23 @@ class AuthSecretStoreTest {
         val SERVER_ENDPOINT_KEY = stringPreferencesKey("server_endpoint")
         val USERNAME_KEY = stringPreferencesKey("username")
     }
+}
+
+private class PausingOnInitialReadDataStore(
+    private val delegate: DataStore<Preferences>,
+) : DataStore<Preferences> {
+    val entered = CompletableDeferred<Unit>()
+    private val resume = CompletableDeferred<Unit>()
+
+    override val data: Flow<Preferences> = flow {
+        entered.complete(Unit)
+        resume.await()
+        emitAll(delegate.data)
+    }
+
+    override suspend fun updateData(
+        transform: suspend (Preferences) -> Preferences,
+    ): Preferences = delegate.updateData(transform)
 }
 
 private class ThrowingOnReadDataStore(

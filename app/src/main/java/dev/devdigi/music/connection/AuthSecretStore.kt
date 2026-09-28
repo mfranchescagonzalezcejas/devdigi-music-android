@@ -39,8 +39,11 @@ data class StoredCredentials(val username: String, val secret: String) {
  * (it is not a storage failure); malformed payload, bad encoding, missing IV, corrupt
  * ciphertext, AEAD/GCM tag failure, wrong/missing/replaced key, `ProviderException`,
  * or any [GeneralSecurityException] yields no credentials and a best-effort conditional
- * clear. `save()` failure removes the prior snapshot only if it still matches what was
- * captured, so a concurrently committed newer credential is never erased.
+ * clear. On `save()` failure, cleanup is conditional when the prior snapshot
+ * is known, protecting unrelated later credentials. If the initial read fails
+ * or is cancelled before a snapshot is available, cleanup instead attempts
+ * an unconditional best-effort clear to prevent stale credential restoration.
+ * That fallback cannot protect writes performed outside the shared mutex.
  */
 @OptIn(ExperimentalEncodingApi::class)
 class DataStoreAuthSecretStore(
@@ -71,23 +74,25 @@ class DataStoreAuthSecretStore(
             }
             Result.success(Unit)
         } catch (e: CancellationException) {
-            // Cancellation AFTER the prior snapshot was captured: best-effort
-            // A-or-B conditional cleanup in a tightly scoped NonCancellable context,
-            // then rethrow the ORIGINAL CancellationException. If the candidate was
-            // committed before the late cancellation, it must not remain durable.
-            if (snapshotRead) {
-                try {
-                    withContext(NonCancellable) {
+            // Attempt cleanup in NonCancellable before rethrowing the original
+            // cancellation. With a known snapshot, clear only the captured prior
+            // credential A or candidate B. Without one, attempt an unconditional
+            // best-effort clear to prevent stale restoration when cleanup succeeds.
+            try {
+                withContext(NonCancellable) {
+                    if (snapshotRead) {
                         clearIfSnapshotMatchesEither(
                             priorUsername, priorPayload,
                             candidateUsername, candidatePayload, candidatePrepared,
                         )
+                    } else {
+                        clearCredentialsNoLock()
                     }
-                } catch (cleanup: CancellationException) {
-                    if (cleanup !== e) e.addSuppressed(cleanup)
-                } catch (cleanup: Exception) {
-                    e.addSuppressed(cleanup)
                 }
+            } catch (cleanup: CancellationException) {
+                if (cleanup !== e) e.addSuppressed(cleanup)
+            } catch (cleanup: Exception) {
+                e.addSuppressed(cleanup)
             }
             throw e
         } catch (e: Exception) {
