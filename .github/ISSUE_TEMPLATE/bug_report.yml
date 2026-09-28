@@ -6,7 +6,7 @@ labels:
 body:
   - type: markdown
     attributes:
-      value: Search existing issues first. Do not include secrets, personal data, or local paths. Report security vulnerabilities through a safe private channel rather than disclosing exploitable details here.
+      value: Search existing issues first. Do not include secrets, personal data, or local paths. Report only sanitized impact in this public form, and do not include exploitable details.
   - type: textarea
     id: bug_summary
     attributes:
