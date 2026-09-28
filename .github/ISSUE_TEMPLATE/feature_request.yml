@@ -1,0 +1,132 @@
+name: Feature request
+description: Propose an outcome by describing the problem first.
+labels:
+  - type:feature
+  - status:needs-review
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues first. Do not include secrets, personal data, or local paths.
+  - type: textarea
+    id: feature_problem
+    attributes:
+      label: Problem
+      description: What problem should be addressed?
+    validations:
+      required: true
+  - type: textarea
+    id: feature_outcome
+    attributes:
+      label: Desired outcome
+      description: What useful result should the change provide?
+    validations:
+      required: true
+  - type: textarea
+    id: feature_scope
+    attributes:
+      label: Scope and out of scope
+      description: What is included, and what is explicitly excluded?
+    validations:
+      required: true
+  - type: dropdown
+    id: feature_areas
+    attributes:
+      label: Affected areas
+      description: Select every area that is affected.
+      multiple: true
+      options:
+        - area:android
+        - area:architecture
+        - area:auth
+        - area:discovery
+        - area:navidrome
+        - area:offline
+        - area:playback
+        - area:security
+        - area:server
+        - area:testing
+        - area:ui
+        - Other / cross-cutting
+    validations:
+      required: true
+  - type: textarea
+    id: feature_acceptance
+    attributes:
+      label: Observable acceptance criteria
+      description: Describe observable criteria. Use Given/When/Then where it improves clarity.
+    validations:
+      required: true
+  - type: textarea
+    id: feature_verification
+    attributes:
+      label: Verification and definition of done
+      description: Explain how the outcome will be verified and what must be true before this work is complete.
+    validations:
+      required: true
+  - type: dropdown
+    id: feature_openspec_impact
+    attributes:
+      label: OpenSpec impact
+      options:
+        - No specification change expected
+        - Existing behavior/specification must change
+        - New capability/specification may be needed
+        - Unsure — maintainer review needed
+    validations:
+      required: true
+  - type: textarea
+    id: feature_security_privacy
+    attributes:
+      label: Sanitized security or privacy impact
+      description: Describe any security or privacy impact without exploitable details, secrets, or personal data. Enter "None known" when applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: feature_solution
+    attributes:
+      label: Possible solution
+      description: Optional. Describe a possible approach without requiring it.
+    validations:
+      required: false
+  - type: textarea
+    id: feature_alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Describe other ways to address the problem.
+    validations:
+      required: false
+  - type: textarea
+    id: feature_dependencies
+    attributes:
+      label: Dependencies and risks
+      description: Optional. Identify dependencies, constraints, and material risks.
+    validations:
+      required: false
+  - type: textarea
+    id: feature_rollback
+    attributes:
+      label: Rollback constraints
+      description: Optional. Describe anything that could make rollback difficult or unsafe.
+    validations:
+      required: false
+  - type: textarea
+    id: feature_context
+    attributes:
+      label: Additional context
+      description: Optional. Add only safe, relevant context.
+    validations:
+      required: false
+  - type: checkboxes
+    id: feature_duplicate_check
+    attributes:
+      label: Duplicate check
+      options:
+        - label: I searched existing issues for duplicates.
+          required: true
+  - type: checkboxes
+    id: feature_safe_disclosure
+    attributes:
+      label: Safe disclosure
+      options:
+        - label: I removed secrets, credentials, tokens, personal data, private endpoints, and local paths.
+          required: true
