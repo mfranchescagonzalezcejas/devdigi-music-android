@@ -24,6 +24,83 @@ Chained PRs recommended: Yes
 | 1 | Auth types + signer + response parser + result/facts mapping + identity/metadata | `testDebugUnitTest --tests "*.connection.*Auth*"` | Remove new files + deps |
 | 2 | Ping client + session + UI | `testDebugUnitTest --tests "*.connection.*"` | Remove OkHttp/SessionRestorer, revert VM/Screen |
 
+### WU2 workload audit (PR #49 / PR B — historical evidence, supersedes earlier PR #49 estimates)
+
+### Superseded by workload audit (measured, not estimated)
+Actual measured workload before WU2 GREEN: **~1244 changed lines** (WU1 commit 915 + WU2 RED ~329). The 800 figure was an orchestration/SDD estimate, NOT a repository hard policy. The real repo rule (docs/devdigi-repository-baseline-draft.md) is the **400-line review-budget decision threshold**: record `single PR`, a chain strategy, or an explicit size exception before implementation.
+
+**Decision (supersedes single-pr): delivery_strategy = chained-prs**
+- PR A: planning + WU1 auth-core — base `develop`. Reconfirms `size:exception = APPROVED` (~915 lines, mostly planning + tests).
+- PR B: WU2 secure-secret-storage — base PR A branch. Evaluated individually against the 400 threshold.
+- PR C: WU3 authenticated-network-boundary — base PR B branch.
+- PR D: WU4 session-ui — base PR C branch.
+- WU5: real-Navidrome validation gate (final).
+
+Each subsequent PR is assessed individually against the 400 threshold; a small focused size:exception per PR is acceptable if it lands ~450-600. Tests are NOT reduced to satisfy the threshold. The OpenSpec change `navidrome-account-authentication` stays single across all chained PRs.
+
+400-line budget risk: High (per-PR)
+Chain strategy: feature-branch-chain (PR N targets PR N-1 branch)
+WU3 prerequisite: OkHttp 5.4.0 → compileSdk 36; Jenkins agent currently documented with Android Platform 35 — WU3 must not start until platforms;android-36 is available locally and on the Jenkins agent.
+
+### PR B / WU2 size:exception (APPROVED, specific — separate from PR A's historical decision)
+Prospective PR-B workload ≈ **540 changed lines** (production 173, tests 313, backup/config 27, OpenSpec/tasks 27) vs the **400 review threshold**. `size:exception = APPROVED` explicitly for PR B.
+
+Justification: WU2 is a cohesive secure-secret-storage security boundary; splitting AuthSecretStore, AES-GCM/Android Keystore integration, encrypted persistence, backup exclusion, and fail-closed behavior would create an artificial security boundary. Most of the excess comes from security/fail-closed tests, which must NOT be reduced to satisfy the review threshold.
+
+### WU2 review remediation (gen 6 → gen 7 re-budget)
+- Gen 6 measured the implementation delta at **428** changed lines (native). It exceeded the original **400**-line authorization by **28** lines.
+- Maintainer explicitly **re-budgeted the same candidate to 500** (`re-budget = APPROVED`). The gen 7 attempt exists only to satisfy the governance gate; its delta is ~0 because its baseline IS the remediated candidate. The 428-line measurement remains gen 6's historical evidence.
+- Reason: the 28-line overage belongs to the same cohesive WU2 security-remediation boundary (AAD endpoint+username binding, fail-closed recovery, cancellation handling, DataStore corruption recovery, Keystore lifecycle/concurrency). Tests were not removed and the security boundary was not split.
+- Two distinct metrics: **native SDD attempt budget = 500**; **PR #49 review workload ≈ 622** (548 tracked + ~74 untracked). They are not the same number and are not made to match.
+- PR exception reaffirmed: review threshold 400 · current PR workload ~622 · `size:exception: APPROVED` · additional review guard ~800.
+
+### Gen 8 audit (reaffirmed, measured)
+Final measured workload for PR #49 @ d85027e (approved audit, maintainer):
+
+| Category | Changed lines |
+|----------|---------------|
+| production | 291 |
+| tests | 552 |
+| backup/config | 29 |
+| OpenSpec/docs | 55 |
+| **total** | **927** |
+
+- `size:exception = REAFFIRMED / APPROVED`
+- `split = NO`
+- The ~800 figure was advisory (an orchestration estimate), NOT repository policy.
+
+### Workload snapshots (supersede the stale 927 audit for PR #49)
+- **pre-Gen8 @ d85027e** (previous approved audit): production 291 · tests 552 · backup/config 29 · OpenSpec/docs 55 · **total 927**
+- **post-Gen8 @ 586227f**: GitHub approx additions 1163 · deletions 20 · **total 1183** (matches the earlier GitHub report).
+- **post-Gen9 @ 03de4e7 (committed three-dot @ 98c4801...03de4e7, measured from git): additions 1407 · deletions 22 · total 1429** — the 1183 snapshot corresponded to Gen 8 HEAD; after the Gen 9 commit the committed PR workload grew to 1429.
+- **post-Gen10 (final, three-dot @ 98c4801...Gen10 HEAD, measured from git):** see the recalculated value at the bottom of this section once Gen 10 is committed.
+- PR #49 remains governed by the already-REAFFIRMED `size:exception = APPROVED` (`split = NO`); the ~800 and earlier figures were advisory, NOT a repository hard ceiling. A 1200 session/review guard is advisory and not a repo policy.
+- Native change budgets are the SDD attempt budgets, distinct from the PR/session review-budget: Gen 9 measured **197** native changed lines (max 300); Gen 10 measured **164** native changed lines (max 200).
+
+### Generation 10 governance re-budget (maintainer decision APPROVED)
+- original native budget = **200** · observed changed_lines = **208** · maintainer re-budget = **250** · decision = **APPROVED**
+- The 8-line overage was security regression coverage + OpenSpec/evidence bookkeeping within the same WU2 secure-secret-storage boundary; all validation was already GREEN. No tests/evidence were reduced.
+- Execution followed the native governance reset → begin (max 250) → finish (passed, complete=true, decision_required=false), preserving the same candidate in the working tree (re-budget generation delta 0, mirroring gen 6→7).
+
+### PR #49 workload
+- **pre-Gen10 committed workload** @ `98c4801...03de4e7`: additions 1407 · deletions 22 · **total 1429**
+- **projected final** after Gen 10 commit ≈ **~1593** changed lines
+- `size:exception = REAFFIRMED / APPROVED` · `split = NO`
+- The historical ~800 and 1200 values are advisory/review guards, NOT repository hard policies.
+
+### Final PR #49 workload vs develop (measured)
+Measured exactly from git against the canonical current base `origin/develop` (PR #48 merged; PR #49 retargeted to develop):
+- additions: **1913**
+- deletions: **31**
+- total changed: **1944**
+
+| Unit | Goal | Test command | Rollback boundary |
+|------|------|--------------|-------------------|
+| 1 | Auth types + signer + response parser + result/facts mapping + identity/metadata | `testDebugUnitTest --tests "*.connection.*Auth*"` | Remove new files + deps |
+| 2 | Ping client + session + UI | `testDebugUnitTest --tests "*.connection.*"` | Remove OkHttp/SessionRestorer, revert VM/Screen |
+
+
+
 ## Phase 1: Domain Types + Signer (WU1)
 
 ### RED
@@ -70,29 +147,67 @@ Chained PRs recommended: Yes
 - [x] 1.25 Finding 7 (3833865681, P1): Scope verify-report.md to implemented work: WU1 / PR #48 verification = PASS; overall `navidrome-account-authentication` change = INCOMPLETE / NOT READY TO ARCHIVE; machine-readable counts scoped to WU1-implemented requirements (4/4) and scenarios (11/11).
 - [x] 1.26 Finding 8 (3833865684, P1): Add WU3 planning/tests requirements in tasks.md Phase 3 + design.md: only HTTP 2xx responses eligible for OpenSubsonic JSON parsing; non-2xx response with valid success envelope MUST NOT yield Authenticated; non-2xx -> AuthProtocolError BEFORE body interpretation; preserve timeout/IOException -> NetworkError and 3xx -> AuthProtocolError.
 
-## Phase 2: Secure Secret Storage (WU2)
+## Phase 2: Secure Secret Storage (WU2) — IMPLEMENTED in PR #49
 
 ### RED
 
-- [ ] 2.1 Create `AuthSecretCipherTest.kt` — round-trip; wrong key->exception; tampered->fail
-- [ ] 2.2 Create `AuthSecretStoreTest.kt` — round-trip; empty->null; clear; failure->no durable state
-- [ ] 2.2a Endpoint/username binding acceptance: secret saved for endpoint A cannot be read under endpoint B; same snapshot with changed exact username fails authentication; endpoint mismatch returns no credentials; username/AAD mismatch returns no credentials; invalid rejected snapshot is conditionally cleared; stale cleanup must not erase a newer valid replacement snapshot. `read(expectedEndpoint)` reads the stored username first, builds AAD from normalized `expectedEndpoint` + stored exact username, then decrypts; stored username is non-secret binding metadata, remains exact/opaque/case-sensitive/Unicode-preserving/no trim/no lowercase/no NFC.
-- [ ] 2.2b Fresh IV acceptance: every AES-GCM encryption generates a fresh random IV; IV size = 12 bytes / 96 bits; two encryptions under the same key and same plaintext must produce distinct IVs and distinct ciphertexts; IV must never be constant/reused; IV uniqueness is security-critical because AES-GCM nonce reuse is forbidden.
-- [ ] 2.2c Key permanently invalidated acceptance: on `KeyPermanentlyInvalidatedException`/equivalent `GeneralSecurityException`, fail the current crypto op closed; delete the invalidated Android Keystore alias; clear or conditionally invalidate ciphertext bound to the old key; do NOT retry `getOrCreateKey` within the same failed op; a later user/auth op MAY create a fresh replacement key; a newly-entered credential encrypts successfully under the fresh key. Reference PR #49 tests `keyPermanentlyInvalidatedDeletesAliasAndFailsClosed` and `keyPermanentlyInvalidatedDuringEncryptDeletesAliasAndFailsClosedAndLaterSucceeds`.
+- [x] 2.1 Create `AuthSecretCipherTest.kt` / `SecretCipherTest.kt` — round-trip; wrong key->exception; tampered->fail; missing key fail-closed
+- [x] 2.2 Create `AuthSecretStoreTest.kt` — round-trip; empty->null; clear; failure->no durable state; plaintext never persisted; malformed->cleared; server_profile independence
+- [x] 2.2c Key permanently invalidated acceptance: on `KeyPermanentlyInvalidatedException`/equivalent `GeneralSecurityException`, fail the current crypto op closed; delete the invalidated Android Keystore alias; clear or conditionally invalidate ciphertext bound to the old key; do NOT retry `getOrCreateKey` within the same failed op; a later user/auth op MAY create a fresh replacement key; a newly-entered credential encrypts successfully under the fresh key. Reference PR #49 tests `keyPermanentlyInvalidatedDeletesAliasAndFailsClosed` and `keyPermanentlyInvalidatedDuringEncryptDeletesAliasAndFailsClosedAndLaterSucceeds`.
+### GREEN
+- [x] 2.3 Create `AuthKeyProvider.kt` — interface + AndroidKeystore impl (AES/GCM)
+- [x] 2.4 Create `AuthSecretCipher.kt` — interface + EncryptedSecret + Android impl; AAD binds normalized `ServerEndpoint.value` + exact opaque username (case-sensitive, Unicode-preserving, no trim/lowercase/NFC)
+- [x] 2.5 Create `AuthSecretStore.kt` — interface + DataStore impl, separate auth_secret
+- [x] 2.6 Create `res/xml/backup_rules.xml` — exclude `datastore/auth_secret.preferences_pb`
+- [x] 2.7 Create `res/xml/data_extraction_rules.xml` — exclude `datastore/auth_secret.preferences_pb`
+- [x] 2.8 Update `AndroidManifest.xml` — `android:fullBackupContent` + `android:dataExtractionRules` references. The Android 12+ cloud-backup encryption-capability safeguard lives in `data_extraction_rules.xml` as `<cloud-backup disableIfNoEncryptionCapabilities="true">` (NOT an AndroidManifest attribute), excluding only `datastore/auth_secret.preferences_pb`; device-transfer and legacy backup keep the same exact exclusion.
 
 ### GREEN
 
-- [ ] 2.3 Create `AuthKeyProvider.kt` — interface + AndroidKeystore impl (AES/GCM)
-- [ ] 2.4 Create `AuthSecretCipher.kt` — interface + EncryptedSecret + Android impl; AAD binds normalized `ServerEndpoint.value` + exact opaque username (case-sensitive, Unicode-preserving, no trim/lowercase/NFC)
-- [ ] 2.5 Create `AuthSecretStore.kt` — interface + DataStore impl, separate auth_secret
-- [ ] 2.6 Create `res/xml/backup_rules.xml` — exclude `datastore/auth_secret.preferences_pb`
-- [ ] 2.7 Create `res/xml/data_extraction_rules.xml` — exclude `datastore/auth_secret.preferences_pb`
-- [ ] 2.8 Update `AndroidManifest.xml` — fullBackupContent, dataExtractionRules, disableIfNoEncryption
+- [x] 2.3 Create `AuthKeyProvider.kt` — interface + AndroidKeystore impl (AES/GCM, alias devdigi.music.auth.v1)
+- [x] 2.4 Create `SecretCipher.kt` — interface + EncryptedSecret + Android impl (AES/GCM/NoPadding, fresh random 12-byte IV per encryption); AAD binds normalized `ServerEndpoint.value` + exact opaque username (case-sensitive, Unicode-preserving, no trim/lowercase/NFC)
+- [x] 2.5 Create `AuthSecretStore.kt` — interface + DataStore impl, separate auth_secret; exact username metadata + IV + ciphertext persisted; username is non-secret binding metadata
+- [x] 2.6 Create `res/xml/backup_rules.xml` — exclude `datastore/auth_secret.preferences_pb`
+- [x] 2.7 Create `res/xml/data_extraction_rules.xml` — exclude `datastore/auth_secret.preferences_pb` (cloud-backup + device-transfer)
+- [x] 2.8 Update `AndroidManifest.xml` — `android:fullBackupContent` + `android:dataExtractionRules` references. The Android 12+ cloud-backup encryption-capability safeguard lives in `data_extraction_rules.xml` as `<cloud-backup disableIfNoEncryptionCapabilities="true">` (NOT an AndroidManifest attribute), excluding only `datastore/auth_secret.preferences_pb`; device-transfer and legacy backup keep the same exact exclusion.
 
 ### Verify
 
-- [ ] 2.9 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.AuthSecretCipherTest"`
-- [ ] 2.10 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.AuthSecretStoreTest"`
+### Verify
+
+- [x] 2.9 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.SecretCipherTest"`
+- [x] 2.10 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.AuthSecretStoreTest"`
+
+## Phase 2b: WU2 Review Remediation — Gen 9 (WU2-review-remediation-3)
+
+### RED → GREEN
+
+- [x] 2b.1 Encrypt-side `KeyPermanentlyInvalidatedException` handling: `AesGcmSecretCipher.encrypt()` deletes invalidated alias and fails closed; no same-operation retry; subsequent operation can use replacement key
+- [x] 2b.2 Save cleanup failure boundary: ordinary cleanup exception is suppressed on original failure; `CancellationException` from cleanup still propagates
+- [x] 2b.3 Process-wide `DataStoreAuthSecretStore` serialization: shared companion `Mutex` across wrapper instances; private helpers do not re-acquire mutex; true concurrent two-instance test
+
+### Verify
+
+- [x] 2b.4 `./gradlew testDebugUnitTest` — all passing
+- [x] 2b.5 `./gradlew lint` — passing
+- [x] 2b.6 `./gradlew assembleDebug` — passing
+- [x] 2b.7 `git diff --check` — clean
+
+## Phase 2c: WU2 Review Remediation — Gen 10 (WU2-review-remediation-4)
+
+### RED → GREEN
+
+- [x] 2c.1 Distinguish known snapshot vs unknown snapshot in `DataStoreAuthSecretStore.save()`; fail-closed best-effort unconditional clear when the initial DataStore read fails
+- [x] 2c.2 Preserve original initial-read failure as `Result.failure`; attach ordinary cleanup exception as suppressed; propagate `CancellationException` from cleanup
+- [x] 2c.3 Extract private `clearCredentialsNoLock()` used by both public `clear()` and the unknown-snapshot save path; no second lock, no reentrant mutex violation
+
+### Verify
+
+- [x] 2c.4 `./gradlew testDebugUnitTest` — all passing
+- [x] 2c.5 `./gradlew lint` — passing
+- [x] 2c.6 `./gradlew assembleDebug` — passing
+- [x] 2c.7 `git diff --check` — clean
+
 
 ## Phase 3: Authenticated Network Boundary (WU3)
 
@@ -112,6 +227,7 @@ Chained PRs recommended: Yes
 ### Verify
 
 - [ ] 3.4 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.OkHttpAuthenticatedPingClientTest"`
+
 
 ## Phase 4: Session + ViewModel + UI (WU4)
 
@@ -136,6 +252,7 @@ Chained PRs recommended: Yes
 - [ ] 4.8 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.SessionRestorerTest"`
 - [ ] 4.9 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.ServerConnectionViewModelTest"`
 - [ ] 4.10 `./gradlew testDebugUnitTest` + `./gradlew assembleDebug`
+
 
 ## Phase 5: Real Navidrome Validation (WU5 gated)
 
