@@ -41,6 +41,18 @@ git fetch --no-tags origin \
 ./gradlew lint testDebugUnitTest
 ```
 
+When formatting is needed, run it manually:
+
+```sh
+./gradlew spotlessApply
+git diff --check
+git diff
+```
+
+Spotless Ratchet checks entire files modified relative to `origin/develop`,
+not just the changed lines. Review every formatting change before staging.
+Jenkins runs `spotlessCheck` only; it never applies formatting automatically.
+
 ## Privacy
 
 Do not commit real server URLs, private DNS names, credentials, tokens, salts,

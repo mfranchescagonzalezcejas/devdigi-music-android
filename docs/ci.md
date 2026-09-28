@@ -8,7 +8,7 @@ CI-0 Basic pipeline is complete. The root `Jenkinsfile` runs visible formatting/
 
 CI-2 / #33 removed duplicate verification. Issue #62 adds a Spotless + ktlint formatting gate to the existing formatting/static-analysis stage. Its Gradle command is only `spotlessCheck`: unit tests and Android lint still run once in their separate stages, and report/artifact handling is unchanged.
 
-Spotless 8.10.3 and ktlint 1.8.0 are pinned. `.editorconfig` establishes the 140-character limit and permits PascalCase `@Composable` function names. Ratchet compares against `origin/develop`: legacy Kotlin files remain untouched until changed, at which point the *entire changed file* must meet formatting rules. Some line-length violations need manual fixes; review a source diff before running an apply task. Detekt and coverage are not configured and remain deferred.
+Spotless 8.10.3 and ktlint 1.8.0 are pinned. `.editorconfig` establishes the 140-character limit and permits PascalCase `@Composable` function names. Ratchet compares against `origin/develop`: legacy Kotlin files remain untouched until changed, at which point the *entire changed file* must meet formatting rules. Some line-length violations need manual fixes. Run `./gradlew spotlessApply` manually when appropriate, then review `git diff` before staging. Jenkins never applies formatting. Detekt and coverage are not configured and remain deferred.
 
 CI-1 Multibranch integration is complete. Jenkins is configured as a Multibranch Pipeline for branches and pull requests, uses a fine-grained GitHub credential with the least permissions needed for repository access and commit statuses, and reports build results to GitHub.
 
