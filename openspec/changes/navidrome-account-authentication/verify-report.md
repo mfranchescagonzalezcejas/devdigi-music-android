@@ -1,4 +1,7 @@
 ```yaml
+# Historical Gen 10 snapshot: 140 total tests / 48 WU2 tests.
+# Gen 11 evidence (142/50) is documented below.
+# Historical hashes have not been regenerated.
 schema: gentle-ai.verify-result/v1
 evidence_revision: sha256:d69c471fc91537362cf7b64cd2a84bfb595023bcda085654ba5ad0c9ad125db0
 verdict: fail
@@ -22,6 +25,52 @@ build_output_hash: sha256:5ff92de6acb48a091f4a84c3c6b3d3b888522d8b88d48899092b8d
 **Implemented scope**: WU1 + WU2 — PR #48 / WU1 merged into develop; PR #49 / WU2 secure-secret-storage current. WU1 scenario matrices below are historical WU1-scoped evidence.
 **Overall change complete**: false — `navidrome-account-authentication` remains INCOMPLETE and is NOT READY TO ARCHIVE
 
+### Post-commit verification — 2026-09-28
+
+**Commit:** `88c81964caef0cea5737a58f7cc13e26cb4b1550`
+
+**Scope:** WU2 initial-snapshot cancellation remediation.
+The overall OpenSpec change remains incomplete; WU3–WU5
+are not implemented.
+
+**RED to GREEN:**
+- Expanded the initial-read cancellation regression to
+  verify removal of an existing credential.
+- Added deterministic cancellation while the initial
+  DataStore read is suspended.
+- Added regression coverage for cleanup failure while
+  preserving the original cancellation and recording
+  the secondary IOException.
+
+**Production:** When cancellation occurs before the
+initial snapshot is available, attempt unconditional
+best-effort cleanup inside NonCancellable, then rethrow
+the original CancellationException. When the snapshot
+is known, retain conditional A-or-B cleanup.
+
+**Clean verification command:**
+
+`./gradlew :app:clean :app:testDebugUnitTest --no-build-cache --console=plain`
+
+**Observed results:**
+- Gradle: BUILD SUCCESSFUL.
+- 27 actionable tasks, 27 executed.
+- 17 test classes.
+- 142 executed, 142 passed.
+- 0 failures, 0 errors, 0 skipped.
+- WU2 focal suite: 50 tests.
+- AuthSecretStoreTest: 29 tests.
+
+The final changes to production and tests were also
+validated with `:app:lintDebug` and `:app:assembleDebug`
+before publication. Jenkins reported SUCCESS for
+commit `88c8196`.
+
+The historical machine-readable YAML evidence header
+and its hashes belong to the earlier Gen 10 verification.
+They are preserved, not presented as freshly regenerated
+hashes for this execution.
+
 ### Completeness
 
 | Metric | Value |
@@ -29,11 +78,15 @@ build_output_hash: sha256:5ff92de6acb48a091f4a84c3c6b3d3b888522d8b88d48899092b8d
 | Scope of this verification | WU1 + WU2 (PR #48 merged into develop; PR #49 current): WU1 auth core (Subsonic Token Signing, Authenticated Ping Result Taxonomy, Secret Boundary, Stable Account Identity) + WU2 secure-secret-storage (Keystore/AES-GCM/AAD, DataStore auth_secret, backup exclusions, fail-closed recovery) |
 | Requirements verified (WU1 scope) | 2/4 (Subsonic Token Signing, Stable Account Identity fully verified; Authenticated Ping Result Taxonomy and Secret Boundary partially) |
 | Scenarios verified (WU1 scope) | 9/11 executable (Network failure → WU3; no-secret-in-persisted/logged → WU4) |
-| WU2 scope | Secure secret storage IMPLEMENTED and verified by the WU2 focal suite (48 tests): Keystore/AES-GCM/AAD, DataStore auth_secret, backup/device-transfer exclusions, fail-closed recovery. See WU2 verification matrix below. |
+| WU2 scope | Secure secret storage IMPLEMENTED and verified by the WU2 focal suite (50 tests): Keystore/AES-GCM/AAD, DataStore auth_secret, backup/device-transfer exclusions, fail-closed recovery. See WU2 verification matrix below. |
 | Requirements remaining (WU3–WU5 only) | Authenticated Network Boundary (WU3), Session + UI (WU4), gated real-Navidrome validation (WU5) |
 | Scenarios remaining (WU3–WU5 only) | Network failure → WU3; sign-in/sign-out/restore end-to-end flows → WU4; WU5 gated |
 
-### Build & Tests Execution
+### Build & Tests Execution — historical Gen 10 baseline
+
+The following 140/48 evidence predates commit `88c8196`.
+The latest post-commit results are documented above.
+
 
 **Build**: ✅ Passed
 ```text
@@ -45,7 +98,7 @@ build_output_hash: sha256:5ff92de6acb48a091f4a84c3c6b3d3b888522d8b88d48899092b8d
 ```text
 ./gradlew testDebugUnitTest -> BUILD SUCCESSFUL (140 executed / 140 passed; 0 failures, 0 errors, 0 skipped)
 WU2 focal tests (AuthAadTest + AuthCredentialsBoundaryTest + AuthSecretStoreTest + SecretCipherTest + CancelledReplacementSaveTest + AuthSecretDataStoreFactoryTest + PostCommitFailureTest): 48; WU1 parser focal (SubsonicResponseParserTest): 52
-Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (17 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 140 executed / 140 passed count (0 failures, 0 errors, 0 skipped) is reproducible from a clean build; WU2 focal tests = 48 (AuthAadTest 5 + AuthCredentialsBoundaryTest 2 + AuthSecretStoreTest 27 + SecretCipherTest 8 + CancelledReplacementSaveTest 1 + AuthSecretDataStoreFactoryTest 2 + PostCommitFailureTest 3). Historical WU1-era clean-run summaries (e.g. 92/92 / 10 classes) are historical evidence only and are superseded by this current record.
+Fresh derivation: `./gradlew clean testDebugUnitTest --no-build-cache` regenerated `app/build/test-results/testDebugUnitTest/TEST-*.xml` from scratch (17 classes; includes EndpointPolicyTest from the `app/src/testDebug/java` source set — a tracked current class, not stale XML). The 140 executed / 140 passed count (0 failures, 0 errors, 0 skipped) is reproducible from a clean build; WU2 focal tests = 48 (AuthAadTest 5 + AuthCredentialsBoundaryTest 2 + AuthSecretStoreTest 27 + SecretCipherTest 8 + CancelledReplacementSaveTest 1 + AuthSecretDataStoreFactoryTest 2 + PostCommitFailureTest 3). Historical WU1-era clean-run summaries (e.g. 92/92 / 10 classes) are historical evidence only and are superseded by the post-commit verification above.
 ```
 
 **Coverage**: ➖ Not available
@@ -82,7 +135,7 @@ The previous report claimed 4/4 requirements and 11/11 scenarios for WU1, overst
 | Fail-Closed Sign-In and Secret Persistence | Secure-store failure after valid ping fails closed | No (flow → WU4) | store failure boundary tested; end-to-end → WU4 |
 | Session Restoration | Restore after process restart | No (flow → WU4) | `SessionRestorer` → WU4 |
 
-WU2 focal suite (48 tests): AuthAadTest 5, AuthCredentialsBoundaryTest 2, AuthSecretStoreTest 27, SecretCipherTest 8, CancelledReplacementSaveTest 1, AuthSecretDataStoreFactoryTest 2, PostCommitFailureTest 3.
+WU2 focal suite (50 tests): AuthAadTest 5, AuthCredentialsBoundaryTest 2, AuthSecretStoreTest 29, SecretCipherTest 8, CancelledReplacementSaveTest 1, AuthSecretDataStoreFactoryTest 2, PostCommitFailureTest 3.
 
 ### WU1 / PR #48 Requirements Partially Summarized
 

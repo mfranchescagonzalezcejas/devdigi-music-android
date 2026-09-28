@@ -4,6 +4,41 @@
 
 ## WU2 apply progress (PR #49)
 
+### Gen 11 — initial snapshot cancellation remediation
+
+**Commit:** `88c81964caef0cea5737a58f7cc13e26cb4b1550`
+**Status:** implemented, published and locally verified.
+**Review:** new Codex review pending.
+
+**Completed:**
+- Reproduced stale-credential restoration after
+  initial-read cancellation (RED).
+- Implemented best-effort unconditional cleanup in
+  NonCancellable when the initial snapshot is unknown.
+- Preserved conditional A-or-B cleanup when the snapshot
+  is known.
+- Verified cancellation during a genuinely suspended
+  initial read.
+- Verified original-cancellation propagation and
+  secondary cleanup-failure reporting.
+- Preserved the existing concurrency regression suite.
+
+**Verification:**
+- `./gradlew :app:clean :app:testDebugUnitTest --no-build-cache --console=plain`
+- BUILD SUCCESSFUL; 17 classes; 142/142 passed.
+- WU2 focal: 50 tests; AuthSecretStoreTest: 29.
+- 0 failures, 0 errors, 0 skipped.
+- Android lint and debug build: PASS.
+- `git diff --check`: PASS.
+- Jenkins for commit `88c8196`: SUCCESS.
+
+**Changed production/test files:** exactly two.
+This generation does not implement WU3, WU4 or WU5.
+
+Earlier generation records and their test counts
+remain historical evidence.
+
+
 # Apply Progress: Navidrome Account Authentication — WU2 Review Remediation (Gen 9)
 
 **Change**: `navidrome-account-authentication`
