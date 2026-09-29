@@ -6,6 +6,13 @@ Jenkins is the primary CI system. GitHub Actions CI has been removed to avoid a 
 
 CI-0 Basic pipeline is complete. The root `Jenkinsfile` runs visible formatting/static-analysis, unit-test, lint, and debug-assembly stages. It publishes JUnit XML and archives available debug APK, unit-test, and lint artifacts even when an earlier stage fails.
 
+Jenkins Declarative performs the initial SCM checkout automatically.
+The pipeline does not need a second explicit `checkout scm` stage.
+The formatting stage separately fetches `origin/develop` to establish
+the Spotless Ratchet baseline. Removing the redundant checkout
+does not eliminate all network operations or prevent transient
+connection failures.
+
 CI-2 / #33 removed duplicate verification. Issue #62 adds a Spotless + ktlint formatting gate to the existing formatting/static-analysis stage. Its Gradle command is only `spotlessCheck`: unit tests and Android lint still run once in their separate stages, and report/artifact handling is unchanged.
 
 Spotless 8.10.3 and ktlint 1.8.0 are pinned. `.editorconfig` establishes the 140-character limit and permits PascalCase `@Composable` function names. Ratchet compares against `origin/develop`: legacy Kotlin files remain untouched until changed, at which point the *entire changed file* must meet formatting rules. Some line-length violations need manual fixes. Run `./gradlew spotlessApply` manually when appropriate, then review `git diff` before staging. Jenkins never applies formatting. Detekt and coverage are not configured and remain deferred.
