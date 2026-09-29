@@ -2,6 +2,55 @@
 
 ## Review Workload Forecast
 
+### PR C / WU3 local-size exception — APPROVED 2026-09-29
+
+Current work unit: authenticated network boundary only.
+Branch: `feat/14-wu3-authenticated-network`.
+Target: `develop`, subject to final ancestry verification.
+
+Maintainer decision: `size:exception = APPROVED`;
+`split = NO` for the cohesive implementation and its
+security regression tests.
+
+Measured implementation baseline before documentation:
+- Production: 165 lines.
+- Security tests: 728 lines.
+- Dependency changes: 5 added lines.
+- Total: 898 changed lines.
+
+This 898-line figure is the original implementation
+snapshot, not the final PR workload.
+
+Post-staging review checkpoint (2026-09-29):
+- Explicit `android.permission.INTERNET` declaration.
+- Merged Debug and Release manifests verified.
+- Existing endpoint-path test expanded to cover
+  surrounding whitespace and decomposed Unicode
+  without changing the number of WU3 tests.
+- Updated test file: 740 lines; production: 165.
+- Measured candidate before this documentation
+  refresh: 1,079 changed lines.
+
+The approved PR C size exception covers these
+focused review corrections. Final workload will
+be measured again after documentation and staging.
+
+The normal 400-line review threshold is a decision
+threshold, not a hard repository limit. This exception
+belongs exclusively to PR C/WU3 and does not authorize
+additional WU4 or unrelated work.
+
+Rationale: the HTTP authentication boundary and its
+MockWebServer security tests form one reviewable unit.
+Coverage will not be removed merely to reduce line count.
+
+The final PR workload must be recalculated after
+documentation, staging and final diff review.
+
+All earlier workload forecasts below are historical;
+this section is the current PR C size decision.
+
+
 Estimated changed lines for this generation: ~150-250 (one focused production change + planning/docs corrections).
 400-line budget risk: Low (single parser guard + two unit tests; remaining work is documentation-only).
 
@@ -213,20 +262,20 @@ Measured exactly from git against the canonical current base `origin/develop` (P
 
 ### RED
 
-- [ ] 3.1 Create `OkHttpAuthenticatedPingClientTest.kt` — MockWebServer: success->Authenticated; #40->InvalidCredentials; #41/#42->Unsupported; #43->AuthProtocolError; #20/#30->IncompatibleServer; malformed/protocol-invalid response->AuthProtocolError; timeout/IOException->NetworkError; #44 unmapped. Request inspection: path `/rest/ping.view` when endpoint has no base path; path preserves configured endpoint base path (e.g. `/navidrome/rest/ping.view`); trailing-slash normalization must not create `//rest/...`; encoded path segments must not be decoded/re-encoded incorrectly; query/auth construction must never discard the existing endpoint path; decoded query params exactly `u`=opaque username, `t`=MD5(password+captured salt) lowercase 32 hex, `s`=fresh salt, `v`=1.13.0, `c`=devdigi-music, `f`=json; `p` absent; plaintext password absent; no duplicate auth params; username NOT trimmed/lowercased/NFC-normalized; salt satisfies format/length; successive requests use different salts. Redirect tests: cross-origin 302/307/308 — configured server receives exactly one request, redirect target receives zero, result != Authenticated, username/salt/token never reach redirect target.
-- [ ] 3.1a Endpoint base path preservation acceptance: deterministic MockWebServer cases for endpoint root `/rest/ping.view`, endpoint with base path `/navidrome/rest/ping.view`, trailing-slash normalization avoiding `//rest/...`, encoded path segments preserved, query/auth construction preserving endpoint path.
-- [ ] 3.1b Non-success HTTP response rejection: only HTTP 2xx responses are eligible for OpenSubsonic JSON parsing; non-2xx (400/401/404/500/502/503) with an otherwise valid `status: ok` / `openSubsonic: true` body MUST NOT yield Authenticated; non-2xx -> AuthProtocolError BEFORE body interpretation. Preserve: timeout/IOException -> NetworkError; 3xx -> AuthProtocolError (redirects disabled).
-- [ ] 3.1c Authenticated ping protocol/security rationale (WON'T FIX AS MANDATORY POST): baseline authenticated ping uses query-parameter mechanism (u/t/s/v/c/f) required before extension discovery; HTTPS mandatory; HTTP endpoints rejected; redirects disabled (`followRedirects(false)`); no logging interceptor; application code never logs full authenticated request URLs; `AuthSignature.toString` remains redacted (salt=***, token=***); fresh random salt on every request; no persistence of token/salt. Optional formPost extension MAY be considered separately only after server capability discovery confirms support.
+- [x] 3.1 Create `OkHttpAuthenticatedPingClientTest.kt` — MockWebServer: success->Authenticated; #40->InvalidCredentials; #41/#42->Unsupported; #43->AuthProtocolError; #20/#30->IncompatibleServer; malformed/protocol-invalid response->AuthProtocolError; timeout/IOException->NetworkError; #44 unmapped. Request inspection: path `/rest/ping.view` when endpoint has no base path; path preserves configured endpoint base path (e.g. `/navidrome/rest/ping.view`); trailing-slash normalization must not create `//rest/...`; encoded path segments must not be decoded/re-encoded incorrectly; query/auth construction must never discard the existing endpoint path; decoded query params exactly `u`=opaque username, `t`=MD5(password+captured salt) lowercase 32 hex, `s`=fresh salt, `v`=1.13.0, `c`=devdigi-music, `f`=json; `p` absent; plaintext password absent; no duplicate auth params; username NOT trimmed/lowercased/NFC-normalized; salt satisfies format/length; successive requests use different salts. Redirect tests: cross-origin 302/307/308 — configured server receives exactly one request, redirect target receives zero, result != Authenticated, username/salt/token never reach redirect target.
+- [x] 3.1a Endpoint base path preservation acceptance: deterministic MockWebServer cases for endpoint root `/rest/ping.view`, endpoint with base path `/navidrome/rest/ping.view`, trailing-slash normalization avoiding `//rest/...`, encoded path segments preserved, query/auth construction preserving endpoint path.
+- [x] 3.1b Non-success HTTP response rejection: only HTTP 2xx responses are eligible for OpenSubsonic JSON parsing; non-2xx (400/401/404/500/502/503) with an otherwise valid `status: ok` / `openSubsonic: true` body MUST NOT yield Authenticated; non-2xx -> AuthProtocolError BEFORE body interpretation. Preserve: timeout/IOException -> NetworkError; 3xx -> AuthProtocolError (redirects disabled).
+- [x] 3.1c Authenticated ping protocol/security rationale (WON'T FIX AS MANDATORY POST): baseline authenticated ping uses query-parameter mechanism (u/t/s/v/c/f) required before extension discovery; HTTPS mandatory; HTTP endpoints rejected; redirects disabled (`followRedirects(false)`); no logging interceptor; application code never logs full authenticated request URLs; `AuthSignature.toString` remains redacted (salt=***, token=***); fresh random salt on every request; no persistence of token/salt. Optional formPost extension MAY be considered separately only after server capability discovery confirms support.
 
 ### GREEN
 
-- [ ] 3.2 Create `OkHttpAuthenticatedPingClient.kt` — OkHttp impl, SubsonicAuthSigner, strict `kotlinx-serialization-json` parsing
-- [ ] 3.3 OkHttp client factory — no logging-interceptor; `followRedirects(false)`; `followSslRedirects(false)` if applicable; any 3xx rejected locally as `AuthProtocolError`
-- [ ] 3.3b WU3 transport response MUST be byte-bounded BEFORE full String materialization (never an unbounded `responseBody.string()`); oversized transport response -> `AuthProtocolError`, no parsing, no `Authenticated`, no secret logged. WU3 byte bound + WU1 parser limits are layered defenses: transport = byte bound; parser = character bound (`MAX_AUTH_RESPONSE_CHARS` 64 KiB) + nesting-depth bound (`MAX_AUTH_RESPONSE_DEPTH` 128).
+- [x] 3.2 Create `OkHttpAuthenticatedPingClient.kt` — OkHttp impl, SubsonicAuthSigner, strict `kotlinx-serialization-json` parsing
+- [x] 3.3 OkHttp client factory — no logging-interceptor; `followRedirects(false)`; `followSslRedirects(false)` if applicable; any 3xx rejected locally as `AuthProtocolError`
+- [x] 3.3b WU3 transport response MUST be byte-bounded BEFORE full String materialization (never an unbounded `responseBody.string()`); oversized transport response -> `AuthProtocolError`, no parsing, no `Authenticated`, no secret logged. WU3 byte bound + WU1 parser limits are layered defenses: transport = byte bound; parser = character bound (`MAX_AUTH_RESPONSE_CHARS` 64 KiB) + nesting-depth bound (`MAX_AUTH_RESPONSE_DEPTH` 128).
 
 ### Verify
 
-- [ ] 3.4 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.OkHttpAuthenticatedPingClientTest"`
+- [x] 3.4 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.OkHttpAuthenticatedPingClientTest"`
 
 
 ## Phase 4: Session + ViewModel + UI (WU4)

@@ -43,7 +43,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.okhttp)
     testImplementation(libs.junit)
+    testImplementation(libs.mockwebserver3)
     testImplementation(libs.androidx.datastore.preferences.core)
     testImplementation(libs.coroutines.test)
 }
