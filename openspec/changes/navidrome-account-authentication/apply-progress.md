@@ -1,5 +1,110 @@
 # Apply Progress: navidrome-account-authentication
 
+
+## WU3 local implementation — PR C — 2026-09-29
+
+**State:** Local implementation and verification complete.
+Not committed, published, reviewed by CI or merged.
+
+**Scope:** OkHttp authenticated network boundary.
+WU4 session/UI and WU5 real-Navidrome validation
+remain separate and pending.
+
+**Implementation:**
+- Signed OpenSubsonic `/rest/ping.view` requests.
+- Configured endpoint base paths preserved.
+- HTTP redirects and automatic retries disabled.
+- Read timeout 10 seconds; total timeout 15 seconds.
+- Coroutine cancellation cancels the HTTP call.
+- HTTP non-2xx responses rejected before JSON parsing.
+- Network I/O failures mapped to `NetworkError`.
+- Response body limited to 65,536 bytes before
+  strict UTF-8 decoding and WU1 parser validation.
+- OkHttp 5.4.0 and MockWebServer3 added.
+
+**TDD and regression evidence:**
+- WU3 focused suite: 14/14 tests passed.
+- Debug project suite: 156/156 tests passed,
+  18 test-report files, no failures or skipped tests.
+- `spotlessCheck`: PASS.
+- `:app:lintDebug`: PASS.
+- `:app:assembleDebug`: PASS.
+- Release policy test: 1/1 passed using
+  `-PunitTestBuildType=release`.
+- `git diff --check`: PASS.
+
+**Security coverage:**
+Authenticated success, Subsonic error-code
+taxonomy, malformed envelopes, non-2xx HTTP
+responses, cross-origin redirects, path and
+query preservation, fresh salts, connection
+failure, read and total timeouts, cancellation,
+byte bounds and invalid UTF-8.
+
+**Refactor:** Seven duplicated endpoint-parsing
+blocks replaced with one test helper. All 14
+WU3 tests remained green.
+
+**Post-staging review corrections:**
+- Declared `android.permission.INTERNET` explicitly
+  in the application's main manifest. Both merged
+  manifests contain the permission exactly once.
+- Re-ran manifest processing, Android Lint Debug
+  and `assembleDebug` after the manifest change:
+  all passed.
+- Expanded the existing endpoint-path test to
+  exercise composed Unicode and whitespace with
+  decomposed Unicode across two base paths.
+- Re-ran the WU3 focused suite after that change:
+  14/14 passed, no failures or skipped tests.
+- No production Kotlin changes were required.
+
+The previously recorded 156/156 project-wide
+Debug suite and 1/1 Release policy test are
+earlier verification snapshots. A final
+project-wide verification of the updated
+candidate is recorded below.
+
+**Review decision:** PR C size exception
+APPROVED by the maintainer on 2026-09-29.
+Implementation baseline: 898 changed lines
+before this documentation update.
+
+## WU3 final local validation — 2026-09-29
+
+Final candidate validated after the explicit
+INTERNET permission and opaque-username test
+improvements.
+
+- Full Debug suite: 156/156 passed;
+  18 XML test reports.
+- WU3 focused suite: 14/14 passed.
+- Release HTTPS policy: 1/1 passed using
+  `-PunitTestBuildType=release`.
+- Spotless: PASS.
+- Android Lint Debug: PASS.
+- Android assembleDebug: PASS.
+- Both merged manifests: INTERNET present.
+- Staging hash: unchanged throughout validation.
+- No failures, errors or skipped tests.
+
+Measured staged workload before this final
+evidence update: 1,136 changed lines
+across eight files.
+
+This is local verification. Jenkins and
+real-Navidrome integration remain separate
+verification gates.
+
+**Pending:** commit, PR,
+Jenkins validation including Android SDK 36,
+and maintainer-controlled merge.
+
+Historical WU1/WU2 records below are preserved.
+
+---
+
+
 > Ancestry integration: PR #48 / WU1 merged into develop; PR #49 / WU2 targets develop after merge.
 
 ## WU2 apply progress (PR #49)

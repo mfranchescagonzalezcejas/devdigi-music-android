@@ -17,7 +17,116 @@ build_exit_code: 0
 build_output_hash: sha256:5ff92de6acb48a091f4a84c3c6b3d3b888522d8b88d48899092b8de604e1708e
 ```
 
-## Verification Report
+## Current WU3 local verification — 2026-09-29
+
+**Scope:** PR C, authenticated network boundary.
+**Local WU3 result:** PASS.
+**Overall OpenSpec change:** INCOMPLETE;
+WU4 and gated WU5 remain pending.
+
+This section records the current local candidate.
+The original machine-readable header and its
+historical hashes have NOT been regenerated.
+Older WU1/WU2 results remain preserved below.
+
+| Verification | Observed result |
+|---|---|
+| WU3 focused MockWebServer tests | 14/14 PASS |
+| Full Debug unit-test suite | 156/156 PASS |
+| Debug test-report files | 18 |
+| Release HTTPS policy | 1/1 PASS |
+| Spotless | PASS |
+| Android Lint Debug | PASS |
+| Android assembleDebug | PASS |
+| Diff whitespace | PASS |
+
+Release verification used
+`-PunitTestBuildType=release`
+with `:app:testReleaseUnitTest --tests
+"dev.devdigi.music.connection.ReleaseEndpointPolicyTest"`.
+
+The WU3 focused suite was executed through
+`:app:testDebugUnitTest --tests
+"dev.devdigi.music.connection.OkHttpAuthenticatedPingClientTest"`.
+
+These are local Gradle results, not Jenkins
+results or real-Navidrome integration evidence.
+
+**Security evidence:** WU3's 14 tests cover
+signed requests, protocol taxonomy, malformed
+responses, HTTP status rejection, redirect
+containment, endpoint paths, fresh salts,
+network failure, timeouts, cancellation,
+bounded response bodies and strict UTF-8.
+WU1 parser limits remain a second defense.
+
+**Post-staging review verification:**
+The main Android manifest now explicitly
+declares `android.permission.INTERNET`.
+Subsequent Debug and Release merged-manifest
+inspection confirmed exactly one declaration
+in each variant. Debug lint and APK assembly
+passed after this change.
+
+The existing WU3 endpoint-path test now covers
+composed Unicode as well as surrounding
+whitespace and decomposed Unicode. The focused
+WU3 suite passed again: 14/14.
+
+The 156/156 project-wide result above predates
+these review corrections. The Release HTTPS
+policy test also ran before the explicit
+manifest declaration; the subsequent Release
+manifest merge passed. The subsequent
+final verification is recorded below.
+
+**Release endpoint policy:** rejects HTTP and
+accepts HTTPS. Debug HTTP is limited to its
+explicitly permitted local hosts.
+
+**Review:** PR C size exception APPROVED.
+Measured implementation baseline: 898 lines,
+excluding this documentation update.
+
+### WU3 final candidate verification — 2026-09-29
+
+The final local candidate was verified after
+both post-review corrections.
+
+| Check | Final result |
+|---|---|
+| Full Debug unit tests | 156/156 PASS |
+| WU3 focused tests | 14/14 PASS |
+| Release HTTPS policy | 1/1 PASS |
+| Spotless | PASS |
+| Android Lint Debug | PASS |
+| Android assembleDebug | PASS |
+| Debug merged INTERNET permission | PASS |
+| Release merged INTERNET permission | PASS |
+| Staged diff integrity | UNCHANGED |
+
+Debug results came from 18 XML test-report
+files, with zero failures, errors or skips.
+
+Release verification used
+`-PunitTestBuildType=release`.
+
+The staged implementation comprised eight
+files and 1,136 changed lines before adding
+this final evidence section.
+
+These results are local Gradle evidence.
+They do not represent Jenkins execution or
+real-Navidrome integration verification.
+
+**Remaining gates:** final diff, commit,
+PR review, Jenkins Android SDK 36 validation,
+required CI success and maintainer merge.
+WU4/WU5 are not included in this verification.
+
+---
+
+## Historical WU1/WU2 Verification Report
 
 **Change**: navidrome-account-authentication
 **Version**: N/A
