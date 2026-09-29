@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "dev.devdigi.music"
-    compileSdk = 35
+    compileSdk = 36
     testBuildType = providers.gradleProperty("unitTestBuildType").orElse("debug").get()
 
     defaultConfig {
