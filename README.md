@@ -53,6 +53,32 @@ Spotless Ratchet checks entire files modified relative to `origin/develop`,
 not just the changed lines. Review every formatting change before staging.
 Jenkins runs `spotlessCheck` only; it never applies formatting automatically.
 
+## Optional local hooks (Lefthook)
+
+Install [Lefthook](https://github.com/evilmartians/lefthook) separately if you
+want local fail-fast checks. Before installing, inspect `git config --get
+core.hooksPath` and `git rev-parse --git-path hooks`; preserve any existing
+hooks instead of allowing an installer to overwrite them. Linked Git worktrees
+normally share the same hooks directory; test hook installation in an
+independent clone, **not** a temporary worktree.
+
+```sh
+lefthook version
+lefthook validate
+lefthook install  # Explicit opt-in, only after checking existing hooks.
+```
+
+The `pre-commit` hook checks staged whitespace and runs existing Gradle
+`spotlessCheck` when relevant files are staged. Lefthook hides tracked
+unstaged edits during a normal `git commit`, but this behavior must not be
+assumed for untracked files or manual hook runs. The `commit-msg` hook checks
+Conventional Commits. Hooks never autoformat; there is no heavy `pre-push`
+check. If a hook fails, fix the relevant staged content and retry. Use
+`LEFTHOOK=0 git commit` only as a documented exceptional bypass; Jenkins still
+must pass on the PR. To remove hooks, first inspect their contents and
+ownership, then use Lefthook's uninstall command **only** for hooks you
+know it installed; restore any pre-existing hooks from their backups.
+
 ## Privacy
 
 Do not commit real server URLs, private DNS names, credentials, tokens, salts,

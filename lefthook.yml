@@ -1,0 +1,41 @@
+# Optional local checks. Run `lefthook validate` before explicitly installing.
+# Jenkins remains the authoritative PR verifier. No autoformat or pre-push build.
+min_version: 2.1.0
+
+pre-commit:
+  parallel: false
+  commands:
+    staged-whitespace:
+      run: git diff --cached --check
+    spotless:
+      # Root and nested files: Lefthook's ** pattern does not match zero dirs.
+      glob:
+        - "*.kt"
+        - "**/*.kt"
+        - "*.gradle.kts"
+        - "**/*.gradle.kts"
+        - ".editorconfig"
+        - "gradle/libs.versions.toml"
+      run: |
+        # Normal git commit temporarily hides tracked unstaged edits via Lefthook.
+        # Validate staged tracked Kotlin; Jenkins remains the final authority.
+        git rev-parse --verify 'refs/remotes/origin/develop^{commit}' >/dev/null || {
+          echo 'STOP: fetch origin/develop before committing'
+          exit 1
+        }
+        git merge-base HEAD origin/develop >/dev/null || {
+          echo 'STOP: origin/develop history not available'
+          exit 1
+        }
+        ./gradlew spotlessCheck --console=plain
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        first_line=$(sed -n '1p' "{1}")
+        printf '%s\n' "$first_line" | grep -Eq '^(feat|fix|chore|refactor|docs|hotfix|test|style|perf|ci|build|revert)(\([a-z][a-z0-9-]*\))?!?: .+' ||
+        printf '%s\n' "$first_line" | grep -Eq '^Revert ".+"$' || {
+          echo 'STOP: expected Conventional Commit type(scope)!: description'
+          exit 1
+        }
