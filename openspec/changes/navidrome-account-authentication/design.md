@@ -200,6 +200,12 @@ Per the official OpenSubsonic `subsonic-response` schema, for a response claimin
 
 ## Dual Authentication Capability (WU3b)
 
+> **Delivery status — 2026-09-30:** the architecture below remains the
+> approved future API-key design, but WU3b-B/C/D implementation is deferred
+> until an official stable Navidrome release advertises
+> `apiKeyAuthentication` v1. WU4 proceeds meanwhile on the existing password
+> authentication path.
+
 WU3b adds API-key authentication as a sibling to the existing password
 authentication path. The already-merged WU3 password transport remains
 unchanged.
@@ -266,16 +272,20 @@ that mechanism.
 
 ### Mechanism-neutral authentication
 
-WU4 MUST NOT duplicate session logic for password and API-key auth.
+The current WU4 proceeds on the already-integrated password authentication
+path.
 
-WU3b therefore introduces a small orchestration boundary above both
-transport-specific clients.
+When deferred API-key work resumes, API-key integration MUST NOT duplicate
+the session semantics implemented by WU4. WU3b-C will introduce a small
+orchestration boundary above the password and API-key transport-specific
+clients.
 
-Both successful mechanisms converge on the same result:
+Both successful mechanisms will converge on the same result:
 
     ServerAccountIdentity + ServerMetadata
 
-WU4 consumes that common authenticated-account result.
+The session layer can then migrate to that common authenticated-account
+result without changing its externally visible authentication semantics.
 
 ### Secure credential persistence
 

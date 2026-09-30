@@ -280,8 +280,23 @@ Measured exactly from git against the canonical current base `origin/develop` (P
 
 ## Phase 3b: Dual Authentication Capability (WU3b)
 
-WU3b is inserted between the already-merged WU3 password-authenticated
-network boundary and WU4 session/UI.
+### Implementation gate — 2026-09-30
+
+WU3b-A planning/spec remains accepted, but WU3b-B/C/D implementation is
+DEFERRED until an official stable Navidrome release used by this project
+advertises `apiKeyAuthentication` version 1.
+
+Development/nightly Navidrome images are not a delivery dependency for
+DevDigi Music. The current homelab Navidrome 0.61.2 was validated against
+`getOpenSubsonicExtensions` and does not advertise API-key authentication.
+
+WU4 therefore proceeds now using the already-merged password authentication
+path. The deferred API-key work remains capability-driven and can resume
+without changing the password compatibility baseline.
+
+WU3b-A planning/spec was inserted after the already-merged WU3
+password-authenticated network boundary. WU3b-B/C/D implementation is now
+deferred and does not block WU4 session/UI.
 
 The existing password path remains valid and MUST NOT regress.
 API-key authentication is added as a sibling capability, not as a
@@ -308,9 +323,10 @@ review unit:
 - **WU3b-D — secure typed credential persistence**:
   PASSWORD/API_KEY mechanism binding, cryptographic domain separation,
   tamper resistance, legacy WU2 PASSWORD compatibility, security tests.
-- **WU4 remains blocked** until WU3b-B/C/D are integrated. The existing
-  WU4 SessionRestorer RED/GREEN work remains preserved separately and
-  MUST NOT be mixed into WU3b.
+- **WU4 is unblocked on the password path.** WU3b-B/C/D remain deferred
+  behind the stable-Navidrome capability gate. The existing WU4
+  SessionRestorer work remains preserved separately and MUST NOT be mixed
+  with future API-key implementation.
 
 Each implementation unit is reviewed independently against the normal
 400 changed-line review-budget threshold. If an individual cohesive
