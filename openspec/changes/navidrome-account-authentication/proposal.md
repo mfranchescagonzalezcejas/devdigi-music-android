@@ -9,18 +9,18 @@ Implement #14: secure, durable Navidrome account authentication on top of #13's 
 ### In Scope
 
 - `ServerAccountIdentity` (normalized `ServerEndpoint` + exact opaque username used by the successful authentication request) and separate `ServerMetadata` (`serverType`, `serverVersion`, `openSubsonic`). Username is case-sensitive and Unicode-preserving; no trim, case folding, or Unicode normalization at the identity layer.
-- `AuthCredentials` secret boundary: redacted `toString`, no serialization/logging/telemetry, transient password only.
+- Password `AuthCredentials` remains a redacted transient-secret boundary; WU3b adds an equally redacted API-key secret boundary. Neither secret is serialized/logged/telemetried.
 - Subsonic token/salt signing: `token = md5(password + salt)` UTF-8 lowercase hex; per-request `SecureRandom` salt (≥6 chars, URL-safe hex, never persisted).
-- `AuthResult` taxonomy: `Authenticated`, `InvalidCredentials` (#40), `UnsupportedAuthentication` (#41/#42), `AuthProtocolError` (#43), `IncompatibleServer` (#20/#30), `NetworkError`. #44 unmapped (API-key out of scope). Malformed JSON/envelope, missing or wrong-typed required protocol fields, contradictory payloads, and unmapped failure codes map to `AuthProtocolError`, not `IncompatibleServer`.
+- `AuthResult` taxonomy: `Authenticated`, `InvalidCredentials` (#40), `UnsupportedAuthentication` (#41/#42), `AuthProtocolError` (#43), `IncompatibleServer` (#20/#30), `NetworkError`. Password-path #44 remains unmapped; WU3b handles #44 only for API-key `tokenInfo` rejection. Malformed JSON/envelope, missing or wrong-typed required protocol fields, contradictory payloads, and unmapped failure codes map to `AuthProtocolError`, not `IncompatibleServer`.
 - Android Keystore AES/GCM/NoPadding ciphertext in separate `auth_secret` Preferences DataStore, excluded from backup/restore; invalid/missing key → clear + forced re-login (NOT `EncryptedSharedPreferences`).
 - Fail-closed sign-in; sign-out (clear secret + auth state, preserve `ServerProfile`); re-authenticated session restoration.
 - Authenticated network boundary via OkHttp 5.4.0 (no logging-interceptor); `kotlinx-serialization-json` 1.9.0 runtime; `mockwebserver` testImplementation only.
-- Work units WU1–WU5 (WU5 real-Navidrome validation gated).
+- Work units WU1–WU3, chained WU3b-A/B/C/D, WU4, and gated WU5.
 
 ### Out of Scope
 
 - Catalog, recent albums, album detail, playback, Media3, queue, offline, ListenBrainz, FastAPI, Cast/Alexa, discovery, Tailscale logic.
-- API-key auth (#44), #16 account-scoped persistence implementation (only prepare `ServerAccountIdentity`).
+- Automatic API-key issuance/password-to-key migration, private server key-generation APIs, and #16 account-scoped persistence implementation; API-key authentication itself is WU3b scope.
 
 ## Capabilities
 
@@ -60,12 +60,12 @@ Seam-preserving (exploration Option 1 + 4a + 5 + 6a + 7): add a parallel `Authen
 | JSON runtime dep leak | Low | `kotlinx-serialization-json` is the only JSON runtime; verify `debugRuntimeClasspath` in verify. |
 | Username normalization collision | Low | Username is an opaque, case-sensitive, Unicode-preserving identifier by design; no trim/case-fold/NFC at the identity layer (collisions cannot be collapsed). |
 | Restore race shows stale `AUTHENTICATED` UI | Med | `Restoring` intermediate state; restore completes before auth UI. |
-| Result taxonomy drift (#41/#42 vs #43, #44) | Med | WU3 matrix enumerates each code → cell; assert #44 unmapped. |
+| Result taxonomy drift (#41/#42 vs #43, #44) | Med | WU3 matrix enumerates each code → cell; assert password-path #44 remains unmapped and API-key `tokenInfo` #44 remains mechanism-specific. |
 
 ## Rollback Plan
 
 - Revert `feat/14-secure-navidrome-authentication`; #13 code paths (`PingClient`, `reducePingObservation`, `ServerProfileRepository`) are untouched, so reversion restores prior behavior with no migration.
-- No schema change to `server_profile` DataStore; new `auth_secret` DataStore can be deleted on uninstall.
+- No schema change to `server_profile`; `auth_secret` may evolve compatibly in WU3b-D, and rollback MUST fail closed rather than reinterpret typed ciphertext.
 - Remove `INTERNET` permission and OkHttp/kotlinx-serialization-json deps alongside revert to avoid dangling runtime dependencies.
 - Keystore keys are device-local and orphaned harmlessly if reverted (ciphertext clears fail-closed on missing key).
 
@@ -76,7 +76,7 @@ Seam-preserving (exploration Option 1 + 4a + 5 + 6a + 7): add a parallel `Authen
 
 ## Delivery Note
 
-Canonical delivery strategy: **chained PRs** (`stacked-to-main`). PR A / #48 = planning + WU1 auth core; PR B / #49 = WU2 secure-secret-storage; PR C = WU3 authenticated-network-boundary; PR D = WU4 session/UI; WU5 = gated real-Navidrome validation after WU1–WU4 integration. 400 lines is the normal review-budget decision threshold, not a hard repository limit; PR A / #48 has an approved cohesive size exception and is intentionally not split after multiple review/remediation rounds. Later PRs should stay within the normal review budget where practical or obtain their own explicit exception; never game line counts.
+Canonical delivery strategy: **chained PRs** (`stacked-to-main`). PR A / #48 = planning + WU1 auth core; PR B / #49 = WU2 secure-secret-storage; PR C = WU3 password authenticated-network-boundary; WU3b-A/B/C/D = planning/discovery/API-key/storage chain; PR D = WU4 session/UI; WU5 = gated real-Navidrome validation after WU1–WU4 integration. 400 lines is the normal review-budget decision threshold, not a hard repository limit; PR A / #48 has an approved cohesive size exception and is intentionally not split after multiple review/remediation rounds. Later PRs should stay within the normal review budget where practical or obtain their own explicit exception; never game line counts.
 
 (superseded — earlier `delivery_strategy = single-pr` / "user-approved, no pre-split" / split-vs-`size:exception` / "every chained PR stays under 400 lines" statements are historical audit context only; the authoritative current delivery strategy is chained PRs.)
 
