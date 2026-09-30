@@ -236,6 +236,68 @@ class ServerConnectionSessionViewModelTest {
         }
 
     @Test
+    fun failedSignOutRemainsRestorableAfterViewModelRestart() =
+        runTest {
+            val savedProfile = profile()
+            val store = FakeSecretStore()
+            val firstViewModel =
+                authenticatedViewModel(
+                    store = store,
+                )
+
+            testScheduler.runCurrent()
+            authenticate(firstViewModel)
+            testScheduler.runCurrent()
+
+            store.clearFailure =
+                IllegalStateException(
+                    "synthetic clear failure",
+                )
+
+            firstViewModel.signOut()
+            testScheduler.runCurrent()
+
+            assertEquals(
+                SessionStatus.SIGN_OUT_FAILED,
+                firstViewModel.state.sessionStatus,
+            )
+            assertTrue(store.stored != null)
+
+            val repository =
+                FakeRepository(savedProfile)
+            val client =
+                ImmediatePingClient(
+                    AuthResult.Authenticated(metadata()),
+                )
+            val restorer =
+                SessionRestorer(
+                    repository = repository,
+                    secretStore = store,
+                    pingClient = client,
+                )
+
+            val restartedViewModel =
+                viewModel(
+                    repository = repository,
+                    store = store,
+                    client = client,
+                    restorer = restorer,
+                )
+
+            testScheduler.runCurrent()
+
+            assertEquals(
+                SessionStatus.AUTHENTICATED,
+                restartedViewModel.state.sessionStatus,
+            )
+            assertEquals(
+                identity(savedProfile),
+                restartedViewModel.state.identity,
+            )
+            assertEquals(1, client.calls)
+        }
+
+    @Test
     fun signOutCancellationPropagatesWithoutBecomingSignOutFailure() =
         runTest {
             val clearStarted = CompletableDeferred<Unit>()
