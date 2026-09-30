@@ -416,8 +416,8 @@ The durable credential mechanism is security-relevant.
 - [x] 4.3a Create core `SessionRestorer.kt` — read profile + recover password secret + fresh authenticated ping; fail closed; apply credential-retention policy
 - [x] 4.3b Integrate restoration with the WU4 generation/revision backstop and shared short orchestration critical section from 4.2a; network ping remains outside the mutex
 - [x] 4.4 Update `ServerConnectionViewModel.kt` — sign-in/sign-out/restore flows; wire deps
-- [ ] 4.5 Update `ServerConnectionScreen.kt` — masked password, sign-in/out buttons, status
-- [ ] 4.5a Adaptive connection UI: derive layout from available window width rather than device-type checks; verify compact phone (~360dp), regular phone, landscape, tablet portrait/landscape, split-screen/resizable window; constrain form max-width on large surfaces, preserve readable spacing/touch targets, and avoid stretched full-width credential fields.
+- [x] 4.5 Update `ServerConnectionScreen.kt` — masked password, sign-in/out buttons, status
+- [x] 4.5a Adaptive connection UI: derive layout from available window width rather than device-type checks; verify compact phone (~360dp), regular phone, landscape, tablet portrait/landscape, split-screen/resizable window; constrain form max-width on large surfaces, preserve readable spacing/touch targets, and avoid stretched full-width credential fields.
 - [x] 4.6 Update `MainActivity.kt` — DI wiring
 - [x] 4.7 Update `AndroidManifest.xml` — INTERNET permission
 
