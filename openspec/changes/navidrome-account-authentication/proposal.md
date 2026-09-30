@@ -15,7 +15,7 @@ Implement #14: secure, durable Navidrome account authentication on top of #13's 
 - Android Keystore AES/GCM/NoPadding ciphertext in separate `auth_secret` Preferences DataStore, excluded from backup/restore; invalid/missing key → clear + forced re-login (NOT `EncryptedSharedPreferences`).
 - Fail-closed sign-in; sign-out (clear secret + auth state, preserve `ServerProfile`); re-authenticated session restoration.
 - Authenticated network boundary via OkHttp 5.4.0 (no logging-interceptor); `kotlinx-serialization-json` 1.9.0 runtime; `mockwebserver` testImplementation only.
-- Work units WU1–WU3, chained WU3b-A/B/C/D, WU4, and gated WU5.
+- Work units WU1–WU3, WU3b-A planning, WU4, and gated WU5; WU3b-B/C/D are deferred until stable Navidrome API-key support is available.
 
 ### Out of Scope
 
@@ -76,7 +76,12 @@ Seam-preserving (exploration Option 1 + 4a + 5 + 6a + 7): add a parallel `Authen
 
 ## Delivery Note
 
-Canonical delivery strategy: **chained PRs** (`stacked-to-main`). PR A / #48 = planning + WU1 auth core; PR B / #49 = WU2 secure-secret-storage; PR C = WU3 password authenticated-network-boundary; WU3b-A/B/C/D = planning/discovery/API-key/storage chain; PR D = WU4 session/UI; WU5 = gated real-Navidrome validation after WU1–WU4 integration. 400 lines is the normal review-budget decision threshold, not a hard repository limit; PR A / #48 has an approved cohesive size exception and is intentionally not split after multiple review/remediation rounds. Later PRs should stay within the normal review budget where practical or obtain their own explicit exception; never game line counts.
+**Current gate (2026-09-30):** WU3b-A remains merged as future-facing
+planning/specification. WU3b-B/C/D are deferred until an official stable
+Navidrome release advertises `apiKeyAuthentication` v1. WU4 resumes now on
+the already-integrated password authentication path.
+
+Canonical current delivery strategy: **chained PRs** (`stacked-to-main`). PR A / #48 = planning + WU1 auth core; PR B / #49 = WU2 secure-secret-storage; PR C = WU3 password authenticated-network-boundary; WU3b-A = merged future-facing API-key planning/spec; PR D = WU4 session/UI; WU5 = gated real-Navidrome validation after WU1–WU4 integration. WU3b-B/C/D remain deferred until stable Navidrome API-key support is available. The 400-line review budget remains a decision threshold, not a hard repository limit.
 
 (superseded — earlier `delivery_strategy = single-pr` / "user-approved, no pre-split" / split-vs-`size:exception` / "every chained PR stays under 400 lines" statements are historical audit context only; the authoritative current delivery strategy is chained PRs.)
 
