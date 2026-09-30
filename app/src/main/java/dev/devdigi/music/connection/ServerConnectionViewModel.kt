@@ -7,7 +7,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 enum class SessionStatus {
@@ -44,47 +49,66 @@ class ServerConnectionViewModel(
 
     private var hasUserEditedDraft = false
 
+    private val orchestrationMutex = Mutex()
+    private var authGeneration = 0L
+    private var signInJob: Job? = null
+
     init {
         coroutineScope.launch {
             repository.profile.collect { profile ->
-                val profileChanged =
-                    state.profile != null &&
-                        state.profile != profile
+                orchestrationMutex.withLock {
+                    val profileChanged =
+                        state.profile != null &&
+                            state.profile != profile
 
-                state =
-                    state.copy(
-                        endpointInput =
-                            if (hasUserEditedDraft) {
-                                state.endpointInput
-                            } else {
-                                profile?.endpoint?.value.orEmpty()
-                            },
-                        profile = profile,
-                        urlValidity =
-                            if (hasUserEditedDraft) {
-                                state.urlValidity
-                            } else {
-                                profile
-                                    ?.let(UrlValidity::Valid)
-                                    ?: UrlValidity.UNCHECKED
-                            },
-                        connectionFacts =
-                            if (profileChanged) {
-                                ConnectionFacts()
-                            } else {
-                                state.connectionFacts
-                            },
-                        identity =
-                            if (profileChanged) null else state.identity,
-                        metadata =
-                            if (profileChanged) null else state.metadata,
-                        sessionStatus =
-                            if (profileChanged) {
-                                SessionStatus.SIGNED_OUT
-                            } else {
-                                state.sessionStatus
-                            },
-                    )
+                    if (profileChanged) {
+                        authGeneration += 1
+                        signInJob?.cancel()
+                    }
+
+                    state =
+                        state.copy(
+                            endpointInput =
+                                if (hasUserEditedDraft) {
+                                    state.endpointInput
+                                } else {
+                                    profile?.endpoint?.value.orEmpty()
+                                },
+                            profile = profile,
+                            urlValidity =
+                                if (hasUserEditedDraft) {
+                                    state.urlValidity
+                                } else {
+                                    profile
+                                        ?.let(UrlValidity::Valid)
+                                        ?: UrlValidity.UNCHECKED
+                                },
+                            connectionFacts =
+                                if (profileChanged) {
+                                    ConnectionFacts()
+                                } else {
+                                    state.connectionFacts
+                                },
+                            identity =
+                                if (profileChanged) {
+                                    null
+                                } else {
+                                    state.identity
+                                },
+                            metadata =
+                                if (profileChanged) {
+                                    null
+                                } else {
+                                    state.metadata
+                                },
+                            sessionStatus =
+                                if (profileChanged) {
+                                    SessionStatus.SIGNED_OUT
+                                } else {
+                                    state.sessionStatus
+                                },
+                        )
+                }
             }
         }
 
@@ -128,31 +152,39 @@ class ServerConnectionViewModel(
                 val profile = ServerProfile(result.endpoint)
 
                 coroutineScope.launch {
-                    runCatching {
+                    invalidateSignInForProfileMutation()
+
+                    try {
                         repository.save(profile)
-                    }.onSuccess {
-                        hasUserEditedDraft = false
-                        state =
-                            state.copy(
-                                endpointInput =
-                                    profile.endpoint.value,
-                                profile = profile,
-                                urlValidity =
-                                    UrlValidity.Valid(profile),
-                                connectionFacts =
-                                    ConnectionFacts(),
-                                identity = null,
-                                metadata = null,
-                                sessionStatus =
-                                    SessionStatus.SIGNED_OUT,
-                                statusMessage = "",
-                            )
-                    }.onFailure {
-                        state =
-                            state.copy(
-                                statusMessage =
-                                    "Unable to save server.",
-                            )
+
+                        orchestrationMutex.withLock {
+                            hasUserEditedDraft = false
+                            state =
+                                state.copy(
+                                    endpointInput =
+                                        profile.endpoint.value,
+                                    profile = profile,
+                                    urlValidity =
+                                        UrlValidity.Valid(profile),
+                                    connectionFacts =
+                                        ConnectionFacts(),
+                                    identity = null,
+                                    metadata = null,
+                                    sessionStatus =
+                                        SessionStatus.SIGNED_OUT,
+                                    statusMessage = "",
+                                )
+                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Throwable) {
+                        orchestrationMutex.withLock {
+                            state =
+                                state.copy(
+                                    statusMessage =
+                                        "Unable to save server.",
+                                )
+                        }
                     }
                 }
             }
@@ -168,24 +200,33 @@ class ServerConnectionViewModel(
 
     fun delete() {
         coroutineScope.launch {
-            runCatching {
+            invalidateSignInForProfileMutation()
+
+            try {
                 repository.delete()
-            }.onSuccess {
-                state =
-                    state.copy(
-                        identity = null,
-                        metadata = null,
-                        connectionFacts = ConnectionFacts(),
-                        sessionStatus =
-                            SessionStatus.SIGNED_OUT,
-                        statusMessage = "",
-                    )
-            }.onFailure {
-                state =
-                    state.copy(
-                        statusMessage =
-                            "Unable to delete server.",
-                    )
+
+                orchestrationMutex.withLock {
+                    state =
+                        state.copy(
+                            identity = null,
+                            metadata = null,
+                            connectionFacts =
+                                ConnectionFacts(),
+                            sessionStatus =
+                                SessionStatus.SIGNED_OUT,
+                            statusMessage = "",
+                        )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                orchestrationMutex.withLock {
+                    state =
+                        state.copy(
+                            statusMessage =
+                                "Unable to delete server.",
+                        )
+                }
             }
         }
     }
@@ -193,102 +234,153 @@ class ServerConnectionViewModel(
     fun signIn() {
         val store = secretStore ?: return
         val client = pingClient ?: return
-        val profile = state.profile
 
-        if (profile == null) {
-            state =
-                state.copy(
-                    statusMessage =
-                        "Save a server before signing in.",
-                )
-            return
-        }
+        signInJob?.cancel()
 
-        val username = state.usernameInput
-        val password = state.passwordInput
+        signInJob =
+            coroutineScope.launch {
+                val attempt =
+                    orchestrationMutex.withLock {
+                        val profile = state.profile
 
-        state =
-            state.copy(
-                identity = null,
-                metadata = null,
-                sessionStatus = SessionStatus.SIGNING_IN,
-                connectionFacts = ConnectionFacts(),
-                statusMessage = "Signing in…",
-            )
+                        if (profile == null) {
+                            state =
+                                state.copy(
+                                    statusMessage =
+                                        "Save a server before signing in.",
+                                )
+                            return@withLock null
+                        }
 
-        coroutineScope.launch {
-            val credentials =
-                AuthCredentials.create(
-                    username = username,
-                    password = password,
-                )
+                        authGeneration += 1
 
-            val result =
-                client.ping(
-                    credentials = credentials,
-                    profile = profile,
-                )
+                        SignInAttempt(
+                            generation = authGeneration,
+                            profile = profile,
+                            username = state.usernameInput,
+                            password = state.passwordInput,
+                        ).also {
+                            state =
+                                state.copy(
+                                    identity = null,
+                                    metadata = null,
+                                    sessionStatus =
+                                        SessionStatus.SIGNING_IN,
+                                    connectionFacts =
+                                        ConnectionFacts(),
+                                    statusMessage =
+                                        "Signing in…",
+                                )
+                        }
+                    } ?: return@launch
 
-            if (result !is AuthResult.Authenticated) {
-                state =
-                    state.copy(
-                        identity = null,
-                        metadata = null,
-                        sessionStatus =
-                            SessionStatus.SIGNED_OUT,
-                        connectionFacts =
-                            reduceAuthResult(result),
-                        statusMessage =
-                            statusMessageFor(result),
+                val credentials =
+                    AuthCredentials.create(
+                        username = attempt.username,
+                        password = attempt.password,
                     )
-                return@launch
-            }
 
-            val identity =
-                ServerAccountIdentity(
-                    endpoint = profile.endpoint,
-                    username = username,
-                )
-
-            val saveResult =
-                try {
-                    store.save(
-                        identity = identity,
-                        secret = password,
+                val result =
+                    client.ping(
+                        credentials = credentials,
+                        profile = attempt.profile,
                     )
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Throwable) {
-                    Result.failure(error)
+
+                if (result !is AuthResult.Authenticated) {
+                    withContext(NonCancellable) {
+                        orchestrationMutex.withLock {
+                            if (!isCurrent(attempt)) {
+                                return@withLock
+                            }
+
+                            state =
+                                state.copy(
+                                    identity = null,
+                                    metadata = null,
+                                    sessionStatus =
+                                        SessionStatus.SIGNED_OUT,
+                                    connectionFacts =
+                                        reduceAuthResult(result),
+                                    statusMessage =
+                                        statusMessageFor(result),
+                                )
+                        }
+                    }
+                    return@launch
                 }
 
-            if (saveResult.isFailure) {
-                state =
-                    state.copy(
-                        identity = null,
-                        metadata = null,
-                        sessionStatus =
-                            SessionStatus.SIGNED_OUT,
-                        connectionFacts =
-                            ConnectionFacts(),
-                        statusMessage =
-                            "Unable to save credentials securely.",
-                    )
-                return@launch
-            }
+                val currentBeforePersistence =
+                    withContext(NonCancellable) {
+                        orchestrationMutex.withLock {
+                            isCurrent(attempt)
+                        }
+                    }
 
-            state =
-                state.copy(
-                    passwordInput = "",
-                    identity = identity,
-                    metadata = result.metadata,
-                    sessionStatus =
-                        SessionStatus.AUTHENTICATED,
-                    connectionFacts =
-                        reduceAuthResult(result),
-                    statusMessage = "",
-                )
-        }
+                if (!currentBeforePersistence) {
+                    return@launch
+                }
+
+                val identity =
+                    ServerAccountIdentity(
+                        endpoint = attempt.profile.endpoint,
+                        username = attempt.username,
+                    )
+
+                val saveResult =
+                    try {
+                        store.save(
+                            identity = identity,
+                            secret = attempt.password,
+                        )
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        Result.failure(error)
+                    }
+
+                if (saveResult.isFailure) {
+                    withContext(NonCancellable) {
+                        orchestrationMutex.withLock {
+                            if (!isCurrent(attempt)) {
+                                return@withLock
+                            }
+
+                            state =
+                                state.copy(
+                                    identity = null,
+                                    metadata = null,
+                                    sessionStatus =
+                                        SessionStatus.SIGNED_OUT,
+                                    connectionFacts =
+                                        ConnectionFacts(),
+                                    statusMessage =
+                                        "Unable to save credentials securely.",
+                                )
+                        }
+                    }
+                    return@launch
+                }
+
+                withContext(NonCancellable) {
+                    orchestrationMutex.withLock {
+                        if (!isCurrent(attempt)) {
+                            return@withLock
+                        }
+
+                        state =
+                            state.copy(
+                                passwordInput = "",
+                                identity = identity,
+                                metadata = result.metadata,
+                                sessionStatus =
+                                    SessionStatus.AUTHENTICATED,
+                                connectionFacts =
+                                    reduceAuthResult(result),
+                                statusMessage = "",
+                            )
+                    }
+                }
+            }
     }
 
     fun restoreSession() {
@@ -373,6 +465,34 @@ class ServerConnectionViewModel(
             }
         }
     }
+
+    private suspend fun invalidateSignInForProfileMutation() {
+        orchestrationMutex.withLock {
+            authGeneration += 1
+            signInJob?.cancel()
+
+            state =
+                state.copy(
+                    identity = null,
+                    metadata = null,
+                    sessionStatus =
+                        SessionStatus.SIGNED_OUT,
+                    connectionFacts =
+                        ConnectionFacts(),
+                )
+        }
+    }
+
+    private fun isCurrent(attempt: SignInAttempt): Boolean =
+        attempt.generation == authGeneration &&
+            state.profile == attempt.profile
+
+    private data class SignInAttempt(
+        val generation: Long,
+        val profile: ServerProfile,
+        val username: String,
+        val password: String,
+    )
 
     private fun statusMessageFor(result: AuthResult): String =
         when (result) {
