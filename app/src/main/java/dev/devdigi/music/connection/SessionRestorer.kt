@@ -8,6 +8,8 @@ sealed interface SessionRestoreResult {
         val metadata: ServerMetadata,
     ) : SessionRestoreResult
 
+    data object CredentialRejected : SessionRestoreResult
+
     data object NotRestored : SessionRestoreResult
 }
 
@@ -21,6 +23,10 @@ class SessionRestorer(
             repository.profile.first()
                 ?: return SessionRestoreResult.NotRestored
 
+        return restore(profile)
+    }
+
+    suspend fun restore(profile: ServerProfile): SessionRestoreResult {
         val storedCredentials =
             secretStore.read(profile.endpoint).getOrNull()
                 ?: return SessionRestoreResult.NotRestored
@@ -31,21 +37,32 @@ class SessionRestorer(
                 password = storedCredentials.secret,
             )
 
-        return when (val result = pingClient.ping(credentials, profile)) {
+        return when (
+            val result =
+                pingClient.ping(
+                    credentials = credentials,
+                    profile = profile,
+                )
+        ) {
             is AuthResult.Authenticated -> {
                 SessionRestoreResult.Restored(
                     identity =
                         ServerAccountIdentity(
                             endpoint = profile.endpoint,
-                            username = storedCredentials.username,
+                            username =
+                                storedCredentials.username,
                         ),
                     metadata = result.metadata,
                 )
             }
 
             AuthResult.InvalidCredentials -> {
-                secretStore.clear()
-                SessionRestoreResult.NotRestored
+                /*
+                 * Durable mutation belongs to the ViewModel's shared
+                 * credential-mutation lane so a stale restore cannot
+                 * clear a newer account.
+                 */
+                SessionRestoreResult.CredentialRejected
             }
 
             AuthResult.UnsupportedAuthentication,

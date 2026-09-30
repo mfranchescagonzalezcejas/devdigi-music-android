@@ -115,9 +115,12 @@ class SessionRestorerTest {
         }
 
     @Test
-    fun invalidCredentialsClearTheStoredCredential() =
+    fun invalidCredentialsReturnRejectionWithoutMutatingStore() =
         runTest {
-            val secretStore = FakeSecretStore(stored = storedCredentials())
+            val secretStore =
+                FakeSecretStore(
+                    stored = storedCredentials(),
+                )
             val pingClient =
                 SequencePingClient(
                     AuthResult.InvalidCredentials,
@@ -130,10 +133,16 @@ class SessionRestorerTest {
                     pingClient = pingClient,
                 ).restore()
 
-            assertEquals(SessionRestoreResult.NotRestored, result)
+            assertEquals(
+                SessionRestoreResult.CredentialRejected,
+                result,
+            )
             assertEquals(1, pingClient.calls)
-            assertEquals(1, secretStore.clearCalls)
-            assertEquals(null, secretStore.currentStored)
+            assertEquals(0, secretStore.clearCalls)
+            assertEquals(
+                storedCredentials(),
+                secretStore.currentStored,
+            )
         }
 
     @Test

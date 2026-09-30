@@ -48,73 +48,89 @@ class ServerConnectionViewModel(
         private set
 
     private var hasUserEditedDraft = false
+    private var hasObservedRepositoryProfile = false
 
     private val orchestrationMutex = Mutex()
     private val credentialMutationMutex = Mutex()
     private var authGeneration = 0L
     private var signInJob: Job? = null
+    private var restoreJob: Job? = null
 
     init {
         coroutineScope.launch {
             repository.profile.collect { profile ->
-                orchestrationMutex.withLock {
-                    val profileChanged =
-                        state.profile != null &&
-                            state.profile != profile
+                val shouldRestore =
+                    orchestrationMutex.withLock {
+                        val firstEmission =
+                            !hasObservedRepositoryProfile
 
-                    if (profileChanged) {
-                        authGeneration += 1
-                        signInJob?.cancel()
+                        val profileChanged =
+                            hasObservedRepositoryProfile &&
+                                state.profile != profile
+
+                        hasObservedRepositoryProfile = true
+
+                        if (profileChanged) {
+                            authGeneration += 1
+                            signInJob?.cancel()
+                            restoreJob?.cancel()
+                        }
+
+                        state =
+                            state.copy(
+                                endpointInput =
+                                    if (hasUserEditedDraft) {
+                                        state.endpointInput
+                                    } else {
+                                        profile
+                                            ?.endpoint
+                                            ?.value
+                                            .orEmpty()
+                                    },
+                                profile = profile,
+                                urlValidity =
+                                    if (hasUserEditedDraft) {
+                                        state.urlValidity
+                                    } else {
+                                        profile
+                                            ?.let(UrlValidity::Valid)
+                                            ?: UrlValidity.UNCHECKED
+                                    },
+                                connectionFacts =
+                                    if (profileChanged) {
+                                        ConnectionFacts()
+                                    } else {
+                                        state.connectionFacts
+                                    },
+                                identity =
+                                    if (profileChanged) {
+                                        null
+                                    } else {
+                                        state.identity
+                                    },
+                                metadata =
+                                    if (profileChanged) {
+                                        null
+                                    } else {
+                                        state.metadata
+                                    },
+                                sessionStatus =
+                                    if (profileChanged) {
+                                        SessionStatus.SIGNED_OUT
+                                    } else {
+                                        state.sessionStatus
+                                    },
+                            )
+
+                        firstEmission &&
+                            profile != null &&
+                            sessionRestorer != null
                     }
 
-                    state =
-                        state.copy(
-                            endpointInput =
-                                if (hasUserEditedDraft) {
-                                    state.endpointInput
-                                } else {
-                                    profile?.endpoint?.value.orEmpty()
-                                },
-                            profile = profile,
-                            urlValidity =
-                                if (hasUserEditedDraft) {
-                                    state.urlValidity
-                                } else {
-                                    profile
-                                        ?.let(UrlValidity::Valid)
-                                        ?: UrlValidity.UNCHECKED
-                                },
-                            connectionFacts =
-                                if (profileChanged) {
-                                    ConnectionFacts()
-                                } else {
-                                    state.connectionFacts
-                                },
-                            identity =
-                                if (profileChanged) {
-                                    null
-                                } else {
-                                    state.identity
-                                },
-                            metadata =
-                                if (profileChanged) {
-                                    null
-                                } else {
-                                    state.metadata
-                                },
-                            sessionStatus =
-                                if (profileChanged) {
-                                    SessionStatus.SIGNED_OUT
-                                } else {
-                                    state.sessionStatus
-                                },
-                        )
+                if (shouldRestore) {
+                    restoreSession()
                 }
             }
-        }
-
-        if (sessionRestorer != null) {
-            restoreSession()
         }
     }
 
@@ -236,6 +252,7 @@ class ServerConnectionViewModel(
         val store = secretStore ?: return
         val client = pingClient ?: return
 
+        restoreJob?.cancel()
         signInJob?.cancel()
 
         signInJob =
@@ -418,82 +435,171 @@ class ServerConnectionViewModel(
     fun restoreSession() {
         val restorer = sessionRestorer ?: return
 
-        state =
-            state.copy(
-                identity = null,
-                metadata = null,
-                sessionStatus = SessionStatus.RESTORING,
-                connectionFacts = ConnectionFacts(),
-                statusMessage = "Verifying saved session…",
-            )
+        signInJob?.cancel()
+        restoreJob?.cancel()
 
-        coroutineScope.launch {
-            when (val result = restorer.restore()) {
-                is SessionRestoreResult.Restored -> {
-                    state =
-                        state.copy(
-                            usernameInput =
-                                result.identity.username,
-                            passwordInput = "",
-                            identity = result.identity,
-                            metadata = result.metadata,
-                            sessionStatus =
-                                SessionStatus.AUTHENTICATED,
-                            connectionFacts =
-                                reduceAuthResult(
-                                    AuthResult.Authenticated(
-                                        result.metadata,
-                                    ),
-                                ),
-                            statusMessage = "",
-                        )
-                }
+        restoreJob =
+            coroutineScope.launch {
+                val attempt =
+                    orchestrationMutex.withLock {
+                        val profile = state.profile
 
-                SessionRestoreResult.NotRestored -> {
-                    state =
-                        state.copy(
-                            identity = null,
-                            metadata = null,
-                            sessionStatus =
-                                SessionStatus.SIGNED_OUT,
-                            connectionFacts =
-                                ConnectionFacts(),
-                            statusMessage =
-                                "Sign in is required.",
+                        if (profile == null) {
+                            state =
+                                state.copy(
+                                    identity = null,
+                                    metadata = null,
+                                    sessionStatus =
+                                        SessionStatus.SIGNED_OUT,
+                                    connectionFacts =
+                                        ConnectionFacts(),
+                                    statusMessage =
+                                        "Sign in is required.",
+                                )
+
+                            return@withLock null
+                        }
+
+                        authGeneration += 1
+
+                        RestoreAttempt(
+                            generation = authGeneration,
+                            profile = profile,
+                        ).also {
+                            state =
+                                state.copy(
+                                    identity = null,
+                                    metadata = null,
+                                    sessionStatus =
+                                        SessionStatus.RESTORING,
+                                    connectionFacts =
+                                        ConnectionFacts(),
+                                    statusMessage =
+                                        "Verifying saved session…",
+                                )
+                        }
+                    } ?: return@launch
+
+                when (
+                    val result =
+                        restorer.restore(attempt.profile)
+                ) {
+                    is SessionRestoreResult.Restored -> {
+                        withContext(NonCancellable) {
+                            orchestrationMutex.withLock {
+                                if (!isCurrent(attempt)) {
+                                    return@withLock
+                                }
+
+                                state =
+                                    state.copy(
+                                        usernameInput =
+                                            result.identity
+                                                .username,
+                                        passwordInput = "",
+                                        identity =
+                                            result.identity,
+                                        metadata =
+                                            result.metadata,
+                                        sessionStatus =
+                                            SessionStatus
+                                                .AUTHENTICATED,
+                                        connectionFacts =
+                                            reduceAuthResult(
+                                                AuthResult
+                                                    .Authenticated(
+                                                        result
+                                                            .metadata,
+                                                    ),
+                                            ),
+                                        statusMessage = "",
+                                    )
+                            }
+                        }
+                    }
+
+                    SessionRestoreResult.CredentialRejected -> {
+                        clearRejectedRestoreCredential(
+                            attempt = attempt,
                         )
+                    }
+
+                    SessionRestoreResult.NotRestored -> {
+                        withContext(NonCancellable) {
+                            orchestrationMutex.withLock {
+                                if (!isCurrent(attempt)) {
+                                    return@withLock
+                                }
+
+                                state =
+                                    state.copy(
+                                        identity = null,
+                                        metadata = null,
+                                        sessionStatus =
+                                            SessionStatus
+                                                .SIGNED_OUT,
+                                        connectionFacts =
+                                            ConnectionFacts(),
+                                        statusMessage =
+                                            "Sign in is required.",
+                                    )
+                            }
+                        }
+                    }
                 }
             }
-        }
     }
 
     fun signOut() {
         val store = secretStore ?: return
 
         coroutineScope.launch {
-            try {
-                store.clear()
+            val generation =
+                orchestrationMutex.withLock {
+                    authGeneration += 1
+                    signInJob?.cancel()
+                    restoreJob?.cancel()
+                    authGeneration
+                }
 
-                state =
-                    state.copy(
-                        passwordInput = "",
-                        identity = null,
-                        metadata = null,
-                        sessionStatus =
-                            SessionStatus.SIGNED_OUT,
-                        connectionFacts =
-                            ConnectionFacts(),
-                        statusMessage = "",
-                    )
+            try {
+                credentialMutationMutex.withLock {
+                    store.clear()
+                }
+
+                orchestrationMutex.withLock {
+                    if (authGeneration != generation) {
+                        return@withLock
+                    }
+
+                    state =
+                        state.copy(
+                            passwordInput = "",
+                            identity = null,
+                            metadata = null,
+                            sessionStatus =
+                                SessionStatus.SIGNED_OUT,
+                            connectionFacts =
+                                ConnectionFacts(),
+                            statusMessage = "",
+                        )
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
-                state =
-                    state.copy(
-                        sessionStatus =
-                            SessionStatus.SIGN_OUT_FAILED,
-                        statusMessage =
-                            "Unable to sign out. Try again.",
-                    )
+                orchestrationMutex.withLock {
+                    if (authGeneration != generation) {
+                        return@withLock
+                    }
+
+                    state =
+                        state.copy(
+                            sessionStatus =
+                                SessionStatus.SIGN_OUT_FAILED,
+                            statusMessage =
+                                "Unable to sign out. Try again.",
+                        )
+                }
             }
         }
     }
@@ -502,6 +608,7 @@ class ServerConnectionViewModel(
         orchestrationMutex.withLock {
             authGeneration += 1
             signInJob?.cancel()
+            restoreJob?.cancel()
 
             state =
                 state.copy(
@@ -515,9 +622,89 @@ class ServerConnectionViewModel(
         }
     }
 
+    private suspend fun clearRejectedRestoreCredential(attempt: RestoreAttempt) {
+        val store = secretStore
+
+        if (store == null) {
+            withContext(NonCancellable) {
+                orchestrationMutex.withLock {
+                    if (!isCurrent(attempt)) {
+                        return@withLock
+                    }
+
+                    state =
+                        state.copy(
+                            identity = null,
+                            metadata = null,
+                            sessionStatus =
+                                SessionStatus.SIGNED_OUT,
+                            connectionFacts =
+                                ConnectionFacts(),
+                            statusMessage =
+                                "Sign in is required.",
+                        )
+                }
+            }
+
+            return
+        }
+
+        withContext(NonCancellable) {
+            credentialMutationMutex.withLock restoreCredential@{
+                val currentBeforeClear =
+                    orchestrationMutex.withLock {
+                        isCurrent(attempt)
+                    }
+
+                if (!currentBeforeClear) {
+                    return@restoreCredential
+                }
+
+                val clearSucceeded =
+                    try {
+                        store.clear()
+                        true
+                    } catch (_: Throwable) {
+                        false
+                    }
+
+                orchestrationMutex.withLock {
+                    if (!isCurrent(attempt)) {
+                        return@withLock
+                    }
+
+                    state =
+                        state.copy(
+                            identity = null,
+                            metadata = null,
+                            sessionStatus =
+                                SessionStatus.SIGNED_OUT,
+                            connectionFacts =
+                                ConnectionFacts(),
+                            statusMessage =
+                                if (clearSucceeded) {
+                                    "Stored credentials are no longer valid. Sign in again."
+                                } else {
+                                    "Unable to clear invalid stored credentials. Try again."
+                                },
+                        )
+                }
+            }
+        }
+    }
+
+    private fun isCurrent(attempt: RestoreAttempt): Boolean =
+        attempt.generation == authGeneration &&
+            state.profile == attempt.profile
+
     private fun isCurrent(attempt: SignInAttempt): Boolean =
         attempt.generation == authGeneration &&
             state.profile == attempt.profile
+
+    private data class RestoreAttempt(
+        val generation: Long,
+        val profile: ServerProfile,
+    )
 
     private data class SignInAttempt(
         val generation: Long,
