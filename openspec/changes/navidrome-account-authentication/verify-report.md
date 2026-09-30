@@ -1,3 +1,31 @@
+# Current completion status — WU5 real Navidrome validation
+
+**Date:** 2026-09-30
+**Current verdict:** PASS
+**WU1-WU5:** COMPLETE
+**Production changes in WU5:** NONE
+
+The merged password-authentication implementation passed
+gated real-device validation against the self-hosted
+Navidrome deployment.
+
+The validation includes successful real authentication,
+fresh-server cold restoration, fail-closed behavior during a
+real outage, encrypted credential retention and recovery,
+explicit logout, invalid credential rejection, secret
+non-disclosure checks, and the complete local regression
+suite.
+
+See `real-navidrome-validation.md` for sanitized evidence.
+
+API-key support remains intentionally deferred and is not
+part of this completion verdict.
+
+Historical verification records below remain point-in-time
+evidence from earlier work units.
+
+---
+
 ```yaml
 # Historical Gen 10 snapshot: 140 total tests / 48 WU2 tests.
 # Gen 11 evidence (142/50) is documented below.

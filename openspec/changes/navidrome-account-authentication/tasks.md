@@ -430,7 +430,7 @@ The durable credential mechanism is security-relevant.
 
 ## Phase 5: Real Navidrome Validation (WU5 gated)
 
-- [ ] 5.1 Gated, separate. Injection TBD. After WU1-WU4 merged.
+- [x] 5.1 Gated, separate. Real Navidrome validation completed after WU1-WU4 merge; see `real-navidrome-validation.md`.
 
 ## Generation 14 planning/docs remediation (review 4997606541 on 7824f8e)
 
