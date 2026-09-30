@@ -55,6 +55,7 @@ class ServerConnectionViewModel(
     private var authGeneration = 0L
     private var signInJob: Job? = null
     private var restoreJob: Job? = null
+    private var profileMutationsInProgress = 0
 
     init {
         coroutineScope.launch {
@@ -169,38 +170,61 @@ class ServerConnectionViewModel(
                 val profile = ServerProfile(result.endpoint)
 
                 coroutineScope.launch {
-                    invalidateSignInForProfileMutation()
+                    beginProfileMutation()
 
                     try {
-                        repository.save(profile)
+                        credentialMutationMutex.withLock profileMutation@{
+                            val cleared =
+                                clearCredentialsBeforeProfileMutation(
+                                    failureMessage =
+                                        "Unable to clear saved credentials. Server was not changed.",
+                                )
 
-                        orchestrationMutex.withLock {
-                            hasUserEditedDraft = false
-                            state =
-                                state.copy(
-                                    endpointInput =
-                                        profile.endpoint.value,
-                                    profile = profile,
-                                    urlValidity =
-                                        UrlValidity.Valid(profile),
-                                    connectionFacts =
-                                        ConnectionFacts(),
-                                    identity = null,
-                                    metadata = null,
-                                    sessionStatus =
-                                        SessionStatus.SIGNED_OUT,
-                                    statusMessage = "",
-                                )
+                            if (!cleared) {
+                                return@profileMutation
+                            }
+
+                            try {
+                                repository.save(profile)
+
+                                orchestrationMutex.withLock {
+                                    hasUserEditedDraft = false
+                                    state =
+                                        state.copy(
+                                            endpointInput =
+                                                profile.endpoint.value,
+                                            profile = profile,
+                                            urlValidity =
+                                                UrlValidity.Valid(
+                                                    profile,
+                                                ),
+                                            connectionFacts =
+                                                ConnectionFacts(),
+                                            identity = null,
+                                            metadata = null,
+                                            sessionStatus =
+                                                SessionStatus
+                                                    .SIGNED_OUT,
+                                            statusMessage = "",
+                                        )
+                                }
+                            } catch (
+                                error: CancellationException,
+                            ) {
+                                throw error
+                            } catch (_: Throwable) {
+                                orchestrationMutex.withLock {
+                                    state =
+                                        state.copy(
+                                            statusMessage =
+                                                "Unable to save server.",
+                                        )
+                                }
+                            }
                         }
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (_: Throwable) {
-                        orchestrationMutex.withLock {
-                            state =
-                                state.copy(
-                                    statusMessage =
-                                        "Unable to save server.",
-                                )
+                    } finally {
+                        withContext(NonCancellable) {
+                            finishProfileMutation()
                         }
                     }
                 }
@@ -217,32 +241,50 @@ class ServerConnectionViewModel(
 
     fun delete() {
         coroutineScope.launch {
-            invalidateSignInForProfileMutation()
+            beginProfileMutation()
 
             try {
-                repository.delete()
+                credentialMutationMutex.withLock profileMutation@{
+                    val cleared =
+                        clearCredentialsBeforeProfileMutation(
+                            failureMessage =
+                                "Unable to clear saved credentials. Server was not deleted.",
+                        )
 
-                orchestrationMutex.withLock {
-                    state =
-                        state.copy(
-                            identity = null,
-                            metadata = null,
-                            connectionFacts =
-                                ConnectionFacts(),
-                            sessionStatus =
-                                SessionStatus.SIGNED_OUT,
-                            statusMessage = "",
-                        )
+                    if (!cleared) {
+                        return@profileMutation
+                    }
+
+                    try {
+                        repository.delete()
+
+                        orchestrationMutex.withLock {
+                            state =
+                                state.copy(
+                                    identity = null,
+                                    metadata = null,
+                                    connectionFacts =
+                                        ConnectionFacts(),
+                                    sessionStatus =
+                                        SessionStatus.SIGNED_OUT,
+                                    statusMessage = "",
+                                )
+                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Throwable) {
+                        orchestrationMutex.withLock {
+                            state =
+                                state.copy(
+                                    statusMessage =
+                                        "Unable to delete server.",
+                                )
+                        }
+                    }
                 }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Throwable) {
-                orchestrationMutex.withLock {
-                    state =
-                        state.copy(
-                            statusMessage =
-                                "Unable to delete server.",
-                        )
+            } finally {
+                withContext(NonCancellable) {
+                    finishProfileMutation()
                 }
             }
         }
@@ -259,6 +301,16 @@ class ServerConnectionViewModel(
             coroutineScope.launch {
                 val attempt =
                     orchestrationMutex.withLock {
+                        if (profileMutationsInProgress > 0) {
+                            state =
+                                state.copy(
+                                    statusMessage =
+                                        "Wait for the server change to finish.",
+                                )
+
+                            return@withLock null
+                        }
+
                         val profile = state.profile
 
                         if (profile == null) {
@@ -442,6 +494,22 @@ class ServerConnectionViewModel(
             coroutineScope.launch {
                 val attempt =
                     orchestrationMutex.withLock {
+                        if (profileMutationsInProgress > 0) {
+                            state =
+                                state.copy(
+                                    identity = null,
+                                    metadata = null,
+                                    sessionStatus =
+                                        SessionStatus.SIGNED_OUT,
+                                    connectionFacts =
+                                        ConnectionFacts(),
+                                    statusMessage =
+                                        "Wait for the server change to finish.",
+                                )
+
+                            return@withLock null
+                        }
+
                         val profile = state.profile
 
                         if (profile == null) {
@@ -604,8 +672,29 @@ class ServerConnectionViewModel(
         }
     }
 
-    private suspend fun invalidateSignInForProfileMutation() {
+    private suspend fun clearCredentialsBeforeProfileMutation(failureMessage: String): Boolean {
+        val store = secretStore ?: return true
+
+        return try {
+            store.clear()
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            orchestrationMutex.withLock {
+                state =
+                    state.copy(
+                        statusMessage = failureMessage,
+                    )
+            }
+
+            false
+        }
+    }
+
+    private suspend fun beginProfileMutation() {
         orchestrationMutex.withLock {
+            profileMutationsInProgress += 1
             authGeneration += 1
             signInJob?.cancel()
             restoreJob?.cancel()
@@ -619,6 +708,16 @@ class ServerConnectionViewModel(
                     connectionFacts =
                         ConnectionFacts(),
                 )
+        }
+    }
+
+    private suspend fun finishProfileMutation() {
+        orchestrationMutex.withLock {
+            check(profileMutationsInProgress > 0) {
+                "Profile mutation counter underflow"
+            }
+
+            profileMutationsInProgress -= 1
         }
     }
 
