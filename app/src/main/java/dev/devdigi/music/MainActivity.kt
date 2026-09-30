@@ -60,7 +60,13 @@ class MainActivity : ComponentActivity() {
                         state = viewModel.state,
                         onEndpointChanged =
                             viewModel::onEndpointChanged,
+                        onUsernameChanged =
+                            viewModel::onUsernameChanged,
+                        onPasswordChanged =
+                            viewModel::onPasswordChanged,
                         onConfirm = viewModel::confirm,
+                        onSignIn = viewModel::signIn,
+                        onSignOut = viewModel::signOut,
                         onDelete = viewModel::delete,
                     )
                 }
