@@ -843,7 +843,11 @@ class ServerConnectionViewModel(
         get() = scope ?: viewModelScope
 
     companion object {
-        fun factory(repository: ServerProfileRepository): ViewModelProvider.Factory =
+        fun factory(
+            repository: ServerProfileRepository,
+            secretStore: AuthSecretStore,
+            pingClient: AuthenticatedPingClient,
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     check(
@@ -854,7 +858,15 @@ class ServerConnectionViewModel(
 
                     @Suppress("UNCHECKED_CAST")
                     return ServerConnectionViewModel(
-                        repository,
+                        repository = repository,
+                        secretStore = secretStore,
+                        pingClient = pingClient,
+                        sessionRestorer =
+                            SessionRestorer(
+                                repository = repository,
+                                secretStore = secretStore,
+                                pingClient = pingClient,
+                            ),
                     ) as T
                 }
             }
