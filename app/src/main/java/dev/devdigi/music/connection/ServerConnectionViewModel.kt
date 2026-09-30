@@ -50,6 +50,7 @@ class ServerConnectionViewModel(
     private var hasUserEditedDraft = false
 
     private val orchestrationMutex = Mutex()
+    private val credentialMutationMutex = Mutex()
     private var authGeneration = 0L
     private var signInJob: Job? = null
 
@@ -309,75 +310,106 @@ class ServerConnectionViewModel(
                     return@launch
                 }
 
-                val currentBeforePersistence =
-                    withContext(NonCancellable) {
-                        orchestrationMutex.withLock {
-                            isCurrent(attempt)
-                        }
-                    }
-
-                if (!currentBeforePersistence) {
-                    return@launch
-                }
-
-                val identity =
-                    ServerAccountIdentity(
-                        endpoint = attempt.profile.endpoint,
-                        username = attempt.username,
-                    )
-
-                val saveResult =
-                    try {
-                        store.save(
-                            identity = identity,
-                            secret = attempt.password,
-                        )
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Throwable) {
-                        Result.failure(error)
-                    }
-
-                if (saveResult.isFailure) {
-                    withContext(NonCancellable) {
-                        orchestrationMutex.withLock {
-                            if (!isCurrent(attempt)) {
-                                return@withLock
+                withContext(NonCancellable) {
+                    credentialMutationMutex.withLock credentialMutation@{
+                        val currentBeforePersistence =
+                            orchestrationMutex.withLock {
+                                isCurrent(attempt)
                             }
 
-                            state =
-                                state.copy(
-                                    identity = null,
-                                    metadata = null,
-                                    sessionStatus =
-                                        SessionStatus.SIGNED_OUT,
-                                    connectionFacts =
-                                        ConnectionFacts(),
-                                    statusMessage =
-                                        "Unable to save credentials securely.",
-                                )
-                        }
-                    }
-                    return@launch
-                }
-
-                withContext(NonCancellable) {
-                    orchestrationMutex.withLock {
-                        if (!isCurrent(attempt)) {
-                            return@withLock
+                        if (!currentBeforePersistence) {
+                            return@credentialMutation
                         }
 
-                        state =
-                            state.copy(
-                                passwordInput = "",
-                                identity = identity,
-                                metadata = result.metadata,
-                                sessionStatus =
-                                    SessionStatus.AUTHENTICATED,
-                                connectionFacts =
-                                    reduceAuthResult(result),
-                                statusMessage = "",
+                        val identity =
+                            ServerAccountIdentity(
+                                endpoint =
+                                    attempt.profile.endpoint,
+                                username =
+                                    attempt.username,
                             )
+
+                        val saveResult =
+                            try {
+                                store.save(
+                                    identity = identity,
+                                    secret = attempt.password,
+                                )
+                            } catch (
+                                error: CancellationException,
+                            ) {
+                                throw error
+                            } catch (error: Throwable) {
+                                Result.failure(error)
+                            }
+
+                        if (saveResult.isFailure) {
+                            orchestrationMutex.withLock {
+                                if (isCurrent(attempt)) {
+                                    state =
+                                        state.copy(
+                                            identity = null,
+                                            metadata = null,
+                                            sessionStatus =
+                                                SessionStatus
+                                                    .SIGNED_OUT,
+                                            connectionFacts =
+                                                ConnectionFacts(),
+                                            statusMessage =
+                                                "Unable to save credentials securely.",
+                                        )
+                                }
+                            }
+
+                            return@credentialMutation
+                        }
+
+                        val currentAfterPersistence =
+                            orchestrationMutex.withLock {
+                                isCurrent(attempt)
+                            }
+
+                        if (!currentAfterPersistence) {
+                            try {
+                                store.clear()
+                            } catch (_: Throwable) {
+                                // Never publish stale authentication.
+                            }
+
+                            return@credentialMutation
+                        }
+
+                        var published = false
+
+                        orchestrationMutex.withLock {
+                            if (isCurrent(attempt)) {
+                                state =
+                                    state.copy(
+                                        passwordInput = "",
+                                        identity = identity,
+                                        metadata =
+                                            result.metadata,
+                                        sessionStatus =
+                                            SessionStatus
+                                                .AUTHENTICATED,
+                                        connectionFacts =
+                                            reduceAuthResult(
+                                                result,
+                                            ),
+                                        statusMessage = "",
+                                    )
+
+                                published = true
+                            }
+                        }
+
+                        if (!published) {
+                            try {
+                                store.clear()
+                            } catch (_: Throwable) {
+                                // Never publish stale authentication.
+                            }
+                        }
                     }
                 }
             }
