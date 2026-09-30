@@ -12,8 +12,10 @@ import kotlin.coroutines.cancellation.CancellationException
 
 enum class SessionStatus {
     SIGNED_OUT,
+    RESTORING,
     SIGNING_IN,
     AUTHENTICATED,
+    SIGN_OUT_FAILED,
 }
 
 data class ServerConnectionUiState(
@@ -35,6 +37,7 @@ class ServerConnectionViewModel(
     private val scope: CoroutineScope? = null,
     private val secretStore: AuthSecretStore? = null,
     private val pingClient: AuthenticatedPingClient? = null,
+    private val sessionRestorer: SessionRestorer? = null,
 ) : ViewModel() {
     var state by mutableStateOf(ServerConnectionUiState())
         private set
@@ -83,6 +86,10 @@ class ServerConnectionViewModel(
                             },
                     )
             }
+        }
+
+        if (sessionRestorer != null) {
+            restoreSession()
         }
     }
 
@@ -281,6 +288,89 @@ class ServerConnectionViewModel(
                         reduceAuthResult(result),
                     statusMessage = "",
                 )
+        }
+    }
+
+    fun restoreSession() {
+        val restorer = sessionRestorer ?: return
+
+        state =
+            state.copy(
+                identity = null,
+                metadata = null,
+                sessionStatus = SessionStatus.RESTORING,
+                connectionFacts = ConnectionFacts(),
+                statusMessage = "Verifying saved session…",
+            )
+
+        coroutineScope.launch {
+            when (val result = restorer.restore()) {
+                is SessionRestoreResult.Restored -> {
+                    state =
+                        state.copy(
+                            usernameInput =
+                                result.identity.username,
+                            passwordInput = "",
+                            identity = result.identity,
+                            metadata = result.metadata,
+                            sessionStatus =
+                                SessionStatus.AUTHENTICATED,
+                            connectionFacts =
+                                reduceAuthResult(
+                                    AuthResult.Authenticated(
+                                        result.metadata,
+                                    ),
+                                ),
+                            statusMessage = "",
+                        )
+                }
+
+                SessionRestoreResult.NotRestored -> {
+                    state =
+                        state.copy(
+                            identity = null,
+                            metadata = null,
+                            sessionStatus =
+                                SessionStatus.SIGNED_OUT,
+                            connectionFacts =
+                                ConnectionFacts(),
+                            statusMessage =
+                                "Sign in is required.",
+                        )
+                }
+            }
+        }
+    }
+
+    fun signOut() {
+        val store = secretStore ?: return
+
+        coroutineScope.launch {
+            try {
+                store.clear()
+
+                state =
+                    state.copy(
+                        passwordInput = "",
+                        identity = null,
+                        metadata = null,
+                        sessionStatus =
+                            SessionStatus.SIGNED_OUT,
+                        connectionFacts =
+                            ConnectionFacts(),
+                        statusMessage = "",
+                    )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                state =
+                    state.copy(
+                        sessionStatus =
+                            SessionStatus.SIGN_OUT_FAILED,
+                        statusMessage =
+                            "Unable to sign out. Try again.",
+                    )
+            }
         }
     }
 
