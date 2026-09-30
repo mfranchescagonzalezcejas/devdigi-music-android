@@ -53,11 +53,12 @@ class ServerConnectionCredentialRaceTest {
 
             testScheduler.runCurrent()
 
-            assertEquals(newProfile, viewModel.state.profile)
+            assertEquals(oldProfile, viewModel.state.profile)
 
             store.releaseFirstSave.complete(Unit)
             testScheduler.runCurrent()
 
+            assertEquals(newProfile, viewModel.state.profile)
             assertNull(store.savedIdentity)
             assertNull(store.savedSecret)
             assertTrue(store.clearCalls >= 1)
@@ -70,7 +71,7 @@ class ServerConnectionCredentialRaceTest {
         }
 
     @Test
-    fun newerAuthenticationWinsOverOlderSuspendedPersistence() =
+    fun profileMutationDrainsOldPersistenceBeforeNewAuthenticationWins() =
         runTest {
             val oldProfile =
                 profile("https://old.example.com/navidrome")
@@ -101,6 +102,7 @@ class ServerConnectionCredentialRaceTest {
             testScheduler.runCurrent()
 
             assertTrue(store.firstSaveStarted.isCompleted)
+            assertEquals(1, store.saveCalls)
 
             replaceProfile(
                 viewModel = viewModel,
@@ -108,6 +110,8 @@ class ServerConnectionCredentialRaceTest {
             )
 
             testScheduler.runCurrent()
+
+            assertEquals(oldProfile, viewModel.state.profile)
 
             authenticate(
                 viewModel = viewModel,
@@ -117,7 +121,25 @@ class ServerConnectionCredentialRaceTest {
 
             testScheduler.runCurrent()
 
+            assertEquals(1, store.saveCalls)
+            assertTrue(
+                viewModel.state.sessionStatus !=
+                    SessionStatus.AUTHENTICATED,
+            )
+
             store.releaseFirstSave.complete(Unit)
+            testScheduler.runCurrent()
+
+            assertEquals(newProfile, viewModel.state.profile)
+            assertNull(store.savedIdentity)
+            assertNull(store.savedSecret)
+
+            authenticate(
+                viewModel = viewModel,
+                username = "Bob",
+                password = "new-password",
+            )
+
             testScheduler.runCurrent()
 
             val expectedIdentity =
@@ -126,6 +148,7 @@ class ServerConnectionCredentialRaceTest {
                     username = "Bob",
                 )
 
+            assertEquals(2, store.saveCalls)
             assertEquals(expectedIdentity, store.savedIdentity)
             assertEquals("new-password", store.savedSecret)
             assertEquals(expectedIdentity, viewModel.state.identity)
@@ -133,7 +156,7 @@ class ServerConnectionCredentialRaceTest {
                 SessionStatus.AUTHENTICATED,
                 viewModel.state.sessionStatus,
             )
-            assertTrue(store.clearCalls >= 1)
+            assertTrue(store.clearCalls >= 2)
         }
 
     private fun TestScope.viewModel(
