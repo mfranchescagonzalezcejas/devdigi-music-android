@@ -1,3 +1,34 @@
+## WU5 real Navidrome validation — 2026-09-30
+
+**State:** PASS.
+
+Real-device/runtime validation completed after WU1-WU4
+were merged.
+
+Validated:
+- real password authentication against Navidrome;
+- Navidrome/OpenSubsonic metadata;
+- cold process session restoration;
+- fresh authenticated server verification on restore;
+- fail-closed behavior during a real Navidrome outage;
+- no authenticated identity exposed during outage;
+- retained encrypted credential across recoverable failure;
+- restoration after recovery without password re-entry;
+- explicit sign-out surviving cold restart;
+- invalid credential rejection without durable persistence;
+- final valid authentication and restoration;
+- no plaintext/base64 real password in inspected DataStore;
+- no plaintext/base64 real password in captured logcat;
+- full unit/lint/build/format regression.
+
+Sanitized runtime evidence:
+`real-navidrome-validation.md`.
+
+API-key authentication remains deferred until stable
+Navidrome support.
+
+---
+
 # Apply Progress: navidrome-account-authentication
 
 
