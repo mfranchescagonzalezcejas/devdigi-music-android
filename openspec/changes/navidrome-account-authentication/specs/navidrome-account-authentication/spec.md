@@ -63,6 +63,132 @@ On the `ConnectionFacts.authentication` axis: `Authenticated` → `AUTHENTICATED
 - WHEN request times out or socket fails
 - THEN result MUST be `NetworkError`
 
+
+### Requirement: Public Authentication Capability Discovery
+
+The client SHALL discover supported OpenSubsonic authentication
+capabilities through the public `getOpenSubsonicExtensions` endpoint
+without sending any username, password, token, salt, or API key.
+
+Only `apiKeyAuthentication` version `1` SHALL enable API-key
+authentication automatically.
+
+Malformed capability data, unsupported versions, transport failure,
+redirects, or non-success HTTP responses SHALL NOT enable API-key mode.
+
+#### Scenario: API-key capability is advertised
+
+- GIVEN a valid public OpenSubsonic extension response
+- AND it advertises `apiKeyAuthentication` version `1`
+- WHEN the client discovers authentication capabilities
+- THEN API-key authentication SHALL be available
+- AND no authentication secret SHALL have been sent
+
+#### Scenario: API-key capability is absent
+
+- GIVEN a valid extension response without `apiKeyAuthentication` v1
+- WHEN capabilities are discovered
+- THEN API-key authentication SHALL NOT be selected automatically
+- AND the client SHALL retain its password compatibility path
+
+
+### Requirement: API-Key Authentication
+
+When `apiKeyAuthentication` version `1` is supported, the client SHALL
+support API-key authentication.
+
+API-key requests SHALL use `apiKey=<secret>` as the sole authentication mechanism
+and SHALL NOT also send `u`, `p`, `t`, or `s`; common protocol/client parameters remain permitted.
+
+API-key validation and account identity discovery SHALL use `tokenInfo`.
+
+A successful response SHALL require the exact opaque username returned
+by `tokenInfo` plus valid `ServerMetadata`; missing/wrong-typed required identity or metadata SHALL be `AuthProtocolError`.
+
+The returned username SHALL remain case-sensitive and
+Unicode-preserving, with no trim, case-folding, or Unicode
+normalization.
+
+Error code `44` in the API-key/tokenInfo path SHALL mean invalid
+credentials for that API key.
+
+This SHALL NOT globally change the existing password-path handling of
+error `44`.
+
+#### Scenario: API-key authentication succeeds
+
+- GIVEN `apiKeyAuthentication` v1 is supported
+- AND the API key is valid
+- WHEN the client authenticates through `tokenInfo`
+- THEN the request SHALL contain `apiKey`
+- AND SHALL NOT contain `u`, `p`, `t`, or `s`
+- AND the exact returned username SHALL become the account identity
+- AND validated server metadata SHALL be returned
+
+#### Scenario: API key is rejected
+
+- GIVEN an API-key authentication attempt
+- WHEN `tokenInfo` returns error code `44`
+- THEN the result SHALL be invalid credentials
+- AND no authenticated identity SHALL be exposed
+
+
+### Requirement: Authentication Mechanism Binding
+
+Durable authentication state SHALL distinguish PASSWORD and API_KEY
+credentials without allowing persisted mechanism metadata to reinterpret
+one secret as the other.
+
+PASSWORD and API_KEY secrets SHALL be cryptographically
+domain-separated.
+
+Existing password snapshots that predate an explicit credential
+mechanism SHALL remain readable strictly as legacy PASSWORD snapshots.
+
+#### Scenario: Password ciphertext cannot become API key
+
+- GIVEN a valid stored PASSWORD credential
+- WHEN persisted mechanism metadata is changed to API_KEY
+- THEN cryptographic authentication/decryption SHALL fail closed
+- AND the password SHALL NOT be sent as an API key
+
+#### Scenario: API-key ciphertext cannot become password
+
+- GIVEN a valid stored API_KEY credential
+- WHEN persisted mechanism metadata is changed to PASSWORD
+- THEN cryptographic authentication/decryption SHALL fail closed
+- AND the API key SHALL NOT be used as a password
+
+#### Scenario: Legacy password snapshot remains compatible
+
+- GIVEN a valid WU2 password snapshot without an explicit mechanism kind
+- WHEN WU3b reads that snapshot
+- THEN it SHALL be interpreted only as PASSWORD
+- AND SHALL remain usable without destructive migration
+
+
+### Requirement: Mechanism-Neutral Authenticated Account
+
+Password authentication and API-key authentication SHALL converge on the
+same successful account shape:
+
+`ServerAccountIdentity(endpoint, username)` plus `ServerMetadata`.
+
+Session/UI orchestration SHALL NOT require separate successful-session
+models per authentication mechanism.
+
+#### Scenario: Password and API key converge on one account model
+
+- GIVEN a successful password authentication
+- OR a successful API-key authentication
+- WHEN authentication completes
+- THEN the caller SHALL receive the same authenticated-account result
+  shape
+- AND downstream session logic SHALL not need to know the transport
+  mechanism merely to expose identity and metadata
+
+
+
 ### Requirement: Fail-Closed Sign-In and Secret Persistence
 
 Authenticated ping BEFORE persist. Secret persists ONLY after `Authenticated` into separate `auth_secret` Preferences DataStore (not `ServerProfile`'s). Secure-persist failure after valid ping → no durable `AUTHENTICATED`. `ServerProfile` unchanged by sign-in.

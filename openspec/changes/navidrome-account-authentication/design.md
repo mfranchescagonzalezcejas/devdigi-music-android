@@ -197,6 +197,147 @@ Per the official OpenSubsonic schema, the `error` object inside a `subsonic-resp
 
 Per the official OpenSubsonic `subsonic-response` schema, for a response claiming OpenSubsonic support (`openSubsonic: true`), the fields `type` and `serverVersion` are MANDATORY strings ("Mandatory to help clients adapt to actual Subsonic API support"; "Mandatory for clients to be able to detect servers updates"). The parser therefore requires actual non-blank string values for both fields before yielding `Authenticated`. There are no defaults for missing descriptive metadata; `ServerMetadata.serverType` and `ServerMetadata.serverVersion` remain non-nullable. A success envelope that also contains an `error` member is contradictory and MUST fail closed as `AuthProtocolError`.
 
+
+## Dual Authentication Capability (WU3b)
+
+WU3b adds API-key authentication as a sibling to the existing password
+authentication path. The already-merged WU3 password transport remains
+unchanged.
+
+### Capability discovery
+
+`getOpenSubsonicExtensions` is public and MUST be queried without sending
+username, password, derived token, salt, or API key.
+
+Only `apiKeyAuthentication` version 1 enables API-key authentication
+automatically.
+
+Capability discovery MUST preserve the configured endpoint base path,
+disable redirects, accept only HTTP 2xx responses, bound response size,
+use strict UTF-8/JSON parsing, and fail closed on malformed data.
+
+Server type/version MUST NOT substitute for capability discovery.
+
+### Password authentication
+
+The existing password path remains:
+
+    username + password
+            |
+            v
+    SubsonicAuthSigner
+            |
+            v
+        u + t + s
+            |
+            v
+    AuthenticatedPingClient
+
+`AuthCredentials`, `SubsonicAuthSigner`, and
+`AuthenticatedPingClient` remain password-specific.
+
+Error #44 MUST NOT be globally reinterpreted in the password parser.
+
+### API-key authentication
+
+API-key requests use:
+
+    apiKey=<secret>
+
+They MUST NOT additionally contain:
+
+    u
+    p
+    t
+    s
+
+API-key validation and identity discovery use `tokenInfo`.
+
+On success, the exact opaque username returned by `tokenInfo` becomes:
+
+    ServerAccountIdentity(endpoint, username)
+
+The username remains case-sensitive and Unicode-preserving with no trim,
+case-folding, or Unicode normalization.
+
+Error #44 in the API-key/tokenInfo path means the API key itself was
+evaluated and rejected and therefore maps to invalid credentials for
+that mechanism.
+
+### Mechanism-neutral authentication
+
+WU4 MUST NOT duplicate session logic for password and API-key auth.
+
+WU3b therefore introduces a small orchestration boundary above both
+transport-specific clients.
+
+Both successful mechanisms converge on the same result:
+
+    ServerAccountIdentity + ServerMetadata
+
+WU4 consumes that common authenticated-account result.
+
+### Secure credential persistence
+
+Durable credentials distinguish:
+
+    PASSWORD
+    API_KEY
+
+The mechanism discriminator is security-relevant.
+
+PASSWORD and API_KEY ciphertext MUST be cryptographically
+domain-separated so that tampering with persisted mechanism metadata
+cannot reinterpret one secret as the other.
+
+Required invariant:
+
+    password ciphertext + API_KEY metadata
+        -> fail closed
+        -> never sent as apiKey
+
+    API-key ciphertext + PASSWORD metadata
+        -> fail closed
+        -> never used as password
+
+The existing endpoint + exact username AAD binding remains part of the
+credential binding.
+
+### Backward compatibility
+
+Existing WU2 snapshots without an explicit credential mechanism remain
+readable strictly as legacy PASSWORD snapshots.
+
+WU3b MUST NOT force logout or require destructive migration merely
+because the new credential model exists.
+
+A future successful credential write MAY migrate the storage format.
+
+### API-key issuance
+
+OpenSubsonic API-key creation is implementation-specific.
+
+WU3b MUST NOT:
+
+- call undocumented Navidrome endpoints;
+- scrape server UI;
+- use private/native JWT APIs to manufacture an API key;
+- invent API keys locally.
+
+Automatic password-to-API-key migration remains out of scope unless a
+future server exposes a documented stable issuance capability.
+
+### Failure semantics
+
+- successful authentication -> retain encrypted credential;
+- explicitly rejected credential -> clear it;
+- network/protocol/compatibility failure -> retain it;
+- unrecoverable crypto failure -> fail closed;
+- explicit sign-out -> clear before reporting success.
+
+A retained credential alone never implies `AUTHENTICATED`.
+
+
 ## Stale In-Flight Auth vs Profile Change (WU4)
 
 Each authentication attempt captures the current `ServerProfile` generation/revision when it begins. When `ServerProfile` is saved, replaced, or deleted: (1) the active authentication job is cancelled AND (2) the profile/auth generation is incremented or otherwise invalidates prior attempts.

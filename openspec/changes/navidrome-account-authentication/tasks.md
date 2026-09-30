@@ -278,6 +278,113 @@ Measured exactly from git against the canonical current base `origin/develop` (P
 - [x] 3.4 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.OkHttpAuthenticatedPingClientTest"`
 
 
+## Phase 3b: Dual Authentication Capability (WU3b)
+
+WU3b is inserted between the already-merged WU3 password-authenticated
+network boundary and WU4 session/UI.
+
+The existing password path remains valid and MUST NOT regress.
+API-key authentication is added as a sibling capability, not as a
+replacement for Subsonic token/salt authentication.
+
+### WU3b delivery strategy
+
+The workload audit measured 344 changed planning lines before any WU3b
+production or test implementation. Relevant existing surfaces are also
+large (`OkHttpAuthenticatedPingClientTest.kt` ~740 lines and
+`AuthSecretStoreTest.kt` ~922 lines).
+
+WU3b SHALL therefore be delivered as a chained sequence rather than one
+review unit:
+
+- **WU3b-A — planning/spec**: current OpenSpec decisions and normative
+  requirements only. No Kotlin production or test implementation.
+- **WU3b-B — public capability discovery**:
+  `getOpenSubsonicExtensions`, capability model/parser/client, bounded
+  fail-closed transport, deterministic tests.
+- **WU3b-C — API-key authentication transport**:
+  API-key secret boundary, `tokenInfo`, mechanism-specific `#44`
+  handling, mechanism-neutral authenticated-account orchestration, tests.
+- **WU3b-D — secure typed credential persistence**:
+  PASSWORD/API_KEY mechanism binding, cryptographic domain separation,
+  tamper resistance, legacy WU2 PASSWORD compatibility, security tests.
+- **WU4 remains blocked** until WU3b-B/C/D are integrated. The existing
+  WU4 SessionRestorer RED/GREEN work remains preserved separately and
+  MUST NOT be mixed into WU3b.
+
+Each implementation unit is reviewed independently against the normal
+400 changed-line review-budget threshold. If an individual cohesive
+security unit still exceeds that threshold, it requires its own explicit
+size decision; tests MUST NOT be removed merely to reduce line count.
+
+### Canonical decisions
+
+- `getOpenSubsonicExtensions` is a PUBLIC capability-discovery endpoint.
+  Discovery MUST NOT send username, password, token, salt, or API key.
+- `apiKeyAuthentication` version 1 enables the API-key path.
+- API-key requests use `apiKey=<secret>` and MUST NOT also send `u`,
+  `p`, `t`, or `s`.
+- API-key validation/identity discovery uses `tokenInfo`.
+- Successful `tokenInfo` returns the exact opaque username used for
+  `ServerAccountIdentity`.
+- `tokenInfo` error `#44` means the API key was evaluated and rejected.
+- Existing password parsing remains mechanism-specific: password-path
+  `#44` MUST NOT be globally reclassified as invalid password.
+- Password auth remains the compatibility baseline.
+- API-key creation is implementation-specific. WU3b MUST NOT call
+  undocumented/private server APIs to mint a key.
+- Automatic password -> API-key migration is OUT OF SCOPE unless a
+  future server exposes a documented stable issuance capability.
+- API-key support MUST be capability-driven, never inferred only from
+  server type/version.
+
+### Security / persistence contract
+
+The durable credential mechanism is security-relevant.
+
+- PASSWORD and API_KEY secrets MUST be cryptographically
+  domain-separated.
+- Tampering with credential-kind metadata MUST NOT permit a password
+  ciphertext to be interpreted as an API key or vice versa.
+- Existing WU2 password snapshots without an explicit mechanism kind
+  MUST remain readable as legacy PASSWORD snapshots.
+- No destructive migration of existing password snapshots.
+
+### RED
+
+- [ ] 3b.1 Public capability discovery sends no authentication material.
+- [ ] 3b.2 Parse `apiKeyAuthentication` v1 deterministically and fail
+      closed on malformed/unsupported discovery responses.
+- [ ] 3b.3 API-key secret representation redacts the key.
+- [ ] 3b.4 API-key uses `apiKey` as sole auth mechanism; `u`/`p`/`t`/`s` absent, common `v`/`c`/`f` retained.
+- [ ] 3b.5 `tokenInfo` requires exact username + valid metadata; malformed success -> `AuthProtocolError`.
+- [ ] 3b.6 API-key `tokenInfo` error #44 maps to invalid credentials.
+- [ ] 3b.7 Existing WU1-WU3 password behavior remains unchanged.
+- [ ] 3b.8 Credential-kind tampering fails cryptographic authentication/decryption.
+- [ ] 3b.9 Legacy password snapshot remains readable.
+- [ ] 3b.10 Password and API-key authentication converge on the same
+      authenticated identity + metadata success shape.
+
+### GREEN
+
+- [ ] 3b.11 Add public OpenSubsonic capability-discovery client/seam.
+- [ ] 3b.12 Add API-key credential secret boundary.
+- [ ] 3b.13 Add API-key `tokenInfo` authenticated client.
+- [ ] 3b.14 Add a mechanism-neutral authenticator above the existing
+      password client and the new API-key client.
+- [ ] 3b.15 Evolve encrypted credential persistence with mechanism
+      binding while preserving legacy password reads.
+
+### Verify
+
+- [ ] 3b.16 Focused WU3b tests.
+- [ ] 3b.17 Existing WU1-WU3 tests remain GREEN.
+- [ ] 3b.18 `./gradlew testDebugUnitTest`
+- [ ] 3b.19 `./gradlew assembleDebug`
+- [ ] 3b.20 Perform workload review before implementation. 400 changed
+      lines remains the normal review-budget decision threshold; do not
+      remove security tests to satisfy it.
+
 ## Phase 4: Session + ViewModel + UI (WU4)
 
 ### RED
