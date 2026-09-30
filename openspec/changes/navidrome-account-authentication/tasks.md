@@ -405,7 +405,7 @@ The durable credential mechanism is security-relevant.
 
 ### RED
 
-- [ ] 4.1 Create `SessionRestorerTest.kt` — valid->success; missing profile/secret/ping->fail closed
+- [x] 4.1 Create `SessionRestorerTest.kt` — valid->success; missing profile/secret/ping->fail closed
 - [ ] 4.2 Update `ServerConnectionViewModelTest.kt` — sign-in Restoring->AUTHENTICATED; failure->no durable; sign-out clears auth; restore re-authenticates
 - [ ] 4.2a Stale in-flight auth vs profile change (TOCTOU): each attempt captures current `ServerProfile` generation/revision; profile save/replace/delete cancels the active job AND increments/invalidates prior attempts; the final generation/profile validation MUST be atomic with each security-relevant commit of authentication state, using a SHORT shared critical section / orchestration mutex covering (check captured profile generation + check captured endpoint/profile + commit the state transition). The network request MUST remain OUTSIDE this mutex; never hold a mutex while waiting for network ping or long unrelated I/O. Cancellation remains defense-in-depth, NOT sole correctness. Before exposing `AUTHENTICATED`/identity, verify generation still matches and target profile still current; stale attempt loses, current profile wins. Deterministic tests for (A) profile change immediately after ping completion; (B) immediately after final pre-persist check; (C) while persistence is suspended; (D) immediately after final pre-publish check; (E) stale identity cannot become visible; (F) stale credentials cannot become the current durable snapshot — using CompletableDeferred/controlled fakes/coroutines-test, no Thread.sleep.
 - [ ] 4.2b Fail-closed sign-out: a user MUST NOT be told sign-out succeeded if a recoverable durable credential still exists for the active profile. Successful sign-out requires EITHER (A) secret store `clear()` succeeds, OR (B) an explicitly-designed durable cryptographic invalidation mechanism succeeds such that restoration cannot recover the credential. For current scope prefer (A): `clear()` must succeed before sign-out is committed as successful. If clear fails: do NOT report successful sign-out; do NOT silently transition to a state that can restore as authenticated later; surface a non-secret error/retry state; keep fail-closed semantics; no secret material in errors/logs. Planned tests: successful clear -> signed out; clear failure -> sign-out not reported successful; subsequent restoration cannot be incorrectly treated as a successful prior logout; cancellation propagates correctly; retry can eventually complete logout.
@@ -413,15 +413,17 @@ The durable credential mechanism is security-relevant.
 
 ### GREEN
 
-- [ ] 4.3 Create `SessionRestorer.kt` — read profile + recover secret + fresh ping; fail-closed; generation/revision check backstop (not Mutex across network ping)
+- [x] 4.3a Create core `SessionRestorer.kt` — read profile + recover password secret + fresh authenticated ping; fail closed; apply credential-retention policy
+- [ ] 4.3b Integrate restoration with the WU4 generation/revision backstop and shared short orchestration critical section from 4.2a; network ping remains outside the mutex
 - [ ] 4.4 Update `ServerConnectionViewModel.kt` — sign-in/sign-out/restore flows; wire deps
 - [ ] 4.5 Update `ServerConnectionScreen.kt` — masked password, sign-in/out buttons, status
+- [ ] 4.5a Adaptive connection UI: derive layout from available window width rather than device-type checks; verify compact phone (~360dp), regular phone, landscape, tablet portrait/landscape, split-screen/resizable window; constrain form max-width on large surfaces, preserve readable spacing/touch targets, and avoid stretched full-width credential fields.
 - [ ] 4.6 Update `MainActivity.kt` — DI wiring
 - [ ] 4.7 Update `AndroidManifest.xml` — INTERNET permission
 
 ### Verify
 
-- [ ] 4.8 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.SessionRestorerTest"`
+- [x] 4.8 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.SessionRestorerTest"`
 - [ ] 4.9 `./gradlew testDebugUnitTest --tests "dev.devdigi.music.connection.ServerConnectionViewModelTest"`
 - [ ] 4.10 `./gradlew testDebugUnitTest` + `./gradlew assembleDebug`
 
