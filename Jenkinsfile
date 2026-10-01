@@ -30,7 +30,7 @@ pipeline {
 
         stage('Android lint') {
             steps {
-                sh './gradlew lint'
+                sh './gradlew --no-build-cache --rerun-tasks lint'
             }
         }
 
@@ -83,7 +83,7 @@ pipeline {
             )
             archiveArtifacts(
                 allowEmptyArchive: true,
-                artifacts: 'app/build/outputs/apk/debug/*.apk,app/build/test-results/**/*.xml,app/build/reports/lint-results-*.xml,app/build/reports/lint-results-*.html,app/build/reports/lint-results-*.sarif'
+                artifacts: 'app/build/outputs/apk/debug/*.apk,app/build/test-results/**/*.xml,app/build/reports/lint-results-*.xml,app/build/reports/lint-results-*.html'
             )
         }
     }
