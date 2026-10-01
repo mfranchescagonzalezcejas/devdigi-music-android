@@ -43,4 +43,53 @@ class AlbumDetailsScreenTest {
         assertEquals(280.dp, layout.artworkSize)
         assertEquals(1_200.dp, layout.maxContentWidth)
     }
+
+    @Test
+    fun artworkFallbackUsesAlbumInitial() {
+        assertEquals(
+            "M",
+            albumArtworkFallback("midnight"),
+        )
+
+        assertEquals(
+            "♪",
+            albumArtworkFallback(""),
+        )
+    }
+
+    @Test
+    fun artistLabelUsesSafeFallback() {
+        assertEquals(
+            "Artist",
+            albumArtistLabel("Artist"),
+        )
+
+        assertEquals(
+            "Unknown artist",
+            albumArtistLabel(null),
+        )
+
+        assertEquals(
+            "Unknown artist",
+            albumArtistLabel("   "),
+        )
+    }
+
+    @Test
+    fun trackCountLabelHandlesZeroSingularAndPlural() {
+        assertEquals(
+            "No tracks",
+            albumTrackCountLabel(0),
+        )
+
+        assertEquals(
+            "1 track",
+            albumTrackCountLabel(1),
+        )
+
+        assertEquals(
+            "12 tracks",
+            albumTrackCountLabel(12),
+        )
+    }
 }

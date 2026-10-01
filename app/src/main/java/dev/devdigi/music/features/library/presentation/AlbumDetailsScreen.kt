@@ -1,5 +1,6 @@
 package dev.devdigi.music.features.library.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -19,8 +21,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.devdigi.music.features.library.domain.AlbumDetails
 
 internal data class AlbumDetailsLayoutSpec(
     val horizontalPadding: Dp,
@@ -202,41 +206,47 @@ private fun AlbumDetailsShellContent(
         }
 
         is AlbumDetailsUiState.Content -> {
-            AlbumDetailsResponsivePlaceholder(
+            AlbumDetailsOverview(
+                album = state.album,
                 layout = layout,
             )
         }
 
         is AlbumDetailsUiState.Empty -> {
-            AlbumDetailsResponsivePlaceholder(
+            AlbumDetailsOverview(
+                album = state.album,
                 layout = layout,
+                emptyMessage =
+                    "This album has no tracks.",
             )
         }
     }
 }
 
 @Composable
-private fun AlbumDetailsResponsivePlaceholder(layout: AlbumDetailsLayoutSpec) {
+private fun AlbumDetailsOverview(
+    album: AlbumDetails,
+    layout: AlbumDetailsLayoutSpec,
+    emptyMessage: String? = null,
+) {
     if (layout.stackedContent) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment =
                 Alignment.CenterHorizontally,
             verticalArrangement =
-                Arrangement.spacedBy(16.dp),
+                Arrangement.spacedBy(24.dp),
         ) {
-            Text(
-                text = "Album",
-                style =
-                    MaterialTheme.typography
-                        .headlineMedium,
+            AlbumArtworkPlaceholder(
+                album = album,
+                size = layout.artworkSize,
             )
 
-            Text(
-                text = "Details",
-                style =
-                    MaterialTheme.typography
-                        .bodyMedium,
+            AlbumMetadata(
+                album = album,
+                emptyMessage = emptyMessage,
+                modifier =
+                    Modifier.fillMaxWidth(),
             )
         }
     } else {
@@ -247,15 +257,99 @@ private fun AlbumDetailsResponsivePlaceholder(layout: AlbumDetailsLayoutSpec) {
             verticalAlignment =
                 Alignment.Top,
         ) {
-            Text(
-                text = "Album",
-                style =
-                    MaterialTheme.typography
-                        .headlineMedium,
+            AlbumArtworkPlaceholder(
+                album = album,
+                size = layout.artworkSize,
             )
 
+            AlbumMetadata(
+                album = album,
+                emptyMessage = emptyMessage,
+                modifier =
+                    Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AlbumArtworkPlaceholder(
+    album: AlbumDetails,
+    size: Dp,
+) {
+    Box(
+        modifier =
+            Modifier
+                .size(size)
+                .background(
+                    color =
+                        MaterialTheme.colorScheme
+                            .secondaryContainer,
+                    shape =
+                        RoundedCornerShape(20.dp),
+                ),
+        contentAlignment =
+            Alignment.Center,
+    ) {
+        Text(
+            text =
+                albumArtworkFallback(
+                    album.title,
+                ),
+            style =
+                MaterialTheme.typography
+                    .displayLarge,
+        )
+    }
+}
+
+@Composable
+private fun AlbumMetadata(
+    album: AlbumDetails,
+    emptyMessage: String?,
+    modifier: Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement =
+            Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = album.title,
+            maxLines = 3,
+            overflow =
+                TextOverflow.Ellipsis,
+            style =
+                MaterialTheme.typography
+                    .headlineMedium,
+        )
+
+        Text(
+            text =
+                albumArtistLabel(
+                    album.artist,
+                ),
+            maxLines = 2,
+            overflow =
+                TextOverflow.Ellipsis,
+            style =
+                MaterialTheme.typography
+                    .titleMedium,
+        )
+
+        Text(
+            text =
+                albumTrackCountLabel(
+                    album.tracks.size,
+                ),
+            style =
+                MaterialTheme.typography
+                    .bodyMedium,
+        )
+
+        emptyMessage?.let { message ->
             Text(
-                text = "Details",
+                text = message,
                 style =
                     MaterialTheme.typography
                         .bodyMedium,
@@ -263,6 +357,27 @@ private fun AlbumDetailsResponsivePlaceholder(layout: AlbumDetailsLayoutSpec) {
         }
     }
 }
+
+internal fun albumArtworkFallback(title: String): String =
+    title
+        .firstOrNull()
+        ?.uppercaseChar()
+        ?.toString()
+        ?: "♪"
+
+internal fun albumArtistLabel(artist: String?): String =
+    artist
+        ?.takeIf {
+            it.isNotBlank()
+        }
+        ?: "Unknown artist"
+
+internal fun albumTrackCountLabel(trackCount: Int): String =
+    when (trackCount) {
+        0 -> "No tracks"
+        1 -> "1 track"
+        else -> "$trackCount tracks"
+    }
 
 @Composable
 private fun CenteredAlbumMessage(
