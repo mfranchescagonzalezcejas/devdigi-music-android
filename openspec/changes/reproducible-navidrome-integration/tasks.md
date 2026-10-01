@@ -13,9 +13,9 @@
 ## WU1 — Ephemeral lifecycle
 
 - [ ] 1.1 Add lifecycle acceptance/self-tests where meaningful.
-- [ ] 1.2 Add pinned Compose configuration.
-- [ ] 1.3 Add unique per-run project, data and port state.
-- [ ] 1.4 Generate a fresh synthetic password without logging it.
+- [x] 1.2 Add pinned Compose configuration.
+- [x] 1.3 Add unique per-run project, data and port state.
+- [x] 1.4 Generate a fresh synthetic password without logging it.
 - [ ] 1.5 Add bounded authenticated/library readiness.
 - [ ] 1.6 Add sanitized failure diagnostics.
 - [ ] 1.7 Add idempotent cleanup for success and failure.

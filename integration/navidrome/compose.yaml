@@ -1,0 +1,16 @@
+services:
+  navidrome:
+    image: "deluan/navidrome:0.64.2@sha256:38dc2727bfcfd5ede290f8ada114fc90368146f265ae4701ddddbcbe2a44ee52"
+    restart: "no"
+    environment:
+      ND_DEVAUTOCREATEADMINPASSWORD: "${DEVDIGI_NAVIDROME_ADMIN_PASSWORD:?required}"
+      ND_LOGLEVEL: "warn"
+    ports:
+      - "127.0.0.1::4533"
+    volumes:
+      - type: bind
+        source: "${DEVDIGI_NAVIDROME_MUSIC_DIR:?required}"
+        target: /music
+        read_only: true
+    tmpfs:
+      - /data
