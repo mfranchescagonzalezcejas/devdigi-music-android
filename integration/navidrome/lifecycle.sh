@@ -126,21 +126,35 @@ prepare_state() {
         return 1
     fi
 
-    mkdir -p -- "$runtime" || return 1
-    chmod 700 "$runtime" || return 1
+    if [[ -e "$runtime" ]]; then
+        if [[ ! -d "$runtime" ]]; then
+            die "runtime path is not a directory"
+            return 1
+        fi
 
-    if [[ -e "$runtime/project" ||
-          -e "$runtime/admin-password" ||
-          -e "$runtime/music-dir" ||
-          -e "$runtime/port" ]]; then
-        die "runtime already contains lifecycle state"
-        return 1
+        if find "$runtime" \
+            -mindepth 1 \
+            -print \
+            -quit |
+            grep -q .
+        then
+            die "runtime directory must be empty"
+            return 1
+        fi
+    else
+        mkdir -- "$runtime" || return 1
     fi
+
+    chmod 700 "$runtime" || return 1
 
     password="$(random_hex 24)" || return 1
     project="devdigi-nav-$(random_hex 6)" || return 1
 
     umask 077
+
+    printf '%s\n' "devdigi-nav-runtime-v1" \
+        >"$runtime/.devdigi-nav-runtime" ||
+        return 1
 
     printf '%s\n' "$project" \
         >"$runtime/project" || return 1
@@ -152,6 +166,7 @@ prepare_state() {
         >"$runtime/music-dir" || return 1
 
     chmod 600 \
+        "$runtime/.devdigi-nav-runtime" \
         "$runtime/project" \
         "$runtime/admin-password" \
         "$runtime/music-dir" ||
@@ -247,10 +262,22 @@ up() {
 
 down() {
     local runtime="$1"
+    local marker="$runtime/.devdigi-nav-runtime"
 
-    if [[ ! -d "$runtime" ]]; then
+    if [[ ! -e "$runtime" ]]; then
         echo "DOWN=PASS"
         return 0
+    fi
+
+    if [[ ! -d "$runtime" ]]; then
+        die "refusing cleanup of non-directory runtime path"
+        return 1
+    fi
+
+    if [[ ! -f "$marker" ]] ||
+       [[ "$(cat -- "$marker")" != "devdigi-nav-runtime-v1" ]]; then
+        die "refusing cleanup of unowned runtime directory"
+        return 1
     fi
 
     if [[ -f "$runtime/project" &&
