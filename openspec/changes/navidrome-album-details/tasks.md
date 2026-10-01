@@ -19,7 +19,7 @@
 ## WU2 — Authenticated album data boundary
 
 - [ ] 2.1 Add RED authenticated `getAlbum` request tests.
-- [ ] 2.2 Implement exact-account secure-credential lookup.
+- [x] 2.2 Implement exact-account secure-credential lookup.
 - [ ] 2.3 Implement authenticated OkHttp album request boundary.
 - [ ] 2.4 Enforce redirects, timeout, response-size and secret protections.
 - [ ] 2.5 Map transport/protocol failures to domain outcomes.
