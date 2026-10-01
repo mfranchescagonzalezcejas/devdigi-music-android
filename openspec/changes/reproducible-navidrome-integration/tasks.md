@@ -2,13 +2,13 @@
 
 ## WU0 — Capability probe
 
-- [ ] 0.1 Verify local Docker and Docker Compose v2.
-- [ ] 0.2 Verify Docker/Compose capability on the Jenkins Android agent.
-- [ ] 0.3 Select and pin an explicit Navidrome version and immutable digest.
-- [ ] 0.4 Verify a supported synthetic admin bootstrap mechanism.
-- [ ] 0.5 Verify isolated loopback port allocation.
-- [ ] 0.6 Decide and document synthetic FLAC fixture provenance/generation.
-- [ ] 0.7 Record sanitized capability evidence.
+- [x] 0.1 Verify local Docker and the integrated Docker Compose plugin via `docker compose`.
+- [x] 0.2 Verify Docker/Compose capability on the Jenkins Android agent.
+- [x] 0.3 Select and pin an explicit Navidrome version and immutable digest.
+- [x] 0.4 Verify a supported synthetic admin bootstrap mechanism.
+- [x] 0.5 Verify isolated loopback port allocation.
+- [x] 0.6 Decide and document synthetic FLAC fixture provenance/generation.
+- [x] 0.7 Record sanitized capability evidence.
 
 ## WU1 — Ephemeral lifecycle
 
