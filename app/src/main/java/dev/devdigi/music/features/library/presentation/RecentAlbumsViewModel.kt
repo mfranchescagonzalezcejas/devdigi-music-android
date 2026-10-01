@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.devdigi.music.connection.ServerAccountIdentity
 import dev.devdigi.music.features.library.domain.RecentAlbum
@@ -145,4 +146,22 @@ class RecentAlbumsViewModel(
         val generation: Long,
         val account: ServerAccountIdentity,
     )
+
+    companion object {
+        fun factory(repository: RecentAlbumsRepository): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    check(
+                        modelClass.isAssignableFrom(
+                            RecentAlbumsViewModel::class.java,
+                        ),
+                    )
+
+                    @Suppress("UNCHECKED_CAST")
+                    return RecentAlbumsViewModel(
+                        repository = repository,
+                    ) as T
+                }
+            }
+    }
 }
