@@ -26,3 +26,13 @@ metadata removed before the deterministic metadata above was added.
 
 Navidrome-generated album and track identifiers are deliberately not
 recorded or assumed by the integration suite.
+
+## Recent Albums integration state
+
+Library indexing alone does not make an album appear in playback-derived
+`type=recent` results. Before the JVM integration test runs, the repository
+runner discovers the synthetic album and a track through live OpenSubsonic
+responses, records one synthetic `scrobble`, and waits boundedly for that
+album to appear in `recent`.
+
+All Navidrome-generated IDs remain opaque and are discovered at runtime.

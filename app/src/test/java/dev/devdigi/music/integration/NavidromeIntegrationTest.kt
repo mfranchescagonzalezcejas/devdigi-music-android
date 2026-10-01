@@ -5,8 +5,13 @@ import dev.devdigi.music.connection.AuthResult
 import dev.devdigi.music.connection.DefaultSubsonicAuthSigner
 import dev.devdigi.music.connection.EndpointParseResult
 import dev.devdigi.music.connection.OkHttpAuthenticatedPingClient
+import dev.devdigi.music.connection.ServerAccountIdentity
 import dev.devdigi.music.connection.ServerEndpoint
 import dev.devdigi.music.connection.ServerProfile
+import dev.devdigi.music.features.library.data.remote.AlbumDetailsRemoteResult
+import dev.devdigi.music.features.library.data.remote.OkHttpAlbumDetailsRemoteDataSource
+import dev.devdigi.music.features.library.data.remote.OkHttpRecentAlbumsRemoteDataSource
+import dev.devdigi.music.features.library.data.remote.RecentAlbumsRemoteResult
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -76,6 +81,103 @@ class NavidromeIntegrationTest {
             AuthResult.InvalidCredentials,
             rejected,
         )
+
+        val account =
+            ServerAccountIdentity(
+                endpoint = parsed.endpoint,
+                username = username,
+            )
+
+        val recent =
+            runBlocking {
+                OkHttpRecentAlbumsRemoteDataSource(
+                    signer = signer,
+                ).loadRecentAlbums(
+                    account = account,
+                    credentials =
+                        AuthCredentials.create(
+                            username = username,
+                            password = password,
+                        ),
+                )
+            }
+
+        check(
+            recent is RecentAlbumsRemoteResult.Success,
+        ) {
+            "Recent Albums application boundary failed."
+        }
+
+        val album =
+            recent.albums.single {
+                it.title == SYNTHETIC_ALBUM
+            }
+
+        assertTrue(
+            "Navidrome album ID must be opaque and non-blank.",
+            album.id.isNotBlank(),
+        )
+
+        val detailsResult =
+            runBlocking {
+                OkHttpAlbumDetailsRemoteDataSource(
+                    signer = signer,
+                ).loadAlbum(
+                    account = account,
+                    credentials =
+                        AuthCredentials.create(
+                            username = username,
+                            password = password,
+                        ),
+                    albumId = album.id,
+                )
+            }
+
+        check(
+            detailsResult is AlbumDetailsRemoteResult.Success,
+        ) {
+            "Album Details application boundary failed."
+        }
+
+        val details = detailsResult.album
+
+        assertEquals(
+            album.id,
+            details.id,
+        )
+
+        assertEquals(
+            SYNTHETIC_ALBUM,
+            details.title,
+        )
+
+        assertEquals(
+            listOf(
+                "Synthetic Track A",
+                "Synthetic Track B",
+            ),
+            details.tracks.map { it.title },
+        )
+
+        assertEquals(
+            listOf(1, 2),
+            details.tracks.map { it.trackNumber },
+        )
+
+        assertEquals(
+            2,
+            details.tracks
+                .map { it.id }
+                .distinct()
+                .size,
+        )
+
+        assertTrue(
+            "Navidrome track IDs must be opaque and non-blank.",
+            details.tracks.all {
+                it.id.isNotBlank()
+            },
+        )
     }
 
     private fun requiredEnv(name: String): String =
@@ -88,4 +190,9 @@ class NavidromeIntegrationTest {
                 "$name must not be blank."
             }
         }
+
+    private companion object {
+        const val SYNTHETIC_ALBUM =
+            "DevDigi Synthetic Album"
+    }
 }
