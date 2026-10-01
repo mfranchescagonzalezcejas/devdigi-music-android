@@ -6,8 +6,8 @@ user-provided Navidrome/OpenSubsonic servers.
 The current app implements server URL validation and persistence,
 secure interactive Navidrome authentication, authenticated OpenSubsonic
 connection verification, encrypted credential storage, session restoration,
-sign-out, and authenticated server metadata. Music browsing and Media3
-playback remain First Sound work.
+sign-out, authenticated server metadata, recent-album browsing, and album
+details with ordered tracks. Media3 playback remains First Sound work.
 
 ## First Sound
 
@@ -75,6 +75,20 @@ git diff
 Spotless Ratchet checks entire files modified relative to `origin/develop`,
 not just the changed lines. Review every formatting change before staging.
 Jenkins runs `spotlessCheck` only; it never applies formatting automatically.
+
+For the deterministic Navidrome JVM integration suite, the host also needs a
+working Docker daemon and the integrated `docker compose` command. The
+repository preflight reports missing host capabilities before starting the
+server:
+
+    ./integration/navidrome/lifecycle.sh preflight
+    ./integration/navidrome/run-integration.sh
+
+This integration environment uses only committed synthetic FLAC fixtures, a
+temporary loopback-only Navidrome server and a freshly generated synthetic
+password. It does not require a personal server URL, account or media library.
+Manual validation against a real user-provided Navidrome instance remains
+tracked separately by #17.
 
 ## Optional local hooks (Lefthook)
 

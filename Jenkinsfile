@@ -1,10 +1,6 @@
 pipeline {
     agent { label 'android' }
 
-    parameters {
-        booleanParam(name: 'RUN_NAVIDROME_INTEGRATION', defaultValue: false, description: 'Run trusted Navidrome integration checks.')
-    }
-
     stages {
         stage('Environment/version diagnostics') {
             steps {
@@ -44,19 +40,26 @@ pipeline {
             }
         }
 
-        stage('Optional trusted Navidrome integration') {
+        stage('Navidrome integration preflight') {
             when {
-                allOf {
-                    branch 'main'
-                    expression { !env.CHANGE_ID && params.RUN_NAVIDROME_INTEGRATION }
+                expression {
+                    !env.CHANGE_FORK
                 }
             }
             steps {
-                withCredentials([
-                    string(credentialsId: 'navidrome-url', variable: 'NAVIDROME_URL'),
-                    usernamePassword(credentialsId: 'navidrome-test-account', usernameVariable: 'NAVIDROME_USERNAME', passwordVariable: 'NAVIDROME_PASSWORD')
-                ]) {
-                    sh './gradlew testDebugUnitTest -PnavidromeIntegration=true'
+                sh './integration/navidrome/lifecycle.sh preflight'
+            }
+        }
+
+        stage('Synthetic Navidrome integration') {
+            when {
+                expression {
+                    !env.CHANGE_FORK
+                }
+            }
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    sh './integration/navidrome/run-integration.sh'
                 }
             }
         }
@@ -70,8 +73,18 @@ pipeline {
 
     post {
         always {
-            junit allowEmptyResults: true, testResults: 'app/build/test-results/**/*.xml'
-            archiveArtifacts allowEmptyArchive: true, artifacts: 'app/build/outputs/apk/debug/*.apk,app/build/test-results/**/*.xml,app/build/reports/lint-results-*.xml,app/build/reports/lint-results-*.html,app/build/reports/lint-results-*.sarif'
+            junit(
+                allowEmptyResults: true,
+                testResults: 'app/build/test-results/testDebugUnitTest/**/*.xml'
+            )
+            junit(
+                allowEmptyResults: true,
+                testResults: 'app/build/test-results/navidromeIntegrationTest/**/*.xml'
+            )
+            archiveArtifacts(
+                allowEmptyArchive: true,
+                artifacts: 'app/build/outputs/apk/debug/*.apk,app/build/test-results/**/*.xml,app/build/reports/lint-results-*.xml,app/build/reports/lint-results-*.html,app/build/reports/lint-results-*.sarif'
+            )
         }
     }
 }
