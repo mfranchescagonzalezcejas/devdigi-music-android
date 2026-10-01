@@ -8,6 +8,8 @@ CI-0 Basic pipeline is complete. The root `Jenkinsfile` runs visible formatting/
 
 The Navidrome integration path is repository-owned and deterministic. It starts the pinned ephemeral Navidrome image, mounts only committed synthetic fixtures, creates a fresh synthetic account secret for the run, waits for authenticated library readiness, exercises the real JVM application boundaries, and cleans up its temporary Docker/runtime state.
 
+Android Lint is configured to use relative paths in report output. The Jenkins lint stage also bypasses the Gradle build cache and reruns the lint task so published reports are regenerated for the current workspace instead of reusing path-bearing lint intermediates from another build. Jenkins archives the lint XML and HTML reports, but intentionally does not publish the generated SARIF report because current lint SARIF output can retain an absolute workspace URI even when ordinary lint report paths are relative. SARIF can be reconsidered when it can be published without exposing agent-specific filesystem metadata.
+
 Jenkins Declarative performs the initial SCM checkout automatically.
 The pipeline does not need a second explicit `checkout scm` stage.
 The formatting stage separately fetches `origin/develop` to establish

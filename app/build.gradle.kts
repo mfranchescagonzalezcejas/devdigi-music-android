@@ -26,6 +26,10 @@ android {
         compose = true
     }
 
+    lint {
+        absolutePaths = false
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
