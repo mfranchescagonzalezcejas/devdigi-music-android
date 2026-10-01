@@ -13,8 +13,8 @@
 
 - [x] 1.6 Add RED OpenSubsonic `getAlbum` parser tests.
 - [x] 1.7 Implement strict bounded parser preserving song order.
-- [ ] 1.8 Cover empty tracks, optional metadata and protocol failures.
-- [ ] 1.9 Verify focused and complete test suites.
+- [x] 1.8 Cover empty tracks, optional metadata and protocol failures.
+- [x] 1.9 Verify focused and complete test suites.
 
 ## WU2 — Authenticated album data boundary
 
