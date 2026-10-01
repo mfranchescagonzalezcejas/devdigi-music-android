@@ -6,10 +6,10 @@
 - [x] 1.2 Add repository/result contract with distinct authentication,
       network, malformed-response and server-error outcomes.
 - [x] 1.3 Add RED domain ownership tests.
-- [ ] 1.4 Add RED OpenSubsonic recent-albums parser tests.
-- [ ] 1.5 Implement strict bounded parser preserving server order.
-- [ ] 1.6 Run focused tests and complete unit-test suite.
-- [ ] 1.7 Pass Spotless, lint and debug assembly.
+- [x] 1.4 Add RED OpenSubsonic recent-albums parser tests.
+- [x] 1.5 Implement strict bounded parser preserving server order.
+- [x] 1.6 Run focused tests and complete unit-test suite.
+- [x] 1.7 Pass Spotless, lint and debug assembly.
 
 ## WU2 — Authenticated Navidrome data boundary
 
