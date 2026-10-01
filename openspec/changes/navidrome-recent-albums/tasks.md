@@ -24,7 +24,7 @@
 
 - [x] 3.1 Add recent-albums ViewModel/state tests.
 - [x] 3.2 Implement account-aware loading and stale-result rejection.
-- [ ] 3.3 Implement adaptive recent-albums Compose surface.
+- [x] 3.3 Implement adaptive recent-albums Compose surface.
 - [ ] 3.4 Wire the feature from the authenticated session in the composition root.
 - [ ] 3.5 Preserve loading, empty, authentication, network and malformed states.
 - [ ] 3.6 Run full local verification and real-instance validation for #2.
