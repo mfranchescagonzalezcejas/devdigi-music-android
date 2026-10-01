@@ -5,26 +5,33 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.devdigi.music.features.library.domain.AlbumDetails
+import dev.devdigi.music.features.library.domain.AlbumTrack
 
 internal data class AlbumDetailsLayoutSpec(
     val horizontalPadding: Dp,
@@ -66,6 +73,8 @@ internal fun albumDetailsLayoutSpec(availableWidth: Dp): AlbumDetailsLayoutSpec 
 @Composable
 fun AlbumDetailsScreen(
     state: AlbumDetailsUiState,
+    selectedTrackId: String?,
+    onTrackSelected: (String) -> Unit,
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
@@ -105,6 +114,10 @@ fun AlbumDetailsScreen(
                 AlbumDetailsShellContent(
                     state = state,
                     layout = layout,
+                    selectedTrackId =
+                    selectedTrackId,
+                    onTrackSelected =
+                    onTrackSelected,
                     onRetry = onRetry,
                     onSignOut = onSignOut,
                 )
@@ -160,6 +173,8 @@ private fun AlbumDetailsHeader(onBack: () -> Unit) {
 private fun AlbumDetailsShellContent(
     state: AlbumDetailsUiState,
     layout: AlbumDetailsLayoutSpec,
+    selectedTrackId: String?,
+    onTrackSelected: (String) -> Unit,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -209,6 +224,10 @@ private fun AlbumDetailsShellContent(
             AlbumDetailsOverview(
                 album = state.album,
                 layout = layout,
+                selectedTrackId =
+                selectedTrackId,
+                onTrackSelected =
+                onTrackSelected,
             )
         }
 
@@ -216,6 +235,10 @@ private fun AlbumDetailsShellContent(
             AlbumDetailsOverview(
                 album = state.album,
                 layout = layout,
+                selectedTrackId =
+                selectedTrackId,
+                onTrackSelected =
+                onTrackSelected,
                 emptyMessage =
                     "This album has no tracks.",
             )
@@ -227,7 +250,73 @@ private fun AlbumDetailsShellContent(
 private fun AlbumDetailsOverview(
     album: AlbumDetails,
     layout: AlbumDetailsLayoutSpec,
+    selectedTrackId: String?,
+    onTrackSelected: (String) -> Unit,
     emptyMessage: String? = null,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding =
+            PaddingValues(
+                bottom = 24.dp,
+            ),
+        verticalArrangement =
+            Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            AlbumOverviewHeader(
+                album = album,
+                layout = layout,
+            )
+        }
+
+        item {
+            Text(
+                text = "Tracks",
+                modifier =
+                    Modifier.padding(
+                        top = 12.dp,
+                    ),
+                style =
+                    MaterialTheme.typography
+                        .titleLarge,
+            )
+        }
+
+        if (album.tracks.isEmpty()) {
+            item {
+                Text(
+                    text =
+                        emptyMessage
+                            ?: "This album has no tracks.",
+                    style =
+                        MaterialTheme.typography
+                            .bodyMedium,
+                )
+            }
+        } else {
+            itemsIndexed(
+                items = album.tracks,
+            ) { index, track ->
+                AlbumTrackRow(
+                    track = track,
+                    albumArtist = album.artist,
+                    position = index,
+                    selected =
+                        track.id ==
+                            selectedTrackId,
+                    onSelected =
+                    onTrackSelected,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumOverviewHeader(
+    album: AlbumDetails,
+    layout: AlbumDetailsLayoutSpec,
 ) {
     if (layout.stackedContent) {
         Column(
@@ -244,7 +333,6 @@ private fun AlbumDetailsOverview(
 
             AlbumMetadata(
                 album = album,
-                emptyMessage = emptyMessage,
                 modifier =
                     Modifier.fillMaxWidth(),
             )
@@ -264,10 +352,138 @@ private fun AlbumDetailsOverview(
 
             AlbumMetadata(
                 album = album,
-                emptyMessage = emptyMessage,
                 modifier =
                     Modifier.weight(1f),
             )
+        }
+    }
+}
+
+@Composable
+private fun AlbumTrackRow(
+    track: AlbumTrack,
+    albumArtist: String?,
+    position: Int,
+    selected: Boolean,
+    onSelected: (String) -> Unit,
+) {
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics {
+                    this.selected =
+                        selected
+                },
+        onClick = {
+            onSelected(track.id)
+        },
+        shape =
+            RoundedCornerShape(14.dp),
+        color =
+            if (selected) {
+                MaterialTheme.colorScheme
+                    .secondaryContainer
+            } else {
+                MaterialTheme.colorScheme
+                    .surfaceVariant
+            },
+        tonalElevation =
+            if (selected) {
+                2.dp
+            } else {
+                0.dp
+            },
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 16.dp,
+                        vertical = 14.dp,
+                    ),
+            horizontalArrangement =
+                Arrangement.spacedBy(16.dp),
+            verticalAlignment =
+                Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier =
+                    Modifier.weight(1f),
+                verticalArrangement =
+                    Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text =
+                        trackPositionLabel(
+                            trackNumber =
+                                track.trackNumber,
+                            discNumber =
+                                track.discNumber,
+                            position = position,
+                        ),
+                    style =
+                        MaterialTheme.typography
+                            .labelMedium,
+                )
+
+                Text(
+                    text =
+                        trackTitleLabel(
+                            track.title,
+                        ),
+                    maxLines = 2,
+                    overflow =
+                        TextOverflow.Ellipsis,
+                    style =
+                        MaterialTheme.typography
+                            .titleMedium,
+                )
+
+                Text(
+                    text =
+                        trackArtistLabel(
+                            trackArtist =
+                                track.artist,
+                            albumArtist =
+                            albumArtist,
+                        ),
+                    maxLines = 1,
+                    overflow =
+                        TextOverflow.Ellipsis,
+                    style =
+                        MaterialTheme.typography
+                            .bodyMedium,
+                )
+            }
+
+            Column(
+                horizontalAlignment =
+                    Alignment.End,
+                verticalArrangement =
+                    Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text =
+                        trackDurationLabel(
+                            track.durationSeconds,
+                        ),
+                    maxLines = 1,
+                    style =
+                        MaterialTheme.typography
+                            .bodyMedium,
+                )
+
+                if (selected) {
+                    Text(
+                        text = "Selected",
+                        style =
+                            MaterialTheme.typography
+                                .labelSmall,
+                    )
+                }
+            }
         }
     }
 }
@@ -306,7 +522,6 @@ private fun AlbumArtworkPlaceholder(
 @Composable
 private fun AlbumMetadata(
     album: AlbumDetails,
-    emptyMessage: String?,
     modifier: Modifier,
 ) {
     Column(
@@ -349,15 +564,6 @@ private fun AlbumMetadata(
                 MaterialTheme.typography
                     .bodyMedium,
         )
-
-        emptyMessage?.let { message ->
-            Text(
-                text = message,
-                style =
-                    MaterialTheme.typography
-                        .bodyMedium,
-            )
-        }
     }
 }
 
