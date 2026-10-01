@@ -23,18 +23,18 @@
 
 ## WU2 — Fixtures and integration tests
 
-- [ ] 2.1 Add original/synthetic album fixtures with at least two tracks.
-- [ ] 2.2 Include at least one short FLAC fixture.
-- [ ] 2.3 Document provenance/generation and checksums.
-- [ ] 2.4 Add a separate Docker-backed JVM integration invocation.
-- [ ] 2.5 Exercise authenticated ping against synthetic Navidrome.
+- [x] 2.1 Add original/synthetic album fixtures with at least two tracks.
+- [x] 2.2 Include at least one short FLAC fixture.
+- [x] 2.3 Document provenance/generation and checksums.
+- [x] 2.4 Add a separate Docker-backed JVM integration invocation.
+- [x] 2.5 Exercise authenticated ping against synthetic Navidrome.
 - [ ] 2.6 Exercise recent albums through the real application boundary.
 - [ ] 2.7 Resolve and use an opaque album ID returned by Navidrome.
 - [ ] 2.8 Exercise album details and expected synthetic tracks.
 - [ ] 2.9 Prove server track order is preserved.
-- [ ] 2.10 Prove invalid synthetic credentials fail closed.
-- [ ] 2.11 Keep ordinary `testDebugUnitTest` Docker-independent.
-- [ ] 2.12 Give integration tests distinct JUnit output.
+- [x] 2.10 Prove invalid synthetic credentials fail closed.
+- [x] 2.11 Keep ordinary `testDebugUnitTest` Docker-independent.
+- [x] 2.12 Give integration tests distinct JUnit output.
 - [ ] 2.13 Pass unit tests, Spotless, lint and debug assembly.
 
 ## WU3 — Jenkins
