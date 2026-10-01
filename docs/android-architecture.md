@@ -41,13 +41,17 @@ Its existing connection package contains:
 
 - Server endpoint validation and connection models.
 - Protocol parsing and authentication contracts.
-- Authentication signing.
+- OpenSubsonic token/salt authentication signing.
+- An authenticated OkHttp ping boundary with defensive response handling.
 - Android Keystore-backed encrypted credential storage.
 - DataStore-backed server profile persistence.
-- A server connection ViewModel and Compose screen.
+- Interactive sign-in, validated session restoration and explicit sign-out.
+- Authenticated server metadata and session state.
+- A server connection ViewModel and adaptive Compose screen.
 
-MainActivity currently composes the server connection screen
-and manually supplies its repository.
+MainActivity currently composes the server connection screen and manually
+wires the server-profile repository, secure secret store, authentication
+signer/client and ViewModel factory.
 
 The connection package contains several architectural
 responsibilities together. It is not yet organized into
@@ -59,8 +63,9 @@ the existing connection source combines pure contracts with
 protocol parsing, while other files combine interfaces
 with Android-specific implementations.
 
-The authenticated OkHttp transport, complete session UI,
-music library and Media3 playback are not yet implemented.
+The authenticated OkHttp connection boundary and complete session UI are
+implemented. Music-library browsing and Media3 playback are not yet
+implemented.
 
 Existing connection contracts and tests must be preserved
 during architectural evolution.
@@ -147,8 +152,9 @@ Core:
 
 ## 6. Connection and authentication boundaries
 
-Preserve the existing endpoint-validation and authentication
-contracts during the ongoing authentication work.
+The endpoint-validation and authentication contracts completed under #14
+are current behavior and must be preserved during future feature work and
+refactoring.
 
 ServerAccountIdentity consists of the normalized server
 endpoint and the exact, opaque username.
@@ -163,7 +169,7 @@ Switching accounts must not expose another account's data.
 The existing encrypted credential-store guarantees remain
 mandatory throughout refactoring.
 
-For the upcoming authenticated network implementation:
+The implemented authenticated connection boundary enforces:
 
 - HTTPS is required when transmitting credentials.
 - Authenticated requests must not follow redirects.
@@ -174,8 +180,8 @@ For the upcoming authenticated network implementation:
 - Response bytes must be bounded before string conversion.
 - Existing parser bounds remain additional protections.
 
-The detailed authentication specification remains authoritative
-for WU3 and WU4 behavior.
+The completed authentication OpenSpec remains authoritative for the
+security and session behavior validated through #14 WU1-WU5.
 
 ## 7. Playback boundary
 
@@ -232,16 +238,18 @@ docs/ci.md.
 
 Architecture changes must be incremental and reviewable.
 
-1. Agree on this architecture baseline.
-2. Preserve existing public contracts and regression tests.
-3. Confirm Android SDK 36 is available locally and on the
-   Jenkins agent before beginning WU3.
-4. Implement the WU3 HTTP adapter behind the existing
-   AuthenticatedPingClient contract. Keep networking and
-   cryptographic operations out of presentation code.
-5. Avoid unrelated package moves during WU3 and WU4.
-6. Extract existing mixed packages in separate, test-backed
-   refactors without changing their established behavior.
+1. Preserve the implemented #14 authentication, credential and session
+   contracts together with their regression tests.
+2. Keep the current single-module composition explicit; extract mixed
+   packages only in separate, test-backed refactors with demonstrated value.
+3. Add the First Sound library flow behind account-scoped domain and data
+   boundaries without leaking transport details into presentation.
+4. Add Media3 playback and queue behavior while preserving account ownership
+   and keeping Android service concerns separate from domain rules.
+5. Introduce database or offline persistence structures only when their
+   product milestones require them.
+6. Finalize external-provider contracts only after #53, #54 and #55 provide
+   the required viability and architecture decisions.
 7. Document architectural exceptions and their rationale.
 
 Avoid mixing broad file moves with security-sensitive behavior

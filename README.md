@@ -3,10 +3,11 @@
 DevDigi Music is a native Kotlin and Jetpack Compose Android client for
 user-provided Navidrome/OpenSubsonic servers.
 
-The current bootstrap implements server URL validation and persistence,
-authentication contracts, protocol parsing and encrypted credential storage.
-Interactive authentication, authenticated networking, music browsing and
-Media3 playback are not yet available.
+The current app implements server URL validation and persistence,
+secure interactive Navidrome authentication, authenticated OpenSubsonic
+connection verification, encrypted credential storage, session restoration,
+sign-out, and authenticated server metadata. Music browsing and Media3
+playback remain First Sound work.
 
 ## First Sound
 
@@ -16,10 +17,32 @@ albums and tracks, and play FLAC through Media3 with Android system playback
 integration. The app must not hardcode a server or assume a Tailnet, LAN, or
 other deployment topology.
 
+## Product roadmap
+
+| Milestone | Direction |
+| --- | --- |
+| v0.1.0 — First Sound | Complete the first usable BYON vertical slice: authentication, minimal library flow, FLAC playback, queue, system playback, account isolation, and real-instance validation. |
+| v0.2.0 — Library | Expand canonical Navidrome browsing, search, artists, albums, songs, genres, favorites, playlists, and collections. |
+| v0.3.0 — Player | Mature the native Navidrome/Media3 player, queue, playback controls, metadata, and resilience. |
+| v0.4.0 — Offline | Add account-scoped downloads and synchronization, including the contextual Download flow and optional server incorporation tracked by #56. |
+| v0.5.0 — Import & Matching | Import external references or wishlists and match them against Navidrome without assuming every external item belongs to the playable library. |
+| v0.6.0 — Discover | Add local/Navidrome discovery first; external discovery remains capability-gated. |
+
+External-provider work is not an approved dependency of the native Navidrome
+roadmap. #53 decides provider viability, #54 independently evaluates external
+audio/video playback, and #55 defines provisional multi-provider identity and
+source-selection architecture. A future multi-provider release is conditional
+on those decisions.
+
+Music Connect, remote playback targets, Cast and companion surfaces are future
+directions rather than committed version milestones.
+
 ## BYON and security
 
-Each user supplies their own server and account. The current screen can
-save a server URL, but saving it does not authenticate or contact the server.
+Each user supplies their own server and account. The connection screen can
+save a server, authenticate with OpenSubsonic, restore a saved session only
+after fresh authenticated verification, and sign out. Saving a server alone
+does not establish an authenticated session.
 
 See [BYON setup and security](docs/byon-security.md) for implemented and
 planned security boundaries, and [Android architecture](docs/android-architecture.md)
@@ -27,7 +50,7 @@ for the native architecture and migration policy.
 
 ## Verify
 
-Requires Android SDK platform 35. Local verification succeeded
+Requires Android SDK platform 36. Local verification succeeded
 with Gradle 9.5.0 on JDK 17; Android compilation targets Java 17 bytecode.
 
 For Android Studio sync, select a Gradle JDK compatible with the project's
