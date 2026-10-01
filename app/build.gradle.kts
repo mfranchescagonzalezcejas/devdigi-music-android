@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -48,6 +50,47 @@ dependencies {
     testImplementation(libs.mockwebserver3)
     testImplementation(libs.androidx.datastore.preferences.core)
     testImplementation(libs.coroutines.test)
+}
+
+tasks.register<Test>("navidromeIntegrationTest") {
+    val debugUnitTest =
+        tasks.named<Test>("testDebugUnitTest")
+
+    group = "verification"
+    description =
+        "Runs the Docker-backed synthetic Navidrome JVM integration test."
+
+    dependsOn(debugUnitTest)
+
+    testClassesDirs =
+        debugUnitTest.get().testClassesDirs
+    classpath =
+        debugUnitTest.get().classpath
+
+    filter {
+        includeTestsMatching(
+            "dev.devdigi.music.integration.NavidromeIntegrationTest",
+        )
+    }
+
+    systemProperty(
+        "navidrome.integration",
+        "true",
+    )
+
+    reports.junitXml.outputLocation.set(
+        layout.buildDirectory.dir(
+            "test-results/navidromeIntegrationTest",
+        ),
+    )
+
+    reports.html.outputLocation.set(
+        layout.buildDirectory.dir(
+            "reports/tests/navidromeIntegrationTest",
+        ),
+    )
+
+    outputs.upToDateWhen { false }
 }
 
 spotless {
