@@ -21,24 +21,26 @@ Android repository's scope.
 
 The current Android application provides:
 
-- A Compose screen for entering a server URL.
+- A Compose screen for server and account configuration.
 - Endpoint validation and normalization.
 - Local persistence of the selected server endpoint.
-- Contracts for authenticated connection results.
-- An OpenSubsonic authentication signer.
+- OpenSubsonic token/salt authentication signing.
+- Authenticated OkHttp connection verification.
 - Defensive OpenSubsonic response parsing.
-- An encrypted credential-storage implementation.
-- Unit tests for the existing connection and security code.
+- Android Keystore-backed encrypted credential storage.
+- Interactive sign-in and explicit sign-out.
+- Validated session restoration after a fresh authenticated server check.
+- Authenticated server metadata and account identity.
+- Unit and integration-focused tests for the connection and security code.
 
-The authenticated HTTP transport is not implemented yet.
+A real Navidrome validation under #14 also proved fail-closed restoration
+during an outage, recovery without password re-entry, sign-out persistence
+across a cold process restart, and rejection of invalid credentials.
 
-The sign-in form, session restoration and complete sign-out
-workflow are not connected to the current UI.
+Music browsing and Media3 playback are not yet implemented.
 
-Music browsing and Media3 playback are also not implemented.
-
-Saving a server URL does not establish a connection,
-authenticate the user or verify server compatibility.
+Saving a server URL persists the server profile but does not by itself
+establish an authenticated session.
 
 ## 3. BYON configuration
 
@@ -48,10 +50,9 @@ The intended setup flow is:
 2. Obtain an individual account on that server.
 3. Configure a suitable HTTPS endpoint.
 4. Enter the server URL in DevDigi Music.
-5. Authenticate after the upcoming sign-in implementation
-   becomes available.
-6. Browse and play the authorized library once the
-   corresponding First Sound features are implemented.
+5. Authenticate with the Navidrome account through the connection screen.
+6. Browse and play the authorized library once the remaining First Sound
+   library and playback features are implemented.
 
 A documentation-only example endpoint is:
 
@@ -88,9 +89,9 @@ general authentication transport policy.
 A valid-looking URL is not proof of server ownership,
 network reachability or TLS certificate validity.
 
-The upcoming authenticated HTTP implementation requires
-HTTPS and must reject redirects rather than forwarding
-authentication material to another destination.
+The authenticated HTTP implementation requires HTTPS for release
+authentication and rejects redirects rather than forwarding authentication
+material to another destination.
 
 ## 5. Server and account identity
 
@@ -134,8 +135,8 @@ The password is stored as encrypted data, not plaintext.
 The non-secret server endpoint is persisted separately
 in the `server_profile` DataStore.
 
-These are implemented storage capabilities, not a
-claim that interactive sign-in is already available.
+These storage capabilities back the implemented interactive sign-in,
+session-restoration and sign-out workflows.
 
 ## 7. Backup and restoration
 
@@ -149,24 +150,24 @@ corresponding Android Keystore key.
 The non-secret server-profile DataStore is not
 excluded by these rules.
 
-The future session-restoration implementation must
-authenticate successfully before presenting an
-authenticated session.
+Session restoration authenticates successfully against the configured
+server before publishing an authenticated identity.
 
-Successful sign-out must not be reported while
-recoverable durable credentials remain.
+A recoverable server/network failure fails closed without exposing the
+identity or deleting an otherwise valid encrypted credential. Rejected saved
+credentials are not accepted as a restorable session.
 
-These session behaviors belong to the planned
-authentication integration.
+Successful sign-out is published only after the durable credential has been
+cleared. A clear failure remains retryable and must not falsely report a
+successful sign-out.
 
 ## 8. Authentication transport
 
 The existing signer supports OpenSubsonic token/salt
 authentication.
 
-The upcoming authenticated transport will use
-the protocol's token/salt request parameters
-instead of transmitting the plaintext password.
+The implemented authenticated transport uses the protocol's token/salt
+request parameters instead of transmitting the plaintext password.
 
 A fresh random salt is required for every request.
 
@@ -184,9 +185,8 @@ string materialization.
 The existing protocol parser also enforces
 character-length and structural-depth limits.
 
-These transport requirements are planned under WU3.
-They are not claims about an already operational
-network client.
+These transport requirements are implemented and were validated as part
+of the completed #14 authentication work.
 
 ## 9. Android playback architecture
 
@@ -227,12 +227,13 @@ in publicly distributed test evidence.
 
 ## 11. Verification
 
-The current Android build uses compileSdk 35.
+The current Android build uses compileSdk 36 and targetSdk 35.
 Android compilation targets Java 17 bytecode.
 
 The Jenkins pipeline uses these verification commands:
 
 ```sh
+./gradlew spotlessCheck
 ./gradlew testDebugUnitTest
 ./gradlew lint
 ./gradlew assembleDebug
@@ -241,15 +242,15 @@ The Jenkins pipeline uses these verification commands:
 Jenkins additionally publishes available test and lint
 reports and archives the debug APK.
 
-The formatting/static-analysis pipeline stage is
-currently diagnostic, not an implemented formatting
-or static-analysis gate.
+The formatting/static-analysis pipeline stage enforces the existing
+Spotless formatting gate. Detekt and coverage remain deferred.
 
-Authenticated HTTP integration requires the separately
-planned Android SDK 36 preflight.
+Android SDK 36 support is part of the current build baseline and has been
+validated by the required Jenkins pipeline.
 
-A real Navidrome integration test environment is
-separate, gated future work.
+The reproducible synthetic Navidrome integration environment tracked by #35
+remains separate future work. It complements, but does not replace, the
+completed real-account validation recorded under #14 WU5.
 
 ## 12. Related documentation
 
@@ -257,8 +258,8 @@ separate, gated future work.
 - [Continuous integration](ci.md)
 - [GitFlow governance](gitflow-governance.md)
 
-The authentication OpenSpec remains authoritative
-for detailed WU3 and WU4 security behavior.
+The authentication OpenSpec remains authoritative for the completed #14
+WU1-WU5 security and session behavior.
 
 External music-provider integrations are not approved
 capabilities within this documentation scope.

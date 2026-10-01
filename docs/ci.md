@@ -25,7 +25,7 @@ GitHub webhooks now trigger Jenkins automatically for supported push and pull-re
 
 The Jenkins controller coordinates multibranch discovery, credentials, webhook-triggered discovery, and GitHub status reporting. An agent selected by the `android` label executes the Android build.
 
-- The Android agent runs Jenkins with JDK 21 and has a pre-provisioned Android SDK containing Android API 35 and Build Tools 35.0.0.
+- The Android agent runs Jenkins with JDK 21 and has Android SDK platform 36 available, as demonstrated by #68 and subsequent `develop` builds. Build Tools are resolved from the provisioned SDK/AGP toolchain rather than documented as a fixed API-35 baseline.
 - Gradle 9.5.0 and AGP 9.3.1 were verified locally using JDK 17; Android compilation targets Java 17. Jenkins may use another compatible Gradle runtime JDK. Verify its actual launcher and daemon versions using the pipeline diagnostics rather than assuming they match the agent JVM.
 - Agents need a POSIX shell, Git access to the repository's `develop` branch, and permission to execute `./gradlew`. The formatting stage fetches `origin/develop` explicitly before `spotlessCheck` and fails if the Git baseline/merge-base cannot be resolved. The multibranch PR checkout must retain enough Git history to find that common ancestor; the required Jenkins PR check must verify this.
 - No SDK or JDK path is encoded in the repository. Gradle build caching is configured through `gradle.properties`, so each agent can use its own portable Gradle user home.
