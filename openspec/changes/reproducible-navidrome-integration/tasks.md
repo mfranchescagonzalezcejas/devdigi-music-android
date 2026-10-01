@@ -50,11 +50,11 @@
 
 ## WU4 — Final validation
 
-- [ ] 4.1 Run from a clean checkout.
-- [ ] 4.2 Run two consecutive successful integrations without leaked state.
-- [ ] 4.3 Force failure and prove cleanup.
-- [ ] 4.4 Prove project, data and port allocation is collision-resistant.
-- [ ] 4.5 Verify committed files and CI artifacts are privacy-safe.
-- [ ] 4.6 Verify Jenkins branch and PR-merge checks.
-- [ ] 4.7 Record privacy-safe verification evidence.
-- [ ] 4.8 Mark #35 complete without changing #17 or #34 scope.
+- [x] 4.1 Run from a clean checkout.
+- [x] 4.2 Run two consecutive successful integrations without leaked state.
+- [x] 4.3 Force failure and prove cleanup.
+- [x] 4.4 Prove project, data and port allocation is collision-resistant.
+- [x] 4.5 Verify committed files and CI artifacts are privacy-safe.
+- [x] 4.6 Verify Jenkins branch and PR-merge checks.
+- [x] 4.7 Record privacy-safe verification evidence.
+- [x] 4.8 Mark #35 complete without changing #17 or #34 scope.
