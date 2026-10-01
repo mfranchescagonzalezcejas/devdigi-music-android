@@ -68,3 +68,10 @@ server/protocol and content states.
 Layout decisions are based on available width rather than device type.
 Large surfaces constrain catalogue content instead of stretching it
 indefinitely.
+
+## WU1B review-size note
+
+The parser slice may exceed the preferred 400 changed-line review threshold.
+The production parser and its direct behavior/security regression tests remain
+together as one cohesive protocol boundary. Tests are not reduced solely to
+meet the line-count preference.
