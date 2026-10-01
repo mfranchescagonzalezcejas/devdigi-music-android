@@ -11,8 +11,8 @@
 
 ## WU1B — Protocol parser
 
-- [ ] 1.6 Add RED OpenSubsonic `getAlbum` parser tests.
-- [ ] 1.7 Implement strict bounded parser preserving song order.
+- [x] 1.6 Add RED OpenSubsonic `getAlbum` parser tests.
+- [x] 1.7 Implement strict bounded parser preserving song order.
 - [ ] 1.8 Cover empty tracks, optional metadata and protocol failures.
 - [ ] 1.9 Verify focused and complete test suites.
 
