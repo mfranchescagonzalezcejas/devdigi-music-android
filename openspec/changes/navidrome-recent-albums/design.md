@@ -52,6 +52,16 @@ The OpenSubsonic response parser:
 
 WU2 additionally enforces a byte bound at the HTTP boundary.
 
+## Credential boundary
+
+The repository resolves encrypted stored credentials using the exact endpoint
+from the active `ServerAccountIdentity`.
+
+The stored opaque username MUST exactly match the active account username
+before any remote request is allowed. Missing credentials, storage failure or
+identity mismatch fail closed as authentication required and MUST NOT reach
+the remote data source.
+
 ## Network boundary
 
 WU2 will use the existing authentication signer and secure secret store.

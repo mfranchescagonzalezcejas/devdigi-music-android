@@ -14,7 +14,7 @@
 ## WU2 — Authenticated Navidrome data boundary
 
 - [ ] 2.1 RED tests for authenticated `getAlbumList2` requests.
-- [ ] 2.2 Implement account-bound secure-credential lookup.
+- [x] 2.2 Implement account-bound secure-credential lookup.
 - [ ] 2.3 Implement OkHttp recent-albums request boundary.
 - [ ] 2.4 Enforce redirect, timeout, response-size and secret-leak protections.
 - [ ] 2.5 Map transport/protocol failures to domain outcomes.
