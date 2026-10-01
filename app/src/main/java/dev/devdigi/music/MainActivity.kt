@@ -131,6 +131,15 @@ class MainActivity : ComponentActivity() {
                             mutableStateOf<String?>(null)
                         }
 
+                    var selectedTrackId by
+                        rememberSaveable(
+                            connectionState.sessionStatus,
+                            identity,
+                            selectedAlbumId,
+                        ) {
+                            mutableStateOf<String?>(null)
+                        }
+
                     LaunchedEffect(
                         connectionState.sessionStatus,
                         identity,
@@ -211,6 +220,12 @@ class MainActivity : ComponentActivity() {
                                     state =
                                         albumDetailsViewModel
                                             .state,
+                                    selectedTrackId =
+                                    selectedTrackId,
+                                    onTrackSelected = {
+                                        selectedTrackId =
+                                            it
+                                    },
                                     onBack = {
                                         selectedAlbumId =
                                             null
