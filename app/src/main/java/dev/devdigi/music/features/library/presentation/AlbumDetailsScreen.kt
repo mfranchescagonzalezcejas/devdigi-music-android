@@ -315,7 +315,10 @@ private fun AlbumMetadata(
             Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            text = album.title,
+            text =
+                albumTitleLabel(
+                    album.title,
+                ),
             maxLines = 3,
             overflow =
                 TextOverflow.Ellipsis,
@@ -358,8 +361,16 @@ private fun AlbumMetadata(
     }
 }
 
+internal fun albumTitleLabel(title: String): String =
+    title
+        .takeIf {
+            it.isNotBlank()
+        }
+        ?: "Untitled album"
+
 internal fun albumArtworkFallback(title: String): String =
     title
+        .trim()
         .firstOrNull()
         ?.uppercaseChar()
         ?.toString()
@@ -378,6 +389,104 @@ internal fun albumTrackCountLabel(trackCount: Int): String =
         1 -> "1 track"
         else -> "$trackCount tracks"
     }
+
+internal fun trackTitleLabel(title: String): String =
+    title
+        .takeIf {
+            it.isNotBlank()
+        }
+        ?: "Untitled track"
+
+internal fun trackArtistLabel(
+    trackArtist: String?,
+    albumArtist: String?,
+): String =
+    trackArtist
+        ?.takeIf {
+            it.isNotBlank()
+        }
+        ?: albumArtist
+            ?.takeIf {
+                it.isNotBlank()
+            }
+        ?: "Unknown artist"
+
+internal fun trackPositionLabel(
+    trackNumber: Int?,
+    discNumber: Int?,
+    position: Int,
+): String {
+    val validTrack =
+        trackNumber
+            ?.takeIf {
+                it > 0
+            }
+
+    val validDisc =
+        discNumber
+            ?.takeIf {
+                it > 0
+            }
+
+    return when {
+        validDisc != null &&
+            validTrack != null -> {
+            "Disc $validDisc · Track $validTrack"
+        }
+
+        validTrack != null -> {
+            "Track $validTrack"
+        }
+
+        validDisc != null -> {
+            "Disc $validDisc"
+        }
+
+        else -> {
+            "Track ${position + 1}"
+        }
+    }
+}
+
+internal fun trackDurationLabel(durationSeconds: Int?): String {
+    val totalSeconds =
+        durationSeconds
+            ?.takeIf {
+                it >= 0
+            }
+            ?: return "Unknown duration"
+
+    val hours =
+        totalSeconds / 3_600
+
+    val minutes =
+        (totalSeconds % 3_600) / 60
+
+    val seconds =
+        totalSeconds % 60
+
+    val paddedSeconds =
+        seconds
+            .toString()
+            .padStart(
+                length = 2,
+                padChar = '0',
+            )
+
+    return if (hours > 0) {
+        val paddedMinutes =
+            minutes
+                .toString()
+                .padStart(
+                    length = 2,
+                    padChar = '0',
+                )
+
+        "$hours:$paddedMinutes:$paddedSeconds"
+    } else {
+        "$minutes:$paddedSeconds"
+    }
+}
 
 @Composable
 private fun CenteredAlbumMessage(
