@@ -39,14 +39,14 @@
 
 ## WU3 — Jenkins
 
-- [ ] 3.1 Add Docker/Compose preflight.
-- [ ] 3.2 Run synthetic integration without Jenkins Navidrome credentials.
-- [ ] 3.3 Isolate concurrent build runtime state.
-- [ ] 3.4 Publish integration JUnit evidence separately.
-- [ ] 3.5 Guarantee sanitized diagnostics and unconditional cleanup.
-- [ ] 3.6 Remove the old automated trusted-Navidrome credential hook.
-- [ ] 3.7 Preserve #17 as manual real-instance validation.
-- [ ] 3.8 Update CI and README documentation.
+- [x] 3.1 Add Docker/Compose preflight.
+- [x] 3.2 Run synthetic integration without Jenkins Navidrome credentials.
+- [x] 3.3 Isolate concurrent build runtime state.
+- [x] 3.4 Publish integration JUnit evidence separately.
+- [x] 3.5 Guarantee sanitized diagnostics and unconditional cleanup.
+- [x] 3.6 Remove the old automated trusted-Navidrome credential hook.
+- [x] 3.7 Preserve #17 as manual real-instance validation.
+- [x] 3.8 Update CI and README documentation.
 
 ## WU4 — Final validation
 
