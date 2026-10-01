@@ -564,6 +564,214 @@ down() {
     echo "DOWN=PASS"
 }
 
+cleanup_run_runtime() {
+    local runtime="$1"
+    local marker="$runtime/.devdigi-nav-runtime"
+
+    if [[ ! -e "$runtime" ]]; then
+        return 0
+    fi
+
+    if [[ -f "$marker" ]] &&
+       [[ "$(cat -- "$marker")" == "devdigi-nav-runtime-v1" ]]; then
+        if down "$runtime" >/dev/null 2>&1; then
+            return 0
+        fi
+
+        diagnostics "$runtime" || true
+        return 1
+    fi
+
+    if [[ -d "$runtime" ]]; then
+        rmdir -- "$runtime" 2>/dev/null &&
+            return 0
+    fi
+
+    die "owned run runtime could not be cleaned"
+}
+
+assert_project_gone() {
+    local project="$1"
+    local remaining
+
+    remaining="$(
+        docker ps \
+            --all \
+            --quiet \
+            --filter \
+            "label=com.docker.compose.project=$project"
+    )" || return 1
+
+    if [[ -n "$remaining" ]]; then
+        die "Compose project still has containers"
+        return 1
+    fi
+}
+
+assert_run_cleanup() {
+    local runtime="$1"
+    local project_capture="$2"
+    local project
+
+    if [[ -e "$runtime" ]]; then
+        die "runtime directory survived cleanup"
+        return 1
+    fi
+
+    if [[ ! -s "$project_capture" ]]; then
+        die "run did not record its Compose project"
+        return 1
+    fi
+
+    project="$(
+        cat -- "$project_capture"
+    )" || return 1
+
+    assert_project_gone "$project" || return 1
+}
+
+execute_owned_run() (
+    local runtime="$1"
+    local project_capture="$2"
+    local mode="${3:-success}"
+
+    cleanup() {
+        local status="$?"
+
+        trap - EXIT HUP INT TERM
+
+        if ! cleanup_run_runtime "$runtime"; then
+            if [[ "$status" -eq 0 ]]; then
+                status=1
+            fi
+        fi
+
+        exit "$status"
+    }
+
+    trap cleanup EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+
+    up "$runtime" || exit 10
+
+    read_state \
+        "$runtime" \
+        project \
+        >"$project_capture" ||
+        exit 11
+
+    wait_ready "$runtime" || exit 12
+
+    case "$mode" in
+        success)
+            echo "RUN_BODY=PASS"
+            ;;
+
+        forced-failure)
+            echo "FORCED_FAILURE_TRIGGERED=YES"
+            exit 23
+            ;;
+
+        *)
+            die "unsupported run mode"
+            exit 24
+            ;;
+    esac
+)
+
+run_once() {
+    local runtime
+    local project_capture
+    local status=0
+
+    runtime="$(new_runtime)" || return 1
+    project_capture="$(mktemp)" || {
+        rmdir -- "$runtime" 2>/dev/null || true
+        return 1
+    }
+
+    execute_owned_run \
+        "$runtime" \
+        "$project_capture" \
+        success ||
+        status="$?"
+
+    if ! assert_run_cleanup \
+        "$runtime" \
+        "$project_capture"
+    then
+        status=1
+    fi
+
+    rm -f -- "$project_capture"
+
+    if [[ "$status" -ne 0 ]]; then
+        die "lifecycle run failed with status $status"
+        return "$status"
+    fi
+
+    echo "SUCCESS_CLEANUP=PASS"
+    echo "RUN=PASS"
+}
+
+forced_failure_test() {
+    local runtime
+    local project_capture
+    local status=0
+
+    runtime="$(new_runtime)" || return 1
+    project_capture="$(mktemp)" || {
+        rmdir -- "$runtime" 2>/dev/null || true
+        return 1
+    }
+
+    execute_owned_run \
+        "$runtime" \
+        "$project_capture" \
+        forced-failure ||
+        status="$?"
+
+    if [[ "$status" -ne 23 ]]; then
+        rm -f -- "$project_capture"
+
+        die "forced failure returned unexpected status $status"
+        return 1
+    fi
+
+    if ! assert_run_cleanup \
+        "$runtime" \
+        "$project_capture"
+    then
+        rm -f -- "$project_capture"
+        return 1
+    fi
+
+    rm -f -- "$project_capture"
+
+    echo "FAILURE_CLEANUP=PASS"
+    echo "FORCED_FAILURE_TEST=PASS"
+}
+
+self_test() {
+    echo "SELF_TEST_RUN_1"
+
+    run_once || return 1
+
+    echo "SELF_TEST_RUN_2"
+
+    run_once || return 1
+
+    echo "SELF_TEST_FORCED_FAILURE"
+
+    forced_failure_test || return 1
+
+    echo "REPEATED_RUNS=PASS"
+    echo "SUCCESS_AND_FAILURE_CLEANUP=PASS"
+    echo "SELF_TEST=PASS"
+}
+
 usage() {
     echo "Usage:"
     echo "  lifecycle.sh preflight"
@@ -571,6 +779,8 @@ usage() {
     echo "  lifecycle.sh wait-ready RUNTIME_DIR"
     echo "  lifecycle.sh diagnostics RUNTIME_DIR"
     echo "  lifecycle.sh down RUNTIME_DIR"
+    echo "  lifecycle.sh run"
+    echo "  lifecycle.sh self-test"
 }
 
 case "${1:-}" in
@@ -612,6 +822,14 @@ case "${1:-}" in
         }
 
         down "$2"
+        ;;
+
+    run)
+        run_once
+        ;;
+
+    self-test)
+        self_test
         ;;
 
     *)
