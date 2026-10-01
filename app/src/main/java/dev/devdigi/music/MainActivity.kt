@@ -8,7 +8,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.devdigi.music.connection.AesGcmSecretCipher
@@ -124,7 +124,7 @@ class MainActivity : ComponentActivity() {
                         connectionState.identity
 
                     var selectedAlbumId by
-                        remember(
+                        rememberSaveable(
                             connectionState.sessionStatus,
                             identity,
                         ) {
