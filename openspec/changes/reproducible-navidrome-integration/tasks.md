@@ -28,14 +28,14 @@
 - [x] 2.3 Document provenance/generation and checksums.
 - [x] 2.4 Add a separate Docker-backed JVM integration invocation.
 - [x] 2.5 Exercise authenticated ping against synthetic Navidrome.
-- [ ] 2.6 Exercise recent albums through the real application boundary.
-- [ ] 2.7 Resolve and use an opaque album ID returned by Navidrome.
-- [ ] 2.8 Exercise album details and expected synthetic tracks.
-- [ ] 2.9 Prove server track order is preserved.
+- [x] 2.6 Exercise recent albums through the real application boundary.
+- [x] 2.7 Resolve and use an opaque album ID returned by Navidrome.
+- [x] 2.8 Exercise album details and expected synthetic tracks.
+- [x] 2.9 Prove server track order is preserved.
 - [x] 2.10 Prove invalid synthetic credentials fail closed.
 - [x] 2.11 Keep ordinary `testDebugUnitTest` Docker-independent.
 - [x] 2.12 Give integration tests distinct JUnit output.
-- [ ] 2.13 Pass unit tests, Spotless, lint and debug assembly.
+- [x] 2.13 Pass unit tests, Spotless, lint and debug assembly.
 
 ## WU3 — Jenkins
 
