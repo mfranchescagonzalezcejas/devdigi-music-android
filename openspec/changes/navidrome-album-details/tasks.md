@@ -31,5 +31,5 @@
 - [x] 3.2 Reject stale results after album/account changes.
 - [x] 3.3 Implement responsive album-details Compose surface.
 - [ ] 3.4 Render ordered selectable track list and safe metadata fallbacks.
-- [ ] 3.5 Wire recent-album selection into album details.
+- [x] 3.5 Wire recent-album selection into album details.
 - [ ] 3.6 Run full local and real-instance validation.
