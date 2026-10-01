@@ -21,10 +21,16 @@ import dev.devdigi.music.connection.ServerConnectionScreen
 import dev.devdigi.music.connection.ServerConnectionViewModel
 import dev.devdigi.music.connection.SessionStatus
 import dev.devdigi.music.connection.serverProfileRepository
+import dev.devdigi.music.features.library.data.SecureAlbumDetailsRepository
 import dev.devdigi.music.features.library.data.SecureRecentAlbumsRepository
+import dev.devdigi.music.features.library.data.remote.OkHttpAlbumDetailsRemoteDataSource
 import dev.devdigi.music.features.library.data.remote.OkHttpRecentAlbumsRemoteDataSource
+import dev.devdigi.music.features.library.presentation.AlbumDetailsScreen
+import dev.devdigi.music.features.library.presentation.AlbumDetailsViewModel
+import dev.devdigi.music.features.library.presentation.LibraryDestination
 import dev.devdigi.music.features.library.presentation.RecentAlbumsScreen
 import dev.devdigi.music.features.library.presentation.RecentAlbumsViewModel
+import dev.devdigi.music.features.library.presentation.libraryDestination
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +70,15 @@ class MainActivity : ComponentActivity() {
                     ),
             )
 
+        val albumDetailsRepository =
+            SecureAlbumDetailsRepository(
+                secretStore = secretStore,
+                remote =
+                    OkHttpAlbumDetailsRemoteDataSource(
+                        signer = authSigner,
+                    ),
+            )
+
         setContent {
             MaterialTheme {
                 Surface {
@@ -92,15 +107,29 @@ class MainActivity : ComponentActivity() {
                                     ),
                         )
 
+                    val albumDetailsViewModel:
+                        AlbumDetailsViewModel =
+                        viewModel(
+                            factory =
+                                AlbumDetailsViewModel
+                                    .factory(
+                                        albumDetailsRepository,
+                                    ),
+                        )
+
                     val connectionState =
                         connectionViewModel.state
 
                     val identity =
                         connectionState.identity
 
-                    var selectedAlbumId by remember {
-                        mutableStateOf<String?>(null)
-                    }
+                    var selectedAlbumId by
+                        remember(
+                            connectionState.sessionStatus,
+                            identity,
+                        ) {
+                            mutableStateOf<String?>(null)
+                        }
 
                     LaunchedEffect(
                         connectionState.sessionStatus,
@@ -111,14 +140,34 @@ class MainActivity : ComponentActivity() {
                             SessionStatus.AUTHENTICATED &&
                             identity != null
                         ) {
-                            selectedAlbumId = null
-
                             recentAlbumsViewModel.load(
                                 identity,
                             )
                         } else {
-                            selectedAlbumId = null
                             recentAlbumsViewModel.clear()
+                        }
+                    }
+
+                    LaunchedEffect(
+                        connectionState.sessionStatus,
+                        identity,
+                        selectedAlbumId,
+                    ) {
+                        val albumId =
+                            selectedAlbumId
+
+                        if (
+                            connectionState.sessionStatus ==
+                            SessionStatus.AUTHENTICATED &&
+                            identity != null &&
+                            albumId != null
+                        ) {
+                            albumDetailsViewModel.load(
+                                account = identity,
+                                albumId = albumId,
+                            )
+                        } else {
+                            albumDetailsViewModel.clear()
                         }
                     }
 
@@ -127,21 +176,52 @@ class MainActivity : ComponentActivity() {
                         SessionStatus.AUTHENTICATED &&
                         identity != null
                     ) {
-                        RecentAlbumsScreen(
-                            state =
-                                recentAlbumsViewModel.state,
-                            username =
-                                identity.username,
-                            selectedAlbumId =
-                            selectedAlbumId,
-                            onAlbumSelected = {
-                                selectedAlbumId = it
-                            },
-                            onRetry =
-                                recentAlbumsViewModel::retry,
-                            onSignOut =
-                                connectionViewModel::signOut,
-                        )
+                        when (
+                            val destination =
+                                libraryDestination(
+                                    selectedAlbumId,
+                                )
+                        ) {
+                            LibraryDestination
+                                .RecentAlbums,
+                            -> {
+                                RecentAlbumsScreen(
+                                    state =
+                                        recentAlbumsViewModel
+                                            .state,
+                                    username =
+                                        identity.username,
+                                    selectedAlbumId =
+                                    selectedAlbumId,
+                                    onAlbumSelected = {
+                                        selectedAlbumId =
+                                            it
+                                    },
+                                    onRetry =
+                                        recentAlbumsViewModel::retry,
+                                    onSignOut =
+                                        connectionViewModel::signOut,
+                                )
+                            }
+
+                            is LibraryDestination
+                                .AlbumDetails,
+                            -> {
+                                AlbumDetailsScreen(
+                                    state =
+                                        albumDetailsViewModel
+                                            .state,
+                                    onBack = {
+                                        selectedAlbumId =
+                                            null
+                                    },
+                                    onRetry =
+                                        albumDetailsViewModel::retry,
+                                    onSignOut =
+                                        connectionViewModel::signOut,
+                                )
+                            }
+                        }
                     } else {
                         ServerConnectionScreen(
                             state = connectionState,
