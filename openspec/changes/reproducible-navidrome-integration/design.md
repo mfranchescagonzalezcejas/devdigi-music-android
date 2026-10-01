@@ -131,7 +131,8 @@ A failed integration run must not leave its server or temporary data behind.
 
 ## Jenkins
 
-WU0 first proves the Android Jenkins agent can use Docker and Docker Compose.
+WU0 first proves the Android Jenkins agent can use Docker and the
+integrated Docker Compose plugin exposed through `docker compose`.
 
 The eventual synthetic integration stage:
 
