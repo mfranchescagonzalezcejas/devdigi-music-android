@@ -32,4 +32,4 @@
 - [x] 3.3 Implement responsive album-details Compose surface.
 - [x] 3.4 Render ordered selectable track list and safe metadata fallbacks.
 - [x] 3.5 Wire recent-album selection into album details.
-- [ ] 3.6 Run full local and real-instance validation.
+- [x] 3.6 Run full local and real-instance validation.
