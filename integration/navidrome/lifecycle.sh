@@ -23,9 +23,13 @@ preflight() {
 
     for command in \
         docker \
+        curl \
+        md5sum \
         od \
         tr \
+        awk \
         mktemp \
+        python3 \
         grep \
         find
     do
@@ -242,20 +246,282 @@ resolve_port() {
     die "loopback dynamic port could not be resolved"
 }
 
+api_get() {
+    local runtime="$1"
+    local endpoint="$2"
+    local output="$3"
+    shift 3
+
+    local password
+    local port
+    local salt
+    local token
+    local item
+
+    password="$(
+        read_state \
+            "$runtime" \
+            admin-password
+    )" || return 1
+
+    port="$(
+        read_state \
+            "$runtime" \
+            port
+    )" || return 1
+
+    salt="$(random_hex 8)" || return 1
+
+    token="$(
+        printf '%s%s' \
+            "$password" \
+            "$salt" |
+        md5sum |
+        awk '{print $1}'
+    )" || return 1
+
+    local args=(
+        --silent
+        --connect-timeout 1
+        --max-time 3
+        --output "$output"
+        --write-out '%{http_code}'
+        --get
+        --data-urlencode "u=admin"
+        --data-urlencode "t=$token"
+        --data-urlencode "s=$salt"
+        --data-urlencode "v=1.13.0"
+        --data-urlencode "c=devdigi-integration"
+        --data-urlencode "f=json"
+    )
+
+    for item in "$@"; do
+        args+=(
+            --data-urlencode "$item"
+        )
+    done
+
+    curl \
+        "${args[@]}" \
+        "http://127.0.0.1:$port/rest/$endpoint.view"
+}
+
+json_ping_ok() {
+    python3 - "$1" <<'PY_JSON'
+import json
+from pathlib import Path
+import sys
+
+try:
+    payload = json.loads(
+        Path(sys.argv[1]).read_text()
+    )
+    response = payload["subsonic-response"]
+except Exception:
+    raise SystemExit(1)
+
+raise SystemExit(
+    0
+    if response.get("status") == "ok"
+    else 1
+)
+PY_JSON
+}
+
+json_expected_library_visible() {
+    python3 - "$1" <<'PY_JSON'
+import json
+from pathlib import Path
+import sys
+
+EXPECTED_ALBUM = "DevDigi Synthetic Album"
+
+try:
+    payload = json.loads(
+        Path(sys.argv[1]).read_text()
+    )
+
+    response = payload["subsonic-response"]
+
+    if response.get("status") != "ok":
+        raise SystemExit(1)
+
+    albums = (
+        response
+        .get("albumList2", {})
+        .get("album", [])
+    )
+except Exception:
+    raise SystemExit(1)
+
+if isinstance(albums, dict):
+    albums = [albums]
+
+if not isinstance(albums, list):
+    raise SystemExit(1)
+
+visible = any(
+    isinstance(album, dict)
+    and album.get("name") == EXPECTED_ALBUM
+    for album in albums
+)
+
+raise SystemExit(
+    0
+    if visible
+    else 1
+)
+PY_JSON
+}
+
+redact_stream() {
+    local runtime="$1"
+
+    python3 -c '
+from pathlib import Path
+import sys
+
+password = Path(sys.argv[1]).read_text().strip()
+music_dir = Path(sys.argv[2]).read_text().strip()
+runtime = sys.argv[3]
+
+text = sys.stdin.read()
+
+for secret in (
+    password,
+    music_dir,
+    runtime,
+):
+    if secret:
+        text = text.replace(
+            secret,
+            "<redacted>",
+        )
+
+sys.stdout.write(text)
+' \
+        "$runtime/admin-password" \
+        "$runtime/music-dir" \
+        "$runtime"
+}
+
+diagnostics() {
+    local runtime="$1"
+
+    echo "NAVIDROME_DIAGNOSTICS_BEGIN"
+
+    if [[ ! -d "$runtime" ||
+          ! -f "$runtime/.devdigi-nav-runtime" ||
+          ! -f "$runtime/project" ||
+          ! -f "$runtime/admin-password" ||
+          ! -f "$runtime/music-dir" ]]; then
+        echo "STATE=INCOMPLETE"
+        echo "NAVIDROME_DIAGNOSTICS_END"
+        return 0
+    fi
+
+    {
+        compose_cmd \
+            "$runtime" \
+            ps ||
+            true
+
+        compose_cmd \
+            "$runtime" \
+            logs \
+            --no-color \
+            --tail 80 \
+            "$SERVICE" ||
+            true
+    } 2>&1 |
+        redact_stream "$runtime" ||
+        true
+
+    echo "NAVIDROME_DIAGNOSTICS_END"
+}
+
+wait_ready() {
+    local runtime="$1"
+    local attempts="${DEVDIGI_NAVIDROME_READY_ATTEMPTS:-90}"
+    local ping_file="$runtime/ping.json"
+    local library_file="$runtime/library.json"
+    local ping_code
+    local library_code
+    local attempt
+
+    if [[ ! "$attempts" =~ ^[0-9]+$ ]] ||
+       (( attempts < 1 || attempts > 300 )); then
+        die "invalid readiness attempt count"
+        return 1
+    fi
+
+    for attempt in $(seq 1 "$attempts"); do
+        ping_code="$(
+            api_get \
+                "$runtime" \
+                ping \
+                "$ping_file" \
+                2>/dev/null ||
+            true
+        )"
+
+        if [[ "$ping_code" == "200" ]] &&
+           json_ping_ok "$ping_file"
+        then
+            library_code="$(
+                api_get \
+                    "$runtime" \
+                    getAlbumList2 \
+                    "$library_file" \
+                    "type=alphabeticalByName" \
+                    "size=50" \
+                    2>/dev/null ||
+                true
+            )"
+
+            if [[ "$library_code" == "200" ]] &&
+               json_expected_library_visible "$library_file"
+            then
+                rm -f \
+                    "$ping_file" \
+                    "$library_file"
+
+                echo "READY_HTTP=PASS"
+                echo "READY_AUTHENTICATED=PASS"
+                echo "READY_LIBRARY=PASS"
+                echo "READY=PASS"
+                return 0
+            fi
+        fi
+
+        sleep 1
+    done
+
+    echo "READY=FAIL" >&2
+    diagnostics "$runtime" || true
+    return 1
+}
+
 up() {
     local runtime="$1"
 
     preflight || return 1
     prepare_state "$runtime" || return 1
 
-    compose_cmd \
+    if ! compose_cmd \
         "$runtime" \
         up \
         --detach \
-        --remove-orphans ||
+        --remove-orphans
+    then
+        diagnostics "$runtime" || true
         return 1
+    fi
 
-    resolve_port "$runtime" || return 1
+    if ! resolve_port "$runtime"; then
+        diagnostics "$runtime" || true
+        return 1
+    fi
 
     echo "UP=PASS"
 }
@@ -302,6 +568,8 @@ usage() {
     echo "Usage:"
     echo "  lifecycle.sh preflight"
     echo "  lifecycle.sh up RUNTIME_DIR"
+    echo "  lifecycle.sh wait-ready RUNTIME_DIR"
+    echo "  lifecycle.sh diagnostics RUNTIME_DIR"
     echo "  lifecycle.sh down RUNTIME_DIR"
 }
 
@@ -317,6 +585,24 @@ case "${1:-}" in
         }
 
         up "$2"
+        ;;
+
+    wait-ready)
+        [[ -n "${2:-}" ]] || {
+            usage
+            exit 2
+        }
+
+        wait_ready "$2"
+        ;;
+
+    diagnostics)
+        [[ -n "${2:-}" ]] || {
+            usage
+            exit 2
+        }
+
+        diagnostics "$2"
         ;;
 
     down)
