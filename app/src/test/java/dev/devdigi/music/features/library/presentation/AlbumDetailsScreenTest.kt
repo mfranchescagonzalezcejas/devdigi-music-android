@@ -45,15 +45,33 @@ class AlbumDetailsScreenTest {
     }
 
     @Test
-    fun artworkFallbackUsesAlbumInitial() {
+    fun albumTitleUsesSafeFallback() {
+        assertEquals(
+            "Album",
+            albumTitleLabel("Album"),
+        )
+
+        assertEquals(
+            "Untitled album",
+            albumTitleLabel("   "),
+        )
+    }
+
+    @Test
+    fun artworkFallbackUsesTrimmedAlbumInitial() {
         assertEquals(
             "M",
-            albumArtworkFallback("midnight"),
+            albumArtworkFallback(" midnight "),
         )
 
         assertEquals(
             "♪",
             albumArtworkFallback(""),
+        )
+
+        assertEquals(
+            "♪",
+            albumArtworkFallback("   "),
         )
     }
 
@@ -90,6 +108,125 @@ class AlbumDetailsScreenTest {
         assertEquals(
             "12 tracks",
             albumTrackCountLabel(12),
+        )
+    }
+
+    @Test
+    fun trackTitleUsesSafeFallback() {
+        assertEquals(
+            "Song",
+            trackTitleLabel("Song"),
+        )
+
+        assertEquals(
+            "Untitled track",
+            trackTitleLabel("   "),
+        )
+    }
+
+    @Test
+    fun trackArtistFallsBackToAlbumArtist() {
+        assertEquals(
+            "Track artist",
+            trackArtistLabel(
+                trackArtist = "Track artist",
+                albumArtist = "Album artist",
+            ),
+        )
+
+        assertEquals(
+            "Album artist",
+            trackArtistLabel(
+                trackArtist = "   ",
+                albumArtist = "Album artist",
+            ),
+        )
+
+        assertEquals(
+            "Unknown artist",
+            trackArtistLabel(
+                trackArtist = null,
+                albumArtist = "   ",
+            ),
+        )
+    }
+
+    @Test
+    fun trackPositionShowsAvailableServerMetadata() {
+        assertEquals(
+            "Disc 2 · Track 7",
+            trackPositionLabel(
+                trackNumber = 7,
+                discNumber = 2,
+                position = 0,
+            ),
+        )
+
+        assertEquals(
+            "Track 3",
+            trackPositionLabel(
+                trackNumber = 3,
+                discNumber = null,
+                position = 8,
+            ),
+        )
+
+        assertEquals(
+            "Disc 2",
+            trackPositionLabel(
+                trackNumber = null,
+                discNumber = 2,
+                position = 8,
+            ),
+        )
+
+        assertEquals(
+            "Track 9",
+            trackPositionLabel(
+                trackNumber = null,
+                discNumber = null,
+                position = 8,
+            ),
+        )
+    }
+
+    @Test
+    fun invalidTrackNumbersFallBackToServerOrderPosition() {
+        assertEquals(
+            "Track 4",
+            trackPositionLabel(
+                trackNumber = 0,
+                discNumber = -1,
+                position = 3,
+            ),
+        )
+    }
+
+    @Test
+    fun durationFormatsMinutesHoursAndFallbacks() {
+        assertEquals(
+            "0:00",
+            trackDurationLabel(0),
+        )
+
+        assertEquals(
+            "1:05",
+            trackDurationLabel(65),
+        )
+
+        assertEquals(
+            "1:01:01",
+            trackDurationLabel(3_661),
+        )
+
+        assertEquals(
+            "Unknown duration",
+            trackDurationLabel(null),
+        )
+
+        assertEquals(
+            "Unknown duration",
+            trackDurationLabel(-1),
         )
     }
 }
