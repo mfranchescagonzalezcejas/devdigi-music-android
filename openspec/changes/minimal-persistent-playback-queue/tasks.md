@@ -31,15 +31,16 @@
 
 ## WU1B — Account-scoped queue persistence
 
-- [ ] 1.5 Add account-fingerprint tests.
-- [ ] 1.6 Add dedicated queue persistence contract and DataStore adapter.
-- [ ] 1.7 Persist only schema, fingerprint, current index and safe track
+- [x] 1.5 Add account-fingerprint tests.
+- [x] 1.6 Add dedicated queue persistence contract and DataStore adapter.
+- [x] 1.7 Persist only schema, fingerprint, current index and safe track
       metadata.
-- [ ] 1.8 Add malformed, oversized and mismatched snapshot fail-closed tests.
-- [ ] 1.9 Verify persistence contains no raw identity, auth material or signed
+- [x] 1.8 Add malformed, oversized and mismatched snapshot fail-closed tests.
+- [x] 1.9 Verify persistence contains no raw identity, auth material or signed
       stream URL.
-- [ ] 1.10 Run focused tests and full local quality gates.
-- [ ] 1.11 Measure WU1B against the 1000 changed-line hard review budget.
+- [x] 1.10 Run focused tests and full local quality gates.
+- [x] 1.11 Measure WU1B against the 1000 changed-line hard review budget.
+- [ ] 1.12 Bound required track id/title fields on save and restore in WU1C.
 
 ## WU2 — Service/session Media3 queue backend
 
