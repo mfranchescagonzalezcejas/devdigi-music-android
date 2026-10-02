@@ -30,6 +30,12 @@ internal class FakePlaybackEngine : PlaybackEngine {
     val plays =
         mutableListOf<PlaybackVmTestRequest>()
 
+    val reconciliations =
+        mutableListOf<ServerAccountIdentity?>()
+
+    private var activeAccount:
+        ServerAccountIdentity? = null
+
     var pauseCalls = 0
     var resumeCalls = 0
     var stopCalls = 0
@@ -44,11 +50,26 @@ internal class FakePlaybackEngine : PlaybackEngine {
                 track = track,
             )
 
+        activeAccount = account
+
         mutableState.value =
             PlaybackState(
                 phase = PlaybackPhase.PREPARING,
                 track = track,
             )
+    }
+
+    override suspend fun reconcileAccount(account: ServerAccountIdentity?) {
+        reconciliations += account
+
+        if (
+            activeAccount != null &&
+            activeAccount != account
+        ) {
+            activeAccount = null
+            mutableState.value =
+                PlaybackState()
+        }
     }
 
     override fun pause() {
@@ -73,6 +94,7 @@ internal class FakePlaybackEngine : PlaybackEngine {
 
     override fun stop() {
         stopCalls += 1
+        activeAccount = null
 
         mutableState.value =
             mutableState.value.copy(
@@ -82,6 +104,8 @@ internal class FakePlaybackEngine : PlaybackEngine {
     }
 
     override fun release() {
+        activeAccount = null
+
         mutableState.value =
             PlaybackState()
     }

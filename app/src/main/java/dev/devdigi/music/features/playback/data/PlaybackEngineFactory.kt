@@ -21,3 +21,8 @@ fun createMedia3PlaybackEngine(
                 signer = signer,
             ),
     )
+
+fun createMedia3ControllerPlaybackEngine(context: Context): PlaybackEngine =
+    Media3ControllerPlaybackEngine(
+        context = context,
+    )

@@ -50,6 +50,9 @@ internal class Media3PlaybackEngine(
                 ),
             ).build()
 
+    private var activeAccount:
+        ServerAccountIdentity? = null
+
     private var released = false
 
     private val listener =
@@ -122,6 +125,7 @@ internal class Media3PlaybackEngine(
                     }
 
                     Player.STATE_ENDED -> {
+                        activeAccount = null
                         player.clearMediaItems()
 
                         update(
@@ -150,6 +154,8 @@ internal class Media3PlaybackEngine(
                     return
                 }
 
+                activeAccount = null
+
                 update(
                     PlaybackEvent.Failed(
                         playbackFailure(error),
@@ -174,6 +180,8 @@ internal class Media3PlaybackEngine(
         if (released) {
             return
         }
+
+        activeAccount = account
 
         update(
             PlaybackEvent.Preparing(track),
@@ -201,6 +209,8 @@ internal class Media3PlaybackEngine(
             StreamResolutionResult
                 .AuthenticationRequired,
             -> {
+                activeAccount = null
+
                 update(
                     PlaybackEvent.Failed(
                         PlaybackFailure
@@ -210,12 +220,23 @@ internal class Media3PlaybackEngine(
             }
 
             StreamResolutionResult.InvalidRequest -> {
+                activeAccount = null
+
                 update(
                     PlaybackEvent.Failed(
                         PlaybackFailure.UNKNOWN,
                     ),
                 )
             }
+        }
+    }
+
+    override suspend fun reconcileAccount(account: ServerAccountIdentity?) {
+        if (
+            activeAccount != null &&
+            activeAccount != account
+        ) {
+            stop()
         }
     }
 
@@ -247,6 +268,7 @@ internal class Media3PlaybackEngine(
 
         player.stop()
         player.clearMediaItems()
+        activeAccount = null
 
         update(
             PlaybackEvent.Stopped,
@@ -262,6 +284,7 @@ internal class Media3PlaybackEngine(
         player.clearMediaItems()
         player.release()
 
+        activeAccount = null
         released = true
 
         update(

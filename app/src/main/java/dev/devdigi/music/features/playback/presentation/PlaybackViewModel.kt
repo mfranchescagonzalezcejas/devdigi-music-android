@@ -35,6 +35,12 @@ class PlaybackViewModel(
     private var playJob:
         Job? = null
 
+    private var accountJob:
+        Job? = null
+
+    private var currentAccount:
+        ServerAccountIdentity? = null
+
     private var generation = 0L
 
     private var activeTarget:
@@ -47,6 +53,9 @@ class PlaybackViewModel(
         account: ServerAccountIdentity,
         track: PlaybackTrack,
     ) {
+        accountJob?.cancel()
+        currentAccount = account
+
         generation += 1
 
         val requestGeneration =
@@ -209,13 +218,80 @@ class PlaybackViewModel(
     }
 
     fun onAccountChanged(account: ServerAccountIdentity?) {
+        currentAccount = account
+
         val target =
             activeTarget
-                ?: return
 
-        if (target.account != account) {
-            clearPlayback()
+        val mayRestorePlayback =
+            target == null
+
+        if (
+            target != null &&
+            target.account != account
+        ) {
+            generation += 1
+            acceptedGeneration = null
+            activeTarget = null
+            playJob?.cancel()
+            state = PlaybackState()
         }
+
+        val engine =
+            if (account != null) {
+                engine()
+            } else {
+                ownedEngine
+                    ?: run {
+                        state = PlaybackState()
+                        return
+                    }
+            }
+
+        accountJob?.cancel()
+
+        accountJob =
+            coroutineScope.launch {
+                engine.reconcileAccount(account)
+
+                if (
+                    currentAccount != account
+                ) {
+                    return@launch
+                }
+
+                if (
+                    activeTarget != null ||
+                    !mayRestorePlayback
+                ) {
+                    return@launch
+                }
+
+                val candidate =
+                    engine.state.value
+
+                val track =
+                    candidate.track
+
+                if (
+                    account == null ||
+                    track == null
+                ) {
+                    state = PlaybackState()
+                    return@launch
+                }
+
+                activeTarget =
+                    PlaybackTarget(
+                        account = account,
+                        track = track,
+                    )
+
+                acceptedGeneration =
+                    generation
+
+                state = candidate
+            }
     }
 
     fun clearPlayback() {
@@ -226,6 +302,7 @@ class PlaybackViewModel(
 
         acceptedGeneration = null
         activeTarget = null
+        accountJob?.cancel()
 
         state = PlaybackState()
 
@@ -260,6 +337,7 @@ class PlaybackViewModel(
         activeTarget = null
 
         playJob?.cancel()
+        accountJob?.cancel()
         stateJob?.cancel()
 
         ownedEngine?.release()
