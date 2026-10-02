@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.datasource.okhttp)
+    implementation(libs.androidx.media3.session)
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver3)
     testImplementation(libs.androidx.datastore.preferences.core)
