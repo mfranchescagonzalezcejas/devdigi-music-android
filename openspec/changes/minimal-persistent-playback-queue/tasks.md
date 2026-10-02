@@ -40,7 +40,7 @@
       stream URL.
 - [x] 1.10 Run focused tests and full local quality gates.
 - [x] 1.11 Measure WU1B against the 1000 changed-line hard review budget.
-- [ ] 1.12 Bound required track id/title fields on save and restore in WU1C.
+- [x] 1.12 Bound required track id/title fields on save and restore in WU1C.
 
 ## WU2 — Service/session Media3 queue backend
 

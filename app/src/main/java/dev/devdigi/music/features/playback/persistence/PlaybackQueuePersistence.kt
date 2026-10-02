@@ -149,11 +149,19 @@ class DataStorePlaybackQueueStore(
         )
 
         queue.entries.forEach { track ->
-            require(track.id.isNotBlank()) {
-                "track id must not be blank"
+            require(
+                track.id.isValidRequiredField(
+                    MAX_TRACK_ID_CHARS,
+                ),
+            ) {
+                "track id is invalid"
             }
-            require(track.title.isNotBlank()) {
-                "track title must not be blank"
+            require(
+                track.title.isValidRequiredField(
+                    MAX_TRACK_TITLE_CHARS,
+                ),
+            ) {
+                "track title is invalid"
             }
         }
 
@@ -393,17 +401,21 @@ class DataStorePlaybackQueueStore(
             val id =
                 trackObject
                     .stringField("id")
-                    ?.takeIf(
-                        String::isNotBlank,
-                    )
+                    ?.takeIf {
+                        it.isValidRequiredField(
+                            MAX_TRACK_ID_CHARS,
+                        )
+                    }
                     ?: return null
 
             val title =
                 trackObject
                     .stringField("title")
-                    ?.takeIf(
-                        String::isNotBlank,
-                    )
+                    ?.takeIf {
+                        it.isValidRequiredField(
+                            MAX_TRACK_TITLE_CHARS,
+                        )
+                    }
                     ?: return null
 
             val artist =
@@ -451,6 +463,10 @@ class DataStorePlaybackQueueStore(
         }
     }
 
+    private fun String.isValidRequiredField(maxChars: Int): Boolean =
+        isNotBlank() &&
+            length <= maxChars
+
     private fun JsonObject.stringField(key: String): String? =
         (
             get(key)
@@ -476,6 +492,12 @@ class DataStorePlaybackQueueStore(
 
         const val MAX_JSON_NESTING_DEPTH =
             64
+
+        const val MAX_TRACK_ID_CHARS =
+            512
+
+        const val MAX_TRACK_TITLE_CHARS =
+            1_024
 
         private const val SCHEMA_VERSION =
             1
