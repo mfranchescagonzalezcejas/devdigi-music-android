@@ -42,17 +42,17 @@
 
 ## WU3 — Final validation
 
-- [ ] 3.1 Validate a selected synthetic or privacy-safe FLAC track reaches
+- [x] 3.1 Validate a selected synthetic or privacy-safe FLAC track reaches
       Media3 on a compatible Android target.
-- [ ] 3.2 Validate unsupported/terminal playback failure becomes recoverable
+- [x] 3.2 Validate unsupported/terminal playback failure becomes recoverable
       UI state and never remains falsely playing.
-- [ ] 3.3 Validate play, pause, resume and stop behavior.
-- [ ] 3.4 Validate sign-out/account switch stops and clears playback.
-- [ ] 3.5 Verify logs, UI state and artifacts contain no signed stream request
+- [x] 3.3 Validate play, pause, resume and stop behavior.
+- [x] 3.4 Validate sign-out/account switch stops and clears playback.
+- [x] 3.5 Verify logs, UI state and artifacts contain no signed stream request
       or account secrets.
 - [ ] 3.6 Run Spotless, unit tests, lint, assemble and applicable Jenkins
       checks.
-- [ ] 3.7 Record privacy-safe verification evidence.
-- [ ] 3.8 Refresh relevant architecture/README status without expanding #15 or
+- [x] 3.7 Record privacy-safe verification evidence.
+- [x] 3.8 Refresh relevant architecture/README status without expanding #15 or
       #7 scope.
 - [ ] 3.9 Complete #1 after the final merge.

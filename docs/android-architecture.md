@@ -1,6 +1,6 @@
 # DevDigi Music Android — Architecture
 
-Status: Proposed architecture baseline
+Status: Incremental implemented architecture baseline
 Scope: Native Android client
 Related issue: #18
 
@@ -49,9 +49,10 @@ Its existing connection package contains:
 - Authenticated server metadata and session state.
 - A server connection ViewModel and adaptive Compose screen.
 
-MainActivity currently composes the server connection screen and manually
-wires the server-profile repository, secure secret store, authentication
-signer/client and ViewModel factory.
+MainActivity is the explicit composition root. It manually wires the
+server-profile repository, secure secret store, authentication signer/client,
+library repositories and ViewModels, and the foreground playback engine
+factory.
 
 The connection package contains several architectural
 responsibilities together. It is not yet organized into
@@ -63,9 +64,10 @@ the existing connection source combines pure contracts with
 protocol parsing, while other files combine interfaces
 with Android-specific implementations.
 
-The authenticated OkHttp connection boundary and complete session UI are
-implemented. Music-library browsing and Media3 playback are not yet
-implemented.
+The authenticated OkHttp connection boundary, session UI, recent-album and
+album-details browsing, and foreground one-track Media3 playback are
+implemented. Background/system playback remains #15 scope, and queue behavior
+remains #7 scope.
 
 Existing connection contracts and tests must be preserved
 during architectural evolution.
@@ -98,14 +100,15 @@ app/src/main/java/dev/devdigi/music/
         screen/
         state/
 
-    library/                   # Future First Sound feature
+    library/
       domain/
       data/
       presentation/
 
-  playback/                    # Future Media3 integration
-    service/
-    controller/
+    playback/
+      domain/
+      data/
+      presentation/
 ```
 
 This tree is conceptual, not a claim that these directories
@@ -185,18 +188,19 @@ security and session behavior validated through #14 WU1-WU5.
 
 ## 7. Playback boundary
 
-Media3 is the planned playback engine.
+Foreground one-track Media3 playback is implemented under the playback
+feature. Presentation depends on domain playback contracts; the data layer
+owns authenticated stream resolution, redirect-disabled transport and the
+Media3 ExoPlayer adapter. MainActivity wires the concrete engine through the
+explicit composition root.
 
-The playback integration will manage Android-specific services,
-MediaSession integration and player lifecycle.
+Playback state contains only safe selected-track metadata and coarse outcomes.
+Account changes and sign-out clear current playback, and stale track/account
+events are rejected by the presentation controller.
 
-Queue rules, playback intentions and account ownership should
-remain separate from Android service implementation details.
-
-Playback must not silently mix state belonging to different
-server accounts.
-
-This boundary is planned and is not yet implemented.
+Android service/MediaSession/background playback remains explicitly deferred
+to #15. Queue behavior remains explicitly deferred to #7. Neither concern is
+part of the #1 foreground playback boundary.
 
 ## 8. Future provider boundaries
 
@@ -224,9 +228,12 @@ Presentation:
 - Compose UI tests when meaningful UI behavior exists.
 
 Playback:
-- Focused playback and queue tests when implemented.
-- Instrumented tests for Android-specific behavior where
-  JVM tests cannot provide sufficient evidence.
+- Pure JVM state-reducer, stream-resolution and presentation-controller tests.
+- Focused Media3 adapter tests where framework-independent behavior can be
+  isolated.
+- Real-device validation for Android codec/player behavior that JVM tests
+  cannot prove.
+- Instrumented CI remains tracked separately by #34.
 
 Do not add coverage thresholds without a meaningful baseline.
 
@@ -244,8 +251,9 @@ Architecture changes must be incremental and reviewable.
    packages only in separate, test-backed refactors with demonstrated value.
 3. Add the First Sound library flow behind account-scoped domain and data
    boundaries without leaking transport details into presentation.
-4. Add Media3 playback and queue behavior while preserving account ownership
-   and keeping Android service concerns separate from domain rules.
+4. Extend foreground Media3 playback through #15 service/session behavior
+   and #7 queue behavior in their separate scopes while preserving account
+   ownership and domain boundaries.
 5. Introduce database or offline persistence structures only when their
    product milestones require them.
 6. Finalize external-provider contracts only after #53, #54 and #55 provide
@@ -270,8 +278,8 @@ Each substantial change should:
 - Remain reviewable and independently reversible.
 - Document important architectural tradeoffs.
 
-The normal changed-line review budget is 400 lines.
-A cohesive exception requires an explicit rationale.
+The normal hard changed-line review budget is 1000 lines.
+Larger changes require an explicit rationale and split after measurement.
 
 ## 12. Deferred decisions
 

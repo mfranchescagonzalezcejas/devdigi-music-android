@@ -6,16 +6,19 @@ user-provided Navidrome/OpenSubsonic servers.
 The current app implements server URL validation and persistence,
 secure interactive Navidrome authentication, authenticated OpenSubsonic
 connection verification, encrypted credential storage, session restoration,
-sign-out, authenticated server metadata, recent-album browsing, and album
-details with ordered tracks. Media3 playback remains First Sound work.
+sign-out, authenticated server metadata, recent-album browsing, album details
+with ordered tracks, and foreground one-track Media3 playback with responsive
+playback controls. Background/system playback remains tracked by #15, and
+queue behavior by #7.
 
 ## First Sound
 
-The planned first vertical slice lets each person bring their own
+The First Sound vertical slice lets each person bring their own
 Navidrome/OpenSubsonic server (BYON), authenticate safely, browse recent
-albums and tracks, and play FLAC through Media3 with Android system playback
-integration. The app must not hardcode a server or assume a Tailnet, LAN, or
-other deployment topology.
+albums and tracks, and play FLAC through foreground Media3 playback. Android
+background/system playback integration remains tracked by #15, while queue
+behavior remains tracked by #7. The app must not hardcode a server or assume
+a Tailnet, LAN, or other deployment topology.
 
 ## Product roadmap
 
@@ -87,8 +90,8 @@ server:
 This integration environment uses only committed synthetic FLAC fixtures, a
 temporary loopback-only Navidrome server and a freshly generated synthetic
 password. It does not require a personal server URL, account or media library.
-Manual validation against a real user-provided Navidrome instance remains
-tracked separately by #17.
+Focused real-device playback validation for #1 records only privacy-safe
+pass/fail evidence. Broader real-instance validation remains tracked by #17.
 
 ## Optional local hooks (Lefthook)
 
