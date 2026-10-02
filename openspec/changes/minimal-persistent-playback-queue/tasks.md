@@ -17,12 +17,20 @@
 - [x] 0.12 Use the 1000 changed-line hard review gate for every implementation
       WU.
 
-## WU1 — Pure queue domain and persistence
+## WU1A — Pure queue domain
 
-- [ ] 1.1 Add RED tests for queue invariants and replacement.
-- [ ] 1.2 Add RED tests for append and non-wrapping navigation.
-- [ ] 1.3 Add RED tests for removal and clear.
-- [ ] 1.4 Implement pure Kotlin queue behavior.
+- [x] 1.1 Add RED tests for queue invariants and replacement.
+- [x] 1.2 Add RED tests for append and non-wrapping navigation.
+- [x] 1.3 Add RED tests for removal and clear.
+- [x] 1.4 Implement pure Kotlin queue behavior.
+- [x] 1.5A Run focused queue/domain tests and full local quality gates.
+- [x] 1.6A Measure WU1A against the 1000 changed-line hard review budget.
+- [x] 1.7A Split persistence into WU1B because the 582-line domain candidate
+      leaves insufficient review budget for a properly tested DataStore
+      boundary.
+
+## WU1B — Account-scoped queue persistence
+
 - [ ] 1.5 Add account-fingerprint tests.
 - [ ] 1.6 Add dedicated queue persistence contract and DataStore adapter.
 - [ ] 1.7 Persist only schema, fingerprint, current index and safe track
@@ -31,7 +39,7 @@
 - [ ] 1.9 Verify persistence contains no raw identity, auth material or signed
       stream URL.
 - [ ] 1.10 Run focused tests and full local quality gates.
-- [ ] 1.11 Measure WU1 against the 1000 changed-line hard review budget.
+- [ ] 1.11 Measure WU1B against the 1000 changed-line hard review budget.
 
 ## WU2 — Service/session Media3 queue backend
 
