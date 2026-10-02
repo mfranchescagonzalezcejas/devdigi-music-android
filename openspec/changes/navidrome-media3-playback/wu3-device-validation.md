@@ -35,3 +35,15 @@ This validates the foreground one-track playback scope of issue #1.
 Background playback, Android MediaSession/service integration and system playback controls remain #15 scope. Queue behavior remains #7 scope. Instrumented CI remains #34 scope.
 
 No personal server URL, username, password, token, salt, device serial or track title is included in this evidence.
+
+## Closeout
+
+- The WU3 pull request passed both required Jenkins checks before merge:
+  branch verification and pull-request merge verification.
+- The validated WU3 change was merged into `develop` with a merge commit.
+- All WU0-WU3 implementation and validation tasks for issue #1 are complete.
+- The issue #1 definition of done is satisfied for foreground one-track
+  Navidrome/OpenSubsonic playback through Media3.
+- Background playback and MediaSession/service integration remain #15 scope.
+- Queue behavior remains #7 scope.
+- Instrumented Android CI remains #34 scope.
