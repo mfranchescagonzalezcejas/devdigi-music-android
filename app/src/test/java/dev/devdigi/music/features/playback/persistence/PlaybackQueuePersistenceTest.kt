@@ -293,6 +293,138 @@ class PlaybackQueuePersistenceTest {
         }
 
     @Test
+    fun oversizedRequiredTrackFieldsAreRejectedOnSave() =
+        runBlocking {
+            val store =
+                DataStorePlaybackQueueStore(
+                    dataStore(),
+                )
+
+            val oversizedId =
+                first.copy(
+                    id =
+                        "x".repeat(
+                            DataStorePlaybackQueueStore.MAX_TRACK_ID_CHARS + 1,
+                        ),
+                )
+
+            val oversizedTitle =
+                first.copy(
+                    title =
+                        "x".repeat(
+                            DataStorePlaybackQueueStore.MAX_TRACK_TITLE_CHARS + 1,
+                        ),
+                )
+
+            listOf(
+                oversizedId,
+                oversizedTitle,
+            ).forEach { track ->
+                val queue =
+                    PlaybackQueue
+                        .empty()
+                        .replace(
+                            entries = listOf(track),
+                            selectedIndex = 0,
+                        )
+
+                try {
+                    store.save(
+                        account = accountA,
+                        queue = queue,
+                    )
+
+                    fail(
+                        "expected oversized required field rejection",
+                    )
+                } catch (_: IllegalArgumentException) {
+                }
+            }
+        }
+
+    @Test
+    fun oversizedRequiredTrackFieldsFailClosedOnRestore() =
+        runBlocking {
+            val dataStore = dataStore()
+            val store =
+                DataStorePlaybackQueueStore(
+                    dataStore,
+                )
+
+            val fingerprint =
+                QueueAccountFingerprint
+                    .forIdentity(accountA)
+
+            val oversizedId =
+                "x".repeat(
+                    DataStorePlaybackQueueStore.MAX_TRACK_ID_CHARS + 1,
+                )
+
+            dataStore.edit {
+                it[SNAPSHOT_KEY] =
+                    """{"schema":1,"accountFingerprint":"$fingerprint","currentIndex":0,"entries":[{"id":"$oversizedId","title":"Synthetic One","artist":null}]}"""
+            }
+
+            assertNull(
+                store.read(accountA),
+            )
+
+            val oversizedTitle =
+                "x".repeat(
+                    DataStorePlaybackQueueStore.MAX_TRACK_TITLE_CHARS + 1,
+                )
+
+            dataStore.edit {
+                it[SNAPSHOT_KEY] =
+                    """{"schema":1,"accountFingerprint":"$fingerprint","currentIndex":0,"entries":[{"id":"opaque-track-1","title":"$oversizedTitle","artist":null}]}"""
+            }
+
+            assertNull(
+                store.read(accountA),
+            )
+        }
+
+    @Test
+    fun maximumRequiredTrackFieldLengthsRoundTrip() =
+        runBlocking {
+            val store =
+                DataStorePlaybackQueueStore(
+                    dataStore(),
+                )
+
+            val track =
+                PlaybackTrack(
+                    id =
+                        "i".repeat(
+                            DataStorePlaybackQueueStore.MAX_TRACK_ID_CHARS,
+                        ),
+                    title =
+                        "t".repeat(
+                            DataStorePlaybackQueueStore.MAX_TRACK_TITLE_CHARS,
+                        ),
+                    artist = null,
+                )
+
+            val queue =
+                PlaybackQueue
+                    .empty()
+                    .replace(
+                        entries = listOf(track),
+                        selectedIndex = 0,
+                    )
+
+            store.save(
+                account = accountA,
+                queue = queue,
+            )
+
+            assertEquals(
+                queue,
+                store.read(accountA),
+            )
+        }
+
+    @Test
     fun excessivelyNestedSnapshotFailsClosedBeforeJsonParsing() =
         runBlocking {
             val dataStore = dataStore()
