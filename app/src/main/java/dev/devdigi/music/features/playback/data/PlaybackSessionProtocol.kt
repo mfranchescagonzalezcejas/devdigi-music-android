@@ -12,6 +12,26 @@ internal data class PlaybackSessionPlayRequest(
     val track: PlaybackTrack,
 )
 
+internal data class PlaybackSessionReplaceQueueRequest(
+    val account: ServerAccountIdentity,
+    val entries: List<PlaybackTrack>,
+    val selectedIndex: Int,
+)
+
+internal data class PlaybackSessionAppendQueueRequest(
+    val account: ServerAccountIdentity,
+    val entries: List<PlaybackTrack>,
+)
+
+internal data class PlaybackSessionRemoveQueueEntryRequest(
+    val account: ServerAccountIdentity,
+    val index: Int,
+)
+
+internal data class PlaybackSessionClearQueueRequest(
+    val account: ServerAccountIdentity,
+)
+
 internal sealed interface PlaybackSessionReconcileRequest {
     data class Account(
         val account: ServerAccountIdentity,
@@ -33,6 +53,18 @@ internal object PlaybackSessionProtocol {
 
     const val ACTION_STOP =
         "${ACTION_PREFIX}STOP"
+
+    const val ACTION_REPLACE_QUEUE =
+        "${ACTION_PREFIX}REPLACE_QUEUE"
+
+    const val ACTION_APPEND_QUEUE =
+        "${ACTION_PREFIX}APPEND_QUEUE"
+
+    const val ACTION_REMOVE_QUEUE_ENTRY =
+        "${ACTION_PREFIX}REMOVE_QUEUE_ENTRY"
+
+    const val ACTION_CLEAR_QUEUE =
+        "${ACTION_PREFIX}CLEAR_QUEUE"
 
     private const val KEY_HAS_ACCOUNT =
         "has_account"
@@ -67,6 +99,30 @@ internal object PlaybackSessionProtocol {
     val stopCommand =
         SessionCommand(
             ACTION_STOP,
+            Bundle.EMPTY,
+        )
+
+    val replaceQueueCommand =
+        SessionCommand(
+            ACTION_REPLACE_QUEUE,
+            Bundle.EMPTY,
+        )
+
+    val appendQueueCommand =
+        SessionCommand(
+            ACTION_APPEND_QUEUE,
+            Bundle.EMPTY,
+        )
+
+    val removeQueueEntryCommand =
+        SessionCommand(
+            ACTION_REMOVE_QUEUE_ENTRY,
+            Bundle.EMPTY,
+        )
+
+    val clearQueueCommand =
+        SessionCommand(
+            ACTION_CLEAR_QUEUE,
             Bundle.EMPTY,
         )
 

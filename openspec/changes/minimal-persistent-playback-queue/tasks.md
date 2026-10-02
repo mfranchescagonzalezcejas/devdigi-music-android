@@ -42,21 +42,41 @@
 - [x] 1.11 Measure WU1B against the 1000 changed-line hard review budget.
 - [x] 1.12 Bound required track id/title fields on save and restore in WU1C.
 
-## WU2 — Service/session Media3 queue backend
+## WU2A — Queue session foundation
 
-- [ ] 2.1 Add RED tests for queue-session authorization and account ownership.
-- [ ] 2.2 Add own-app replace/append/remove/clear session commands.
-- [ ] 2.3 Make `PlaybackService` own the runtime domain queue.
-- [ ] 2.4 Translate queue entries to service-local Media3 items with transient
-      signed stream URIs.
-- [ ] 2.5 Preserve safe public Media3 metadata.
-- [ ] 2.6 Enable trusted next/previous without MediaItem injection rights.
-- [ ] 2.7 Synchronize Media3 transitions to current index and durable state.
-- [ ] 2.8 Restore matching persisted queue without autoplay.
-- [ ] 2.9 Clear runtime queue on sign-out/account mismatch.
-- [ ] 2.10 Preserve recoverable failure and service lifecycle behavior.
-- [ ] 2.11 Run focused tests and full local quality gates.
-- [ ] 2.12 Measure WU2 against the 1000 changed-line hard review budget.
+- [x] 2.1 Add RED tests for queue-session authorization and account ownership.
+- [x] 2.2A Add account-bound replace/append/remove/clear request models and
+      stable private session command definitions without exposing unhandled
+      mutations.
+- [x] 2.3A Add pure account-ownership policy for queue mutation.
+- [x] 2.4A Grant own-app/trusted next/previous while continuing to block
+      MediaItem set/change injection.
+- [x] 2.5A Run focused tests and full local quality gates.
+- [x] 2.6A Measure WU2A against the 1000 changed-line hard review budget.
+- [x] 2.7A Split remaining service backend into WU2B runtime queue/Media3 sync
+      and WU2C restore/reconcile/lifecycle before implementation.
+
+## WU2B — Service runtime queue and Media3 synchronization
+
+- [ ] 2.1B Parse and handle own-app replace/append/remove/clear commands.
+- [ ] 2.2B Make `PlaybackService` own the runtime domain queue.
+- [ ] 2.3B Translate queue entries to service-local Media3 items using fresh
+      transient signed stream URIs.
+- [ ] 2.4B Preserve safe public Media3 metadata.
+- [ ] 2.5B Synchronize Media3 transitions to current index and durable state.
+- [ ] 2.6B Run focused tests and full local quality gates.
+- [ ] 2.7B Measure WU2B against the 1000 changed-line hard review budget.
+
+## WU2C — Restoration, reconciliation and lifecycle
+
+- [ ] 2.1C Restore a matching persisted queue without autoplay.
+- [ ] 2.2C Clear runtime queue ownership on sign-out or account mismatch.
+- [ ] 2.3C Preserve recoverable failure and service lifecycle behavior.
+- [ ] 2.4C Verify own-app/trusted next/previous operate on the runtime queue
+      without MediaItem injection rights.
+- [ ] 2.5C Add focused restore, account-isolation, transition and error tests.
+- [ ] 2.6C Run focused tests and full local quality gates.
+- [ ] 2.7C Measure WU2C against the 1000 changed-line hard review budget.
 
 ## WU3 — Controller, ViewModel and album-selection wiring
 
