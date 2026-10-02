@@ -18,9 +18,9 @@
       dependencies.
 - [x] 1.2 Add RED framework-independent playback state/contract tests.
 - [x] 1.3 Define safe selected-track and playback-state models.
-- [ ] 1.4 Add RED exact-account stream-resolution tests.
-- [ ] 1.5 Implement secure credential lookup and fresh stream signing.
-- [ ] 1.6 Keep resolved stream requests internal and redacted.
+- [x] 1.4 Add RED exact-account stream-resolution tests.
+- [x] 1.5 Implement secure credential lookup and fresh stream signing.
+- [x] 1.6 Keep resolved stream requests internal and redacted.
 - [ ] 1.7 Configure Media3 data loading through redirect-disabled OkHttp.
 - [ ] 1.8 Implement one-track ExoPlayer play/pause/resume/stop/release.
 - [ ] 1.9 Map Media3 callbacks and terminal errors to safe playback outcomes.
