@@ -30,9 +30,9 @@
 
 ## WU2 — Presentation and wiring
 
-- [ ] 2.1 Add RED playback ViewModel/state transition tests with a fake engine.
-- [ ] 2.2 Add account-aware playback ViewModel/controller behavior.
-- [ ] 2.3 Reject stale playback events after track or account changes.
+- [x] 2.1 Add RED playback ViewModel/state transition tests with a fake engine.
+- [x] 2.2 Add account-aware playback ViewModel/controller behavior.
+- [x] 2.3 Reject stale playback events after track or account changes.
 - [ ] 2.4 Wire album track selection into one-track playback.
 - [ ] 2.5 Add play, pause/resume and stop controls with safe error/retry UI.
 - [ ] 2.6 Stop and clear playback on sign-out/account change.
