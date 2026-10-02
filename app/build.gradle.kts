@@ -50,6 +50,8 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.datasource.okhttp)
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver3)
     testImplementation(libs.androidx.datastore.preferences.core)

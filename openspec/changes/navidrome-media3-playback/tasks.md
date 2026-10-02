@@ -14,10 +14,10 @@
 
 ## WU1 — Playback core
 
-- [ ] 1.1 Add the minimum pinned Media3 ExoPlayer and OkHttp data-source
+- [x] 1.1 Add the minimum pinned Media3 ExoPlayer and OkHttp data-source
       dependencies.
-- [ ] 1.2 Add RED framework-independent playback state/contract tests.
-- [ ] 1.3 Define safe selected-track and playback-state models.
+- [x] 1.2 Add RED framework-independent playback state/contract tests.
+- [x] 1.3 Define safe selected-track and playback-state models.
 - [ ] 1.4 Add RED exact-account stream-resolution tests.
 - [ ] 1.5 Implement secure credential lookup and fresh stream signing.
 - [ ] 1.6 Keep resolved stream requests internal and redacted.
