@@ -31,6 +31,9 @@ import dev.devdigi.music.features.library.presentation.LibraryDestination
 import dev.devdigi.music.features.library.presentation.RecentAlbumsScreen
 import dev.devdigi.music.features.library.presentation.RecentAlbumsViewModel
 import dev.devdigi.music.features.library.presentation.libraryDestination
+import dev.devdigi.music.features.playback.data.createMedia3PlaybackEngine
+import dev.devdigi.music.features.playback.domain.PlaybackTrack
+import dev.devdigi.music.features.playback.presentation.PlaybackViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,6 +120,23 @@ class MainActivity : ComponentActivity() {
                                     ),
                         )
 
+                    val playbackViewModel:
+                        PlaybackViewModel =
+                        viewModel(
+                            factory =
+                                PlaybackViewModel
+                                    .factory {
+                                        createMedia3PlaybackEngine(
+                                            context =
+                                            applicationContext,
+                                            secretStore =
+                                            secretStore,
+                                            signer =
+                                            authSigner,
+                                        )
+                                    },
+                        )
+
                     val connectionState =
                         connectionViewModel.state
 
@@ -131,14 +151,23 @@ class MainActivity : ComponentActivity() {
                             mutableStateOf<String?>(null)
                         }
 
-                    var selectedTrackId by
-                        rememberSaveable(
-                            connectionState.sessionStatus,
-                            identity,
-                            selectedAlbumId,
-                        ) {
-                            mutableStateOf<String?>(null)
-                        }
+                    LaunchedEffect(
+                        connectionState.sessionStatus,
+                        identity,
+                    ) {
+                        playbackViewModel
+                            .onAccountChanged(
+                                if (
+                                    connectionState
+                                        .sessionStatus ==
+                                    SessionStatus.AUTHENTICATED
+                                ) {
+                                    identity
+                                } else {
+                                    null
+                                },
+                            )
+                    }
 
                     LaunchedEffect(
                         connectionState.sessionStatus,
@@ -208,8 +237,12 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onRetry =
                                         recentAlbumsViewModel::retry,
-                                    onSignOut =
-                                        connectionViewModel::signOut,
+                                    onSignOut = {
+                                        playbackViewModel
+                                            .clearPlayback()
+                                        connectionViewModel
+                                            .signOut()
+                                    },
                                 )
                             }
 
@@ -220,20 +253,45 @@ class MainActivity : ComponentActivity() {
                                     state =
                                         albumDetailsViewModel
                                             .state,
-                                    selectedTrackId =
-                                    selectedTrackId,
-                                    onTrackSelected = {
-                                        selectedTrackId =
-                                            it
+                                    playbackState =
+                                        playbackViewModel
+                                            .state,
+                                    onTrackSelected = { track ->
+                                        playbackViewModel
+                                            .play(
+                                                account =
+                                                identity,
+                                                track =
+                                                    PlaybackTrack(
+                                                        id =
+                                                            track.id,
+                                                        title =
+                                                            track.title,
+                                                        artist =
+                                                            track.artist,
+                                                    ),
+                                            )
                                     },
+                                    onPausePlayback =
+                                        playbackViewModel::pause,
+                                    onResumePlayback =
+                                        playbackViewModel::resume,
+                                    onStopPlayback =
+                                        playbackViewModel::stop,
+                                    onRetryPlayback =
+                                        playbackViewModel::retry,
                                     onBack = {
                                         selectedAlbumId =
                                             null
                                     },
                                     onRetry =
                                         albumDetailsViewModel::retry,
-                                    onSignOut =
-                                        connectionViewModel::signOut,
+                                    onSignOut = {
+                                        playbackViewModel
+                                            .clearPlayback()
+                                        connectionViewModel
+                                            .signOut()
+                                    },
                                 )
                             }
                         }

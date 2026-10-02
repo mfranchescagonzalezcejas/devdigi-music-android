@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.devdigi.music.features.library.domain.AlbumDetails
 import dev.devdigi.music.features.library.domain.AlbumTrack
+import dev.devdigi.music.features.playback.domain.PlaybackState
+import dev.devdigi.music.features.playback.presentation.PlaybackControls
 
 internal data class AlbumDetailsLayoutSpec(
     val horizontalPadding: Dp,
@@ -73,8 +75,12 @@ internal fun albumDetailsLayoutSpec(availableWidth: Dp): AlbumDetailsLayoutSpec 
 @Composable
 fun AlbumDetailsScreen(
     state: AlbumDetailsUiState,
-    selectedTrackId: String?,
-    onTrackSelected: (String) -> Unit,
+    playbackState: PlaybackState,
+    onTrackSelected: (AlbumTrack) -> Unit,
+    onPausePlayback: () -> Unit,
+    onResumePlayback: () -> Unit,
+    onStopPlayback: () -> Unit,
+    onRetryPlayback: () -> Unit,
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
@@ -114,10 +120,18 @@ fun AlbumDetailsScreen(
                 AlbumDetailsShellContent(
                     state = state,
                     layout = layout,
-                    selectedTrackId =
-                    selectedTrackId,
+                    playbackState =
+                    playbackState,
                     onTrackSelected =
                     onTrackSelected,
+                    onPausePlayback =
+                    onPausePlayback,
+                    onResumePlayback =
+                    onResumePlayback,
+                    onStopPlayback =
+                    onStopPlayback,
+                    onRetryPlayback =
+                    onRetryPlayback,
                     onRetry = onRetry,
                     onSignOut = onSignOut,
                 )
@@ -173,8 +187,12 @@ private fun AlbumDetailsHeader(onBack: () -> Unit) {
 private fun AlbumDetailsShellContent(
     state: AlbumDetailsUiState,
     layout: AlbumDetailsLayoutSpec,
-    selectedTrackId: String?,
-    onTrackSelected: (String) -> Unit,
+    playbackState: PlaybackState,
+    onTrackSelected: (AlbumTrack) -> Unit,
+    onPausePlayback: () -> Unit,
+    onResumePlayback: () -> Unit,
+    onStopPlayback: () -> Unit,
+    onRetryPlayback: () -> Unit,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -224,10 +242,18 @@ private fun AlbumDetailsShellContent(
             AlbumDetailsOverview(
                 album = state.album,
                 layout = layout,
-                selectedTrackId =
-                selectedTrackId,
+                playbackState =
+                playbackState,
                 onTrackSelected =
                 onTrackSelected,
+                onPausePlayback =
+                onPausePlayback,
+                onResumePlayback =
+                onResumePlayback,
+                onStopPlayback =
+                onStopPlayback,
+                onRetryPlayback =
+                onRetryPlayback,
             )
         }
 
@@ -235,10 +261,18 @@ private fun AlbumDetailsShellContent(
             AlbumDetailsOverview(
                 album = state.album,
                 layout = layout,
-                selectedTrackId =
-                selectedTrackId,
+                playbackState =
+                playbackState,
                 onTrackSelected =
                 onTrackSelected,
+                onPausePlayback =
+                onPausePlayback,
+                onResumePlayback =
+                onResumePlayback,
+                onStopPlayback =
+                onStopPlayback,
+                onRetryPlayback =
+                onRetryPlayback,
                 emptyMessage =
                     "This album has no tracks.",
             )
@@ -250,8 +284,12 @@ private fun AlbumDetailsShellContent(
 private fun AlbumDetailsOverview(
     album: AlbumDetails,
     layout: AlbumDetailsLayoutSpec,
-    selectedTrackId: String?,
-    onTrackSelected: (String) -> Unit,
+    playbackState: PlaybackState,
+    onTrackSelected: (AlbumTrack) -> Unit,
+    onPausePlayback: () -> Unit,
+    onResumePlayback: () -> Unit,
+    onStopPlayback: () -> Unit,
+    onRetryPlayback: () -> Unit,
     emptyMessage: String? = null,
 ) {
     LazyColumn(
@@ -268,6 +306,18 @@ private fun AlbumDetailsOverview(
                 album = album,
                 layout = layout,
             )
+        }
+
+        if (playbackState.track != null) {
+            item {
+                PlaybackControls(
+                    state = playbackState,
+                    onPause = onPausePlayback,
+                    onResume = onResumePlayback,
+                    onStop = onStopPlayback,
+                    onRetry = onRetryPlayback,
+                )
+            }
         }
 
         item {
@@ -304,7 +354,7 @@ private fun AlbumDetailsOverview(
                     position = index,
                     selected =
                         track.id ==
-                            selectedTrackId,
+                            playbackState.track?.id,
                     onSelected =
                     onTrackSelected,
                 )
@@ -365,7 +415,7 @@ private fun AlbumTrackRow(
     albumArtist: String?,
     position: Int,
     selected: Boolean,
-    onSelected: (String) -> Unit,
+    onSelected: (AlbumTrack) -> Unit,
 ) {
     Surface(
         modifier =
@@ -376,7 +426,7 @@ private fun AlbumTrackRow(
                         selected
                 },
         onClick = {
-            onSelected(track.id)
+            onSelected(track)
         },
         shape =
             RoundedCornerShape(14.dp),
