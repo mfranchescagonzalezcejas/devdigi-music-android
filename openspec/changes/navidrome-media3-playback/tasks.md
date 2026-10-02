@@ -22,8 +22,8 @@
 - [x] 1.5 Implement secure credential lookup and fresh stream signing.
 - [x] 1.6 Keep resolved stream requests internal and redacted.
 - [x] 1.7 Configure Media3 data loading through redirect-disabled OkHttp.
-- [ ] 1.8 Implement one-track ExoPlayer play/pause/resume/stop/release.
-- [ ] 1.9 Map Media3 callbacks and terminal errors to safe playback outcomes.
+- [x] 1.8 Implement one-track ExoPlayer play/pause/resume/stop/release.
+- [x] 1.9 Map Media3 callbacks and terminal errors to safe playback outcomes.
 - [ ] 1.10 Run focused and complete JVM/build quality gates.
 - [ ] 1.11 Measure the whole WU1 candidate and split only if the hard review
       budget requires it.

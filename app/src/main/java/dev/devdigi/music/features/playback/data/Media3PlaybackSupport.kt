@@ -6,7 +6,7 @@ import androidx.media3.datasource.HttpDataSource
 import dev.devdigi.music.features.playback.domain.PlaybackFailure
 
 @UnstableApi
-private fun playbackFailure(error: PlaybackException): PlaybackFailure {
+internal fun playbackFailure(error: PlaybackException): PlaybackFailure {
     val responseCode =
         findHttpResponseCode(error)
 
