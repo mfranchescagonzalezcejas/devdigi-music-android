@@ -33,12 +33,12 @@
 - [x] 2.1 Add RED playback ViewModel/state transition tests with a fake engine.
 - [x] 2.2 Add account-aware playback ViewModel/controller behavior.
 - [x] 2.3 Reject stale playback events after track or account changes.
-- [ ] 2.4 Wire album track selection into one-track playback.
-- [ ] 2.5 Add play, pause/resume and stop controls with safe error/retry UI.
-- [ ] 2.6 Stop and clear playback on sign-out/account change.
-- [ ] 2.7 Preserve responsive width-based Compose behavior.
-- [ ] 2.8 Verify normal Activity/Compose lifecycle does not duplicate players.
-- [ ] 2.9 Run full local quality gates and hard review-budget check.
+- [x] 2.4 Wire album track selection into one-track playback.
+- [x] 2.5 Add play, pause/resume and stop controls with safe error/retry UI.
+- [x] 2.6 Stop and clear playback on sign-out/account change.
+- [x] 2.7 Preserve responsive width-based Compose behavior.
+- [x] 2.8 Verify normal Activity/Compose lifecycle does not duplicate players.
+- [x] 2.9 Run full local quality gates and hard review-budget check.
 
 ## WU3 — Final validation
 
