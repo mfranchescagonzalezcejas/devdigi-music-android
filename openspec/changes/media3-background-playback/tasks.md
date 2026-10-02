@@ -18,32 +18,43 @@
 - [x] 0.12 Define large cohesive WUs with the 1000 changed-line hard review
       budget as the split gate.
 
-## WU1 — Service-backed playback vertical slice
+## WU1A — Service/session backend
 
-- [ ] 1.1 Add the Media3 session dependency matching the existing pin.
-- [ ] 1.2 Add RED tests for new framework-independent authorization,
-      reconciliation and playback-state behavior.
-- [ ] 1.3 Extract only the construction seams needed for service-owned
-      authenticated playback.
-- [ ] 1.4 Create one service-owned ExoPlayer.
-- [ ] 1.5 Create one MediaLibrarySession around that same player.
-- [ ] 1.6 Implement per-controller command grants: own-app-only authenticated
+- [x] 1A.1 Add the Media3 session dependency matching the existing pin.
+- [x] 1A.2 Add RED tests for own-app controller authorization and
+      account-reconciliation cleanup policy.
+- [x] 1A.3 Create one service-owned ExoPlayer.
+- [x] 1A.4 Create one MediaLibrarySession around that same player.
+- [x] 1A.5 Implement per-controller command grants: own-app-only authenticated
       commands, supported notification/system transport controls, and no
       external media-item mutation.
-- [ ] 1.7 Preserve exact-account secret lookup, fresh signing and
-      redirect-disabled media transfer.
-- [ ] 1.8 Publish only safe title/artist/opaque-id Media3 metadata.
-- [ ] 1.9 Add the controller-backed application PlaybackEngine/client.
-- [ ] 1.10 Reconnect/reconstruct safe active playback state when the UI returns.
-- [ ] 1.11 Reconcile sign-out/account changes with service-owned playback.
-- [ ] 1.12 Wire MainActivity to the controller client instead of constructing a
-      foreground ExoPlayer.
-- [ ] 1.13 Add required foreground-service permissions, exported media-service
+- [x] 1A.6 Preserve exact-account secret lookup, fresh signing and
+      redirect-disabled media transfer inside the service.
+- [x] 1A.7 Publish only safe title/artist/opaque-id Media3 metadata.
+- [x] 1A.8 Clear the sensitive local media item on stop, terminal failure and
+      account mismatch.
+- [x] 1A.9 Add foreground-service permissions, exported media-service
       declaration and Media3/platform service actions.
-- [ ] 1.14 Verify stop/error/account cleanup clears sensitive local media items.
-- [ ] 1.15 Run focused tests plus full local quality gates.
-- [ ] 1.16 Measure the complete WU1 candidate and split only if the 1000-line
-      hard review budget is exceeded.
+- [x] 1A.10 Run focused tests, Spotless, full JVM tests, lint and assemble.
+- [x] 1A.11 Split the measured 1552-line WU1 candidate at the service/client
+      boundary because it exceeded the 1000 changed-line hard review budget.
+
+## WU1B — Controller/UI migration and reconnect
+
+- [ ] 1B.1 Add the controller-backed PlaybackEngine client.
+- [ ] 1B.2 Extend the PlaybackEngine account-reconciliation contract without
+      transferring service-owned player lifetime to the ViewModel.
+- [ ] 1B.3 Reconnect and reconstruct safe active playback state when the UI
+      returns with the matching authenticated account.
+- [ ] 1B.4 Reconcile sign-out and account changes with service-owned playback.
+- [ ] 1B.5 Wire MainActivity to the controller client instead of constructing a
+      foreground ExoPlayer.
+- [ ] 1B.6 Preserve stale-event rejection and safe retry/play/pause/stop
+      presentation behavior.
+- [ ] 1B.7 Add focused ViewModel/controller reconciliation coverage.
+- [ ] 1B.8 Run focused tests plus full local quality gates.
+- [ ] 1B.9 Measure the complete WU1B candidate against the 1000 changed-line
+      hard review budget.
 
 ## WU2 — Android validation and closeout
 
