@@ -50,9 +50,9 @@
 - [x] 3.4 Validate sign-out/account switch stops and clears playback.
 - [x] 3.5 Verify logs, UI state and artifacts contain no signed stream request
       or account secrets.
-- [ ] 3.6 Run Spotless, unit tests, lint, assemble and applicable Jenkins
+- [x] 3.6 Run Spotless, unit tests, lint, assemble and applicable Jenkins
       checks.
 - [x] 3.7 Record privacy-safe verification evidence.
 - [x] 3.8 Refresh relevant architecture/README status without expanding #15 or
       #7 scope.
-- [ ] 3.9 Complete #1 after the final merge.
+- [x] 3.9 Complete #1 after the final merge.
