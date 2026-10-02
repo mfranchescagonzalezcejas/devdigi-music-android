@@ -31,13 +31,17 @@ The current Android application provides:
 - Interactive sign-in and explicit sign-out.
 - Validated session restoration after a fresh authenticated server check.
 - Authenticated server metadata and account identity.
+- Authenticated recent-album and album-details browsing.
+- Service-backed Media3 playback with application and Android system controls.
 - Unit and integration-focused tests for the connection and security code.
 
 A real Navidrome validation under #14 also proved fail-closed restoration
 during an outage, recovery without password re-entry, sign-out persistence
 across a cold process restart, and rejection of invalid credentials.
 
-Music browsing and Media3 playback are not yet implemented.
+Real-device playback validation under #15 proved background continuity,
+system-control integration, account reconciliation and playback-surface
+privacy without publishing private server or account data.
 
 Saving a server URL persists the server profile but does not by itself
 establish an authenticated session.
@@ -51,8 +55,8 @@ The intended setup flow is:
 3. Configure a suitable HTTPS endpoint.
 4. Enter the server URL in DevDigi Music.
 5. Authenticate with the Navidrome account through the connection screen.
-6. Browse and play the authorized library once the remaining First Sound
-   library and playback features are implemented.
+6. Browse and play the authorized library through the implemented native
+   library and Media3 playback flow.
 
 A documentation-only example endpoint is:
 
@@ -190,20 +194,37 @@ of the completed #14 authentication work.
 
 ## 9. Android playback architecture
 
-The planned native playback engine is Media3.
+Native playback uses Media3.
 
-MediaSession and MediaLibraryService will provide
-the Android system playback integration.
+A `MediaLibraryService` owns the active ExoPlayer and
+`MediaLibrarySession`. The application UI controls that service through a
+Media3 `MediaController`.
 
-Playback infrastructure must remain separate from
-queue-domain rules and account-ownership policies.
+Authenticated stream resolution remains inside the service boundary. Signed
+OpenSubsonic stream URLs are used only as player-local configuration and are
+not published as Media3 metadata.
 
-The queue must preserve the identity of its owner.
-Changing accounts must not expose another account's
-playback state.
+Now-playing system metadata is limited to the opaque track id, title and
+optional artist. Server endpoints, account identity, credentials, salts,
+tokens and signed stream URLs must not be exposed through notification,
+lock-screen or system media surfaces.
 
-See `android-architecture.md` for the architectural
-responsibilities and migration policy.
+Own-application account-bearing session commands are restricted to the
+application identity. System media controllers receive supported transport
+controls without authority to inject authenticated media items.
+
+Sign-out and account changes reconcile service-owned playback before
+credential/session ownership changes can expose stale playback state.
+
+Real-device validation under #15 confirmed background playback, application
+reconnection, notification and lock-screen controls, standard media-button
+dispatch, Activity recreation, account switching and playback-surface
+privacy.
+
+Queue-domain behavior remains separate #7 scope.
+
+See `android-architecture.md` for the architectural responsibilities and
+migration policy.
 
 ## 10. Public repository privacy
 
@@ -249,8 +270,9 @@ Android SDK 36 support is part of the current build baseline and has been
 validated by the required Jenkins pipeline.
 
 The reproducible synthetic Navidrome integration environment tracked by #35
-remains separate future work. It complements, but does not replace, the
-completed real-account validation recorded under #14 WU5.
+complements, but does not replace, real-account validation. Authentication
+validation is recorded under #14 WU5, while privacy-safe real-device
+background/system playback validation is recorded under #15.
 
 ## 12. Related documentation
 
