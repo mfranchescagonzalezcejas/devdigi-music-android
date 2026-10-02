@@ -162,7 +162,7 @@ class PlaybackViewModelCoreTest {
         }
 
     @Test
-    fun accountChangeClearsUiAndStopsOwnedPlayback() =
+    fun accountChangeClearsUiAndReconcilesServicePlayback() =
         runTest {
             val fake = FakePlaybackEngine()
             val viewModel =
@@ -193,10 +193,19 @@ class PlaybackViewModelCoreTest {
             testScheduler.runCurrent()
 
             viewModel.onAccountChanged(bob)
+            testScheduler.runCurrent()
 
             assertEquals(
                 PlaybackState(),
                 viewModel.state,
+            )
+            assertEquals(
+                listOf(bob),
+                fake.reconciliations,
+            )
+            assertEquals(
+                0,
+                fake.stopCalls,
             )
 
             fake.emit(
@@ -212,11 +221,6 @@ class PlaybackViewModelCoreTest {
                 PlaybackState(),
                 viewModel.state,
             )
-            assertEquals(
-                1,
-                fake.stopCalls,
-            )
-
             viewModel.play(
                 bob,
                 selected,
@@ -229,6 +233,51 @@ class PlaybackViewModelCoreTest {
                     selected,
                 ),
                 fake.plays.last(),
+            )
+        }
+
+    @Test
+    fun matchingAccountReconnectAdoptsSafeServicePlaybackState() =
+        runTest {
+            val fake =
+                FakePlaybackEngine()
+            val alice =
+                playbackVmAccount("alice")
+            val selected =
+                playbackVmTrack("track-1")
+
+            fake.play(
+                alice,
+                selected,
+            )
+            fake.emit(
+                PlaybackState(
+                    phase =
+                        PlaybackPhase.PLAYING,
+                    track = selected,
+                ),
+            )
+
+            val viewModel =
+                playbackVm(
+                    fake,
+                    backgroundScope,
+                )
+
+            viewModel.onAccountChanged(alice)
+            testScheduler.runCurrent()
+
+            assertEquals(
+                listOf(alice),
+                fake.reconciliations,
+            )
+            assertEquals(
+                PlaybackPhase.PLAYING,
+                viewModel.state.phase,
+            )
+            assertEquals(
+                selected,
+                viewModel.state.track,
             )
         }
 }

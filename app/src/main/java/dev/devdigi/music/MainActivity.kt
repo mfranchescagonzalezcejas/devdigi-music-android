@@ -31,7 +31,7 @@ import dev.devdigi.music.features.library.presentation.LibraryDestination
 import dev.devdigi.music.features.library.presentation.RecentAlbumsScreen
 import dev.devdigi.music.features.library.presentation.RecentAlbumsViewModel
 import dev.devdigi.music.features.library.presentation.libraryDestination
-import dev.devdigi.music.features.playback.data.createMedia3PlaybackEngine
+import dev.devdigi.music.features.playback.data.createMedia3ControllerPlaybackEngine
 import dev.devdigi.music.features.playback.domain.PlaybackTrack
 import dev.devdigi.music.features.playback.presentation.PlaybackViewModel
 
@@ -126,13 +126,9 @@ class MainActivity : ComponentActivity() {
                             factory =
                                 PlaybackViewModel
                                     .factory {
-                                        createMedia3PlaybackEngine(
+                                        createMedia3ControllerPlaybackEngine(
                                             context =
                                             applicationContext,
-                                            secretStore =
-                                            secretStore,
-                                            signer =
-                                            authSigner,
                                         )
                                     },
                         )

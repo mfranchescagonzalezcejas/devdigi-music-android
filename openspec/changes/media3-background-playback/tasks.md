@@ -41,19 +41,19 @@
 
 ## WU1B — Controller/UI migration and reconnect
 
-- [ ] 1B.1 Add the controller-backed PlaybackEngine client.
-- [ ] 1B.2 Extend the PlaybackEngine account-reconciliation contract without
+- [x] 1B.1 Add the controller-backed PlaybackEngine client.
+- [x] 1B.2 Extend the PlaybackEngine account-reconciliation contract without
       transferring service-owned player lifetime to the ViewModel.
-- [ ] 1B.3 Reconnect and reconstruct safe active playback state when the UI
+- [x] 1B.3 Reconnect and reconstruct safe active playback state when the UI
       returns with the matching authenticated account.
-- [ ] 1B.4 Reconcile sign-out and account changes with service-owned playback.
-- [ ] 1B.5 Wire MainActivity to the controller client instead of constructing a
+- [x] 1B.4 Reconcile sign-out and account changes with service-owned playback.
+- [x] 1B.5 Wire MainActivity to the controller client instead of constructing a
       foreground ExoPlayer.
-- [ ] 1B.6 Preserve stale-event rejection and safe retry/play/pause/stop
+- [x] 1B.6 Preserve stale-event rejection and safe retry/play/pause/stop
       presentation behavior.
-- [ ] 1B.7 Add focused ViewModel/controller reconciliation coverage.
-- [ ] 1B.8 Run focused tests plus full local quality gates.
-- [ ] 1B.9 Measure the complete WU1B candidate against the 1000 changed-line
+- [x] 1B.7 Add focused ViewModel/controller reconciliation coverage.
+- [x] 1B.8 Run focused tests plus full local quality gates.
+- [x] 1B.9 Measure the complete WU1B candidate against the 1000 changed-line
       hard review budget.
 
 ## WU2 — Android validation and closeout

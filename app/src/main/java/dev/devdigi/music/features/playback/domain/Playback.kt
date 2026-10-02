@@ -106,6 +106,8 @@ interface PlaybackEngine {
         track: PlaybackTrack,
     )
 
+    suspend fun reconcileAccount(account: ServerAccountIdentity?)
+
     fun pause()
 
     fun resume()
