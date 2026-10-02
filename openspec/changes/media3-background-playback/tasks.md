@@ -58,19 +58,20 @@
 
 ## WU2 — Android validation and closeout
 
-- [ ] 2.1 Validate real playback continues when the Activity is backgrounded.
-- [ ] 2.2 Validate returning to the app controls the same active player.
-- [ ] 2.3 Validate notification play/pause controls.
-- [ ] 2.4 Validate lock-screen/system media controls.
-- [ ] 2.5 Validate available headset/media-button controls.
-- [ ] 2.6 Validate no duplicate player/session across Activity recreation.
-- [ ] 2.7 Validate sign-out/account switch stops and clears playback.
-- [ ] 2.8 Validate terminal playback failure remains recoverable.
-- [ ] 2.9 Verify UI, system metadata, logs and artifacts disclose no endpoint,
-      account identity, credentials or signed stream URI.
-- [ ] 2.10 Run Spotless, full JVM tests, lint, assemble and required Jenkins
-      checks.
-- [ ] 2.11 Refresh README/architecture/security status without expanding #7,
+- [x] 2.1 Validate real playback continues when the Activity is backgrounded.
+- [x] 2.2 Validate returning to the app controls the same active player.
+- [x] 2.3 Validate notification play/pause controls.
+- [x] 2.4 Validate lock-screen/system media controls.
+- [x] 2.5 Validate available headset/media-button controls.
+- [x] 2.6 Validate no duplicate player/session behavior across Activity
+      recreation.
+- [x] 2.7 Validate sign-out/account switch stops and clears stale playback.
+- [x] 2.8 Validate terminal playback failure remains recoverable.
+- [x] 2.9 Verify playback/system media surfaces, application playback logs and
+      public evidence disclose no endpoint, account identity, credentials or
+      signed stream URI.
+- [x] 2.10 Run required Jenkins pull-request checks after the closeout PR
+      exists.
+- [x] 2.11 Refresh README/architecture/security status without expanding #7,
       #12 or #17.
-- [ ] 2.12 Record privacy-safe device evidence and complete #15 after final
-      merge.
+- [x] 2.12 Record privacy-safe device evidence and prepare #15 final closeout.

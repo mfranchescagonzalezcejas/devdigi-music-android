@@ -51,8 +51,9 @@ Its existing connection package contains:
 
 MainActivity is the explicit composition root. It manually wires the
 server-profile repository, secure secret store, authentication signer/client,
-library repositories and ViewModels, and the foreground playback engine
-factory.
+library repositories and ViewModels, and the controller-backed playback
+engine factory. The MediaLibraryService owns the active ExoPlayer and
+MediaLibrarySession lifecycle.
 
 The connection package contains several architectural
 responsibilities together. It is not yet organized into
@@ -65,9 +66,10 @@ protocol parsing, while other files combine interfaces
 with Android-specific implementations.
 
 The authenticated OkHttp connection boundary, session UI, recent-album and
-album-details browsing, and foreground one-track Media3 playback are
-implemented. Background/system playback remains #15 scope, and queue behavior
-remains #7 scope.
+album-details browsing, and service-backed one-track Media3 playback are
+implemented. Playback continues through Activity backgrounding and recreation,
+while Android notification, lock-screen and system media controls operate the
+same service-owned player. Queue behavior remains #7 scope.
 
 Existing connection contracts and tests must be preserved
 during architectural evolution.
@@ -188,19 +190,37 @@ security and session behavior validated through #14 WU1-WU5.
 
 ## 7. Playback boundary
 
-Foreground one-track Media3 playback is implemented under the playback
-feature. Presentation depends on domain playback contracts; the data layer
-owns authenticated stream resolution, redirect-disabled transport and the
-Media3 ExoPlayer adapter. MainActivity wires the concrete engine through the
-explicit composition root.
+One-track Media3 playback is implemented under the playback feature.
 
-Playback state contains only safe selected-track metadata and coarse outcomes.
-Account changes and sign-out clear current playback, and stale track/account
-events are rejected by the presentation controller.
+Presentation depends on the domain `PlaybackEngine` contract. The application
+client uses a Media3 `MediaController`, while a `MediaLibraryService` owns the
+single active ExoPlayer and `MediaLibrarySession`.
 
-Android service/MediaSession/background playback remains explicitly deferred
-to #15. Queue behavior remains explicitly deferred to #7. Neither concern is
-part of the #1 foreground playback boundary.
+Authenticated stream resolution remains service-side. The playback service
+uses the exact active `ServerAccountIdentity`, fresh OpenSubsonic signing and
+redirect-disabled transport before assigning the resolved stream URI to the
+player.
+
+The signed stream URI remains player-local configuration. Public Media3
+metadata contains only the opaque track id, title and optional artist.
+
+Own-application authenticated commands require matching package identity and
+UID. Notification and trusted system controllers receive supported transport
+controls without permission to inject or replace authenticated media items.
+
+Activity recreation releases only the application controller. It does not
+release the service-owned player. Reconnection reconciles the active account
+and reconstructs only safe matching playback state.
+
+Account changes and sign-out clear service playback when ownership no longer
+matches. Presentation generation/target checks reject stale playback events.
+
+Real-device validation confirmed background playback, notification and
+lock-screen controls, media-button dispatch, Activity recreation, account
+switching, recoverable failure behavior and playback-surface privacy.
+
+Queue behavior remains explicitly deferred to #7. Navigation/mini-player
+behavior remains separate #12 scope.
 
 ## 8. Future provider boundaries
 
@@ -251,9 +271,8 @@ Architecture changes must be incremental and reviewable.
    packages only in separate, test-backed refactors with demonstrated value.
 3. Add the First Sound library flow behind account-scoped domain and data
    boundaries without leaking transport details into presentation.
-4. Extend foreground Media3 playback through #15 service/session behavior
-   and #7 queue behavior in their separate scopes while preserving account
-   ownership and domain boundaries.
+4. Extend the implemented service-backed Media3 playback through #7 queue
+   behavior while preserving account ownership and domain boundaries.
 5. Introduce database or offline persistence structures only when their
    product milestones require them.
 6. Finalize external-provider contracts only after #53, #54 and #55 provide
@@ -288,7 +307,7 @@ The following require separate decisions or implementation:
 - Physical multi-module architecture.
 - Dependency-injection framework adoption.
 - Database and offline persistence design.
-- Media3 service and queue implementation.
+- Queue-domain persistence and playback ordering behavior.
 - External music-provider integration.
 - Release automation and additional quality tooling.
 
