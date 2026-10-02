@@ -70,7 +70,7 @@
 - [x] 2.9 Verify playback/system media surfaces, application playback logs and
       public evidence disclose no endpoint, account identity, credentials or
       signed stream URI.
-- [ ] 2.10 Run required Jenkins pull-request checks after the closeout PR
+- [x] 2.10 Run required Jenkins pull-request checks after the closeout PR
       exists.
 - [x] 2.11 Refresh README/architecture/security status without expanding #7,
       #12 or #17.
