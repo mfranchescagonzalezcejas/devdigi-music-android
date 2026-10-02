@@ -24,8 +24,8 @@
 - [x] 1.7 Configure Media3 data loading through redirect-disabled OkHttp.
 - [x] 1.8 Implement one-track ExoPlayer play/pause/resume/stop/release.
 - [x] 1.9 Map Media3 callbacks and terminal errors to safe playback outcomes.
-- [ ] 1.10 Run focused and complete JVM/build quality gates.
-- [ ] 1.11 Measure the whole WU1 candidate and split only if the hard review
+- [x] 1.10 Run focused and complete JVM/build quality gates.
+- [x] 1.11 Measure the whole WU1 candidate and split only if the hard review
       budget requires it.
 
 ## WU2 — Presentation and wiring
