@@ -58,17 +58,17 @@
 
 ## WU4 — Android validation and closeout
 
-- [ ] 4.1 Validate Home, Library, Search and Discover navigation.
-- [ ] 4.2 Validate recent albums -> album details -> Back from Home and Library.
-- [ ] 4.3 Validate persistent mini-player across destinations.
-- [ ] 4.4 Validate Now Playing and playback controls.
-- [ ] 4.5 Validate Activity recreation and background/foreground continuity.
-- [ ] 4.6 Validate queue continuity and notification/lock-screen controls.
-- [ ] 4.7 Validate sign-out/account-switch isolation.
-- [ ] 4.8 Validate `This device` does not imply remote playback.
-- [ ] 4.9 Validate privacy using structurally scoped evidence.
-- [ ] 4.10 Record PASS / FAIL / BLOCKED without private deployment data.
-- [ ] 4.11 Run Spotless, full JVM tests, lint and assembleDebug.
+- [x] 4.1 Validate Home, Library, Search and Discover navigation.
+- [x] 4.2 Validate recent albums -> album details -> Back from Home and Library.
+- [x] 4.3 Validate persistent mini-player across destinations.
+- [x] 4.4 Validate Now Playing and playback controls.
+- [x] 4.5 Validate Activity recreation and background/foreground continuity.
+- [x] 4.6 Validate queue continuity and notification/lock-screen controls.
+- [x] 4.7 Validate sign-out/account-switch isolation.
+- [x] 4.8 Validate `This device` does not imply remote playback.
+- [x] 4.9 Validate privacy using structurally scoped evidence.
+- [x] 4.10 Record PASS / FAIL / BLOCKED without private deployment data.
+- [x] 4.11 Run Spotless, full JVM tests, lint and assembleDebug.
 - [ ] 4.12 Require the applicable Jenkins statuses for the exact PR head.
-- [ ] 4.13 Refresh architecture/product documentation after behavior exists.
+- [x] 4.13 Refresh architecture/product documentation after behavior exists.
 - [ ] 4.14 Close issue #12 only after final merged behavior is reconciled.

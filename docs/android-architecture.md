@@ -74,6 +74,15 @@ Playback continues through Activity backgrounding and recreation, while
 Android notification, lock-screen and system media controls operate the same
 service-owned player and queue.
 
+The First Sound presentation shell is implemented around those authorities.
+Home and Library reuse the authenticated recent-albums and album-details flow;
+Search and Discover remain explicit placeholders. Account-scoped navigation
+resets on exact server-plus-user identity changes. Active playback is exposed
+through one persistent mini-player and a secondary Now Playing surface using
+the existing playback state and commands. `This device` is informational
+only, and primary navigation adapts between a bottom bar and navigation rail
+from available Compose width.
+
 Existing connection contracts and tests must be preserved
 during architectural evolution.
 
@@ -222,8 +231,10 @@ Real-device validation confirmed background playback, notification and
 lock-screen controls, media-button dispatch, Activity recreation, account
 switching, recoverable failure behavior and playback-surface privacy.
 
-The minimal persistent queue is implemented under #7. Queue-editor,
-navigation and mini-player behavior remain separate #12 scope.
+The minimal persistent queue is implemented under #7. The implemented
+#12 First Sound shell consumes that same authority through its persistent
+mini-player and Now Playing surface without duplicating player or queue state.
+Queue editing remains deferred.
 
 ## 8. Future provider boundaries
 
@@ -310,7 +321,8 @@ The following require separate decisions or implementation:
 - Physical multi-module architecture.
 - Dependency-injection framework adoption.
 - Database and offline persistence design.
-- Queue-editor, mini-player and navigation UX tracked separately by #12.
+- Queue-editor and richer player/library UX beyond the implemented First
+  Sound navigation shell.
 - External music-provider integration.
 - Release automation and additional quality tooling.
 
