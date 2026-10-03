@@ -33,6 +33,8 @@ The current Android application provides:
 - Authenticated server metadata and account identity.
 - Authenticated recent-album and album-details browsing.
 - Service-backed Media3 playback with application and Android system controls.
+- An account-scoped persistent playback queue that restores matching safe state
+  without autoplay.
 - Unit and integration-focused tests for the connection and security code.
 
 A real Navidrome validation under #14 also proved fail-closed restoration
@@ -221,7 +223,12 @@ reconnection, notification and lock-screen controls, standard media-button
 dispatch, Activity recreation, account switching and playback-surface
 privacy.
 
-Queue-domain behavior remains separate #7 scope.
+The minimal persistent queue implemented under #7 stores only a versioned
+account fingerprint, current index and safe track metadata. Raw endpoint,
+username, credentials, authentication material and signed stream URLs are
+excluded from queue persistence and public playback/system surfaces.
+
+Queue-editor and mini-player/navigation behavior remain separate #12 scope.
 
 See `android-architecture.md` for the architectural responsibilities and
 migration policy.

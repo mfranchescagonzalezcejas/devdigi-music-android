@@ -7,18 +7,18 @@ The current app implements server URL validation and persistence,
 secure interactive Navidrome authentication, authenticated OpenSubsonic
 connection verification, encrypted credential storage, session restoration,
 sign-out, authenticated server metadata, recent-album browsing, album details
-with ordered tracks, and service-backed one-track Media3 playback with app,
-notification, lock-screen and system media controls. Queue behavior remains
-tracked separately by #7.
+with ordered tracks, and service-backed Media3 playback with a minimal
+account-scoped persistent queue, ordered album replacement, app/system
+next-previous controls and restoration without autoplay.
 
 ## First Sound
 
 The First Sound vertical slice lets each person bring their own
 Navidrome/OpenSubsonic server (BYON), authenticate safely, browse recent
 albums and tracks, and play FLAC through service-backed Media3 playback with
-Android system integration. Queue behavior remains tracked by #7. The app
-must not hardcode a server or assume a Tailnet, LAN, or other deployment
-topology.
+an account-scoped persistent queue and Android system integration. Queue-editor
+and mini-player/navigation work remain separate #12 scope. The app must not
+hardcode a server or assume a Tailnet, LAN, or other deployment topology.
 
 ## Product roadmap
 
