@@ -9,16 +9,23 @@ connection verification, encrypted credential storage, session restoration,
 sign-out, authenticated server metadata, recent-album browsing, album details
 with ordered tracks, and service-backed Media3 playback with a minimal
 account-scoped persistent queue, ordered album replacement, app/system
-next-previous controls and restoration without autoplay.
+next-previous controls and restoration without autoplay. The First Sound
+Compose shell provides Home and Library navigation, explicit Search and
+Discover placeholders, a persistent mini-player, a secondary Now Playing
+surface and a read-only local `This device` playback target.
 
 ## First Sound
 
 The First Sound vertical slice lets each person bring their own
 Navidrome/OpenSubsonic server (BYON), authenticate safely, browse recent
 albums and tracks, and play FLAC through service-backed Media3 playback with
-an account-scoped persistent queue and Android system integration. Queue-editor
-and mini-player/navigation work remain separate #12 scope. The app must not
-hardcode a server or assume a Tailnet, LAN, or other deployment topology.
+an account-scoped persistent queue and Android system integration. Its native
+shell exposes Home, Library, Search and Discover, keeps active playback
+reachable through a persistent mini-player and Now Playing, and adapts primary
+navigation to available Compose width. Search results, recommendations,
+queue editing and remote playback targets remain outside this slice. The app
+must not hardcode a server or assume a Tailnet, LAN, or other deployment
+topology.
 
 ## Product roadmap
 
