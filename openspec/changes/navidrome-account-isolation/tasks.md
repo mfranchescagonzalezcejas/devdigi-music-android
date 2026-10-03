@@ -19,20 +19,20 @@ WU0 MUST NOT modify production Kotlin.
 
 ## WU1 — identity, session, library and navigation isolation
 
-- [ ] Add explicit regression coverage for the same username on different
+- [x] Add explicit regression coverage for the same username on different
       servers.
-- [ ] Confirm same-server, different-user identities remain distinct.
-- [ ] Confirm stale authentication cannot publish another account identity.
-- [ ] Confirm stale recent-albums results cannot cross an account change.
-- [ ] Confirm stale album-details results cannot cross an account change.
-- [ ] Confirm sign-out clears account-bound library presentation state.
-- [ ] Confirm navigation resets on exact account change and sign-out.
-- [ ] Make only the smallest production changes required by failing tests.
-- [ ] Run `./gradlew spotlessCheck`.
-- [ ] Run `./gradlew testDebugUnitTest`.
-- [ ] Run `./gradlew lint`.
-- [ ] Run `./gradlew assembleDebug`.
-- [ ] Keep WU1 below 1000 changed lines.
+- [x] Confirm same-server, different-user identities remain distinct.
+- [x] Confirm stale authentication cannot publish another account identity.
+- [x] Confirm stale recent-albums results cannot cross an account change.
+- [x] Confirm stale album-details results cannot cross an account change.
+- [x] Confirm sign-out clears account-bound library presentation state.
+- [x] Confirm navigation resets on exact account change and sign-out.
+- [x] Make only the smallest production changes required by failing tests.
+- [x] Run `./gradlew spotlessCheck`.
+- [x] Run `./gradlew testDebugUnitTest`.
+- [x] Run `./gradlew lint`.
+- [x] Run `./gradlew assembleDebug`.
+- [x] Keep WU1 below 1000 changed lines.
 
 ## WU2 — playback and queue isolation
 
