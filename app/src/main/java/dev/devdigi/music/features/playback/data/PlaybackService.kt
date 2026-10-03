@@ -23,11 +23,17 @@ import dev.devdigi.music.connection.AuthSecretDataStoreFactory
 import dev.devdigi.music.connection.DataStoreAuthSecretStore
 import dev.devdigi.music.connection.DefaultSubsonicAuthSigner
 import dev.devdigi.music.connection.ServerAccountIdentity
+import dev.devdigi.music.features.playback.domain.PlaybackTrack
+import dev.devdigi.music.features.playback.persistence.PlaybackQueueStore
+import dev.devdigi.music.features.playback.persistence.playbackQueueStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @OptIn(UnstableApi::class)
 class PlaybackService : MediaLibraryService() {
@@ -46,8 +52,21 @@ class PlaybackService : MediaLibraryService() {
                 Dispatchers.Main.immediate,
         )
 
-    private var activeAccount:
-        ServerAccountIdentity? = null
+    private val queueRuntime =
+        PlaybackQueueRuntime()
+
+    private lateinit var queueStore:
+        PlaybackQueueStore
+
+    private val queuePersistenceMutex =
+        Mutex()
+
+    private var queuePersistenceGeneration =
+        0L
+
+    private val activeAccount:
+        ServerAccountIdentity?
+        get() = queueRuntime.activeAccount
 
     private var requestGeneration = 0L
 
@@ -66,7 +85,7 @@ class PlaybackService : MediaLibraryService() {
 
                 when (playbackState) {
                     Player.STATE_ENDED -> {
-                        invalidatePlayback()
+                        advanceQueueFromPlaybackEnd()
                     }
 
                     Player.STATE_IDLE -> {
@@ -177,6 +196,30 @@ class PlaybackService : MediaLibraryService() {
                         }
 
                         PlaybackSessionProtocol
+                            .ACTION_REPLACE_QUEUE,
+                        -> {
+                            handleReplaceQueue(args)
+                        }
+
+                        PlaybackSessionProtocol
+                            .ACTION_APPEND_QUEUE,
+                        -> {
+                            handleAppendQueue(args)
+                        }
+
+                        PlaybackSessionProtocol
+                            .ACTION_REMOVE_QUEUE_ENTRY,
+                        -> {
+                            handleRemoveQueueEntry(args)
+                        }
+
+                        PlaybackSessionProtocol
+                            .ACTION_CLEAR_QUEUE,
+                        -> {
+                            handleClearQueue(args)
+                        }
+
+                        PlaybackSessionProtocol
                             .ACTION_RECONCILE_ACCOUNT,
                         -> {
                             handleReconcile(args)
@@ -185,7 +228,7 @@ class PlaybackService : MediaLibraryService() {
                         PlaybackSessionProtocol
                             .ACTION_STOP,
                         -> {
-                            invalidatePlayback()
+                            stopPlaybackPreservingQueue()
                             SessionResult.RESULT_SUCCESS
                         }
 
@@ -220,6 +263,9 @@ class PlaybackService : MediaLibraryService() {
                     DefaultSubsonicAuthSigner(),
             )
 
+        queueStore =
+            playbackQueueStore(this)
+
         player =
             ExoPlayer
                 .Builder(this)
@@ -246,7 +292,7 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onDestroy() {
         requestGeneration += 1
-        activeAccount = null
+        queueRuntime.reset()
 
         serviceScope.cancel()
 
@@ -273,90 +319,186 @@ class PlaybackService : MediaLibraryService() {
                 ?: return SessionResult
                     .RESULT_ERROR_BAD_VALUE
 
-        requestGeneration += 1
+        return when (
+            queueRuntime.play(
+                request,
+            )
+        ) {
+            QueueRuntimeMutationResult.ACCEPTED -> {
+                persistQueueState(
+                    request.account,
+                )
+                loadCurrentQueueItem(
+                    autoplay = true,
+                )
+                SessionResult.RESULT_SUCCESS
+            }
 
-        val generation =
-            requestGeneration
+            QueueRuntimeMutationResult.ACCOUNT_MISMATCH -> {
+                SessionResult
+                    .RESULT_ERROR_PERMISSION_DENIED
+            }
 
-        clearPlayerItem()
-
-        activeAccount =
-            request.account
-
-        serviceScope.launch {
-            when (
-                val resolution =
-                    sourceResolver.resolve(
-                        account =
-                            request.account,
-                        trackId =
-                            request.track.id,
-                    )
-            ) {
-                is StreamResolutionResult.Success -> {
-                    if (
-                        generation !=
-                        requestGeneration ||
-                        activeAccount !=
-                        request.account
-                    ) {
-                        return@launch
-                    }
-
-                    player.setMediaItem(
-                        mediaItem(
-                            request =
-                            request,
-                            source =
-                                resolution.source,
-                        ),
-                    )
-
-                    player.prepare()
-                    player.play()
-                }
-
-                StreamResolutionResult
-                    .AuthenticationRequired,
-                -> {
-                    if (
-                        generation ==
-                        requestGeneration
-                    ) {
-                        activeAccount = null
-
-                        mediaLibrarySession.sendError(
-                            SessionError(
-                                SessionError
-                                    .ERROR_SESSION_AUTHENTICATION_EXPIRED,
-                                "Authentication required.",
-                            ),
-                        )
-                    }
-                }
-
-                StreamResolutionResult
-                    .InvalidRequest,
-                -> {
-                    if (
-                        generation ==
-                        requestGeneration
-                    ) {
-                        activeAccount = null
-
-                        mediaLibrarySession.sendError(
-                            SessionError(
-                                SessionError
-                                    .ERROR_UNKNOWN,
-                                "Playback request failed.",
-                            ),
-                        )
-                    }
-                }
+            QueueRuntimeMutationResult.INVALID_REQUEST -> {
+                SessionResult
+                    .RESULT_ERROR_BAD_VALUE
             }
         }
+    }
 
-        return SessionResult.RESULT_SUCCESS
+    private fun handleReplaceQueue(args: Bundle): Int {
+        val request =
+            parseReplaceQueueRequest(args)
+                ?: return SessionResult
+                    .RESULT_ERROR_BAD_VALUE
+
+        return when (
+            queueRuntime.replace(
+                request,
+            )
+        ) {
+            QueueRuntimeMutationResult.ACCEPTED -> {
+                persistQueueState(
+                    request.account,
+                )
+
+                // Queue replacement represents an explicit track
+                // selection. Resolve only the selected entry and
+                // start it immediately; queued successors remain
+                // unsigned until their transition.
+                loadCurrentQueueItem(
+                    autoplay = true,
+                )
+
+                SessionResult.RESULT_SUCCESS
+            }
+
+            QueueRuntimeMutationResult.ACCOUNT_MISMATCH -> {
+                SessionResult
+                    .RESULT_ERROR_PERMISSION_DENIED
+            }
+
+            QueueRuntimeMutationResult.INVALID_REQUEST -> {
+                SessionResult
+                    .RESULT_ERROR_BAD_VALUE
+            }
+        }
+    }
+
+    private fun handleAppendQueue(args: Bundle): Int {
+        val request =
+            parseAppendQueueRequest(args)
+                ?: return SessionResult
+                    .RESULT_ERROR_BAD_VALUE
+
+        return when (
+            queueRuntime.append(
+                request,
+            )
+        ) {
+            QueueRuntimeMutationResult.ACCEPTED -> {
+                persistQueueState(
+                    request.account,
+                )
+                SessionResult.RESULT_SUCCESS
+            }
+
+            QueueRuntimeMutationResult.ACCOUNT_MISMATCH -> {
+                SessionResult
+                    .RESULT_ERROR_PERMISSION_DENIED
+            }
+
+            QueueRuntimeMutationResult.INVALID_REQUEST -> {
+                SessionResult
+                    .RESULT_ERROR_BAD_VALUE
+            }
+        }
+    }
+
+    private fun handleRemoveQueueEntry(args: Bundle): Int {
+        val request =
+            parseRemoveQueueEntryRequest(args)
+                ?: return SessionResult
+                    .RESULT_ERROR_BAD_VALUE
+
+        val previousTrack =
+            queueRuntime.queue.current
+        val continuePlaying =
+            player.playWhenReady
+
+        return when (
+            queueRuntime.remove(
+                request,
+            )
+        ) {
+            QueueRuntimeMutationResult.ACCEPTED -> {
+                persistQueueState(
+                    request.account,
+                )
+
+                val currentTrack =
+                    queueRuntime.queue.current
+
+                when {
+                    currentTrack == null -> {
+                        requestGeneration += 1
+                        clearPlayerItem()
+                    }
+
+                    currentTrack !=
+                        previousTrack -> {
+                        loadCurrentQueueItem(
+                            autoplay =
+                            continuePlaying,
+                        )
+                    }
+                }
+
+                SessionResult.RESULT_SUCCESS
+            }
+
+            QueueRuntimeMutationResult.ACCOUNT_MISMATCH -> {
+                SessionResult
+                    .RESULT_ERROR_PERMISSION_DENIED
+            }
+
+            QueueRuntimeMutationResult.INVALID_REQUEST -> {
+                SessionResult
+                    .RESULT_ERROR_BAD_VALUE
+            }
+        }
+    }
+
+    private fun handleClearQueue(args: Bundle): Int {
+        val request =
+            parseClearQueueRequest(args)
+                ?: return SessionResult
+                    .RESULT_ERROR_BAD_VALUE
+
+        return when (
+            queueRuntime.clear(
+                request,
+            )
+        ) {
+            QueueRuntimeMutationResult.ACCEPTED -> {
+                requestGeneration += 1
+                clearPlayerItem()
+                persistQueueState(
+                    request.account,
+                )
+                SessionResult.RESULT_SUCCESS
+            }
+
+            QueueRuntimeMutationResult.ACCOUNT_MISMATCH -> {
+                SessionResult
+                    .RESULT_ERROR_PERMISSION_DENIED
+            }
+
+            QueueRuntimeMutationResult.INVALID_REQUEST -> {
+                SessionResult
+                    .RESULT_ERROR_BAD_VALUE
+            }
+        }
     }
 
     private fun handleReconcile(args: Bundle): Int {
@@ -391,9 +533,20 @@ class PlaybackService : MediaLibraryService() {
         return SessionResult.RESULT_SUCCESS
     }
 
+    private fun stopPlaybackPreservingQueue() {
+        requestGeneration += 1
+        internalClear = true
+
+        try {
+            player.stop()
+        } finally {
+            internalClear = false
+        }
+    }
+
     private fun invalidatePlayback() {
         requestGeneration += 1
-        activeAccount = null
+        queueRuntime.reset()
         clearPlayerItem()
     }
 
@@ -408,25 +561,192 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
+    private fun loadCurrentQueueItem(autoplay: Boolean) {
+        val account =
+            activeAccount
+                ?: return
+        val track =
+            queueRuntime.queue.current
+                ?: return
+
+        requestGeneration += 1
+
+        val generation =
+            requestGeneration
+
+        clearPlayerItem()
+
+        serviceScope.launch {
+            when (
+                val resolution =
+                    sourceResolver.resolve(
+                        account = account,
+                        trackId = track.id,
+                    )
+            ) {
+                is StreamResolutionResult.Success -> {
+                    if (
+                        generation !=
+                        requestGeneration ||
+                        activeAccount !=
+                        account ||
+                        queueRuntime.queue
+                            .current !=
+                        track
+                    ) {
+                        return@launch
+                    }
+
+                    player.setMediaItem(
+                        mediaItem(
+                            track = track,
+                            source =
+                                resolution.source,
+                        ),
+                    )
+
+                    player.prepare()
+
+                    if (autoplay) {
+                        player.play()
+                    }
+                }
+
+                StreamResolutionResult
+                    .AuthenticationRequired,
+                -> {
+                    if (
+                        generation ==
+                        requestGeneration
+                    ) {
+                        mediaLibrarySession.sendError(
+                            SessionError(
+                                SessionError
+                                    .ERROR_SESSION_AUTHENTICATION_EXPIRED,
+                                "Authentication required.",
+                            ),
+                        )
+                    }
+                }
+
+                StreamResolutionResult
+                    .InvalidRequest,
+                -> {
+                    if (
+                        generation ==
+                        requestGeneration
+                    ) {
+                        mediaLibrarySession.sendError(
+                            SessionError(
+                                SessionError
+                                    .ERROR_UNKNOWN,
+                                "Playback request failed.",
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun advanceQueueFromPlaybackEnd() {
+        navigateQueue(
+            forward = true,
+            autoplay = true,
+        )
+    }
+
+    private fun navigateQueue(
+        forward: Boolean,
+        autoplay: Boolean,
+    ): Boolean {
+        val account =
+            activeAccount
+                ?: return false
+
+        val changed =
+            if (forward) {
+                queueRuntime.next()
+            } else {
+                queueRuntime.previous()
+            }
+
+        if (!changed) {
+            return false
+        }
+
+        persistQueueState(
+            account,
+        )
+
+        loadCurrentQueueItem(
+            autoplay = autoplay,
+        )
+
+        return true
+    }
+
+    private fun persistQueueState(account: ServerAccountIdentity) {
+        queuePersistenceGeneration += 1
+
+        val generation =
+            queuePersistenceGeneration
+        val snapshot =
+            queueRuntime.queue
+
+        serviceScope.launch {
+            queuePersistenceMutex.withLock {
+                if (
+                    generation !=
+                    queuePersistenceGeneration
+                ) {
+                    return@withLock
+                }
+
+                try {
+                    if (snapshot.entries.isEmpty()) {
+                        queueStore.clear()
+                    } else {
+                        queueStore.save(
+                            account = account,
+                            queue = snapshot,
+                        )
+                    }
+                } catch (
+                    error: CancellationException,
+                ) {
+                    throw error
+                } catch (_: Exception) {
+                    mediaLibrarySession.sendError(
+                        SessionError(
+                            SessionError.ERROR_UNKNOWN,
+                            "Queue persistence failed.",
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
     private fun mediaItem(
-        request: PlaybackSessionPlayRequest,
+        track: PlaybackTrack,
         source: ResolvedStreamSource,
     ): MediaItem {
         val metadataBuilder =
             MediaMetadata
                 .Builder()
                 .setTitle(
-                    request.track.title,
+                    track.title,
                 )
 
-        request.track.artist?.let {
+        track.artist?.let {
             metadataBuilder.setArtist(it)
         }
 
         return MediaItem
             .Builder()
             .setMediaId(
-                request.track.id,
+                track.id,
             ).setUri(
                 source.url.toString(),
             ).setMediaMetadata(
@@ -448,6 +768,18 @@ class PlaybackService : MediaLibraryService() {
                 .add(
                     PlaybackSessionProtocol
                         .playTrackCommand,
+                ).add(
+                    PlaybackSessionProtocol
+                        .replaceQueueCommand,
+                ).add(
+                    PlaybackSessionProtocol
+                        .appendQueueCommand,
+                ).add(
+                    PlaybackSessionProtocol
+                        .removeQueueEntryCommand,
+                ).add(
+                    PlaybackSessionProtocol
+                        .clearQueueCommand,
                 ).add(
                     PlaybackSessionProtocol
                         .reconcileAccountCommand,
