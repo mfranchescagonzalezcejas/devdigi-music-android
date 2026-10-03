@@ -69,6 +69,6 @@
 - [x] 4.9 Validate privacy using structurally scoped evidence.
 - [x] 4.10 Record PASS / FAIL / BLOCKED without private deployment data.
 - [x] 4.11 Run Spotless, full JVM tests, lint and assembleDebug.
-- [ ] 4.12 Require the applicable Jenkins statuses for the exact PR head.
+- [x] 4.12 Require the applicable Jenkins statuses for the exact PR head.
 - [x] 4.13 Refresh architecture/product documentation after behavior exists.
-- [ ] 4.14 Close issue #12 only after final merged behavior is reconciled.
+- [x] 4.14 Close issue #12 only after final merged behavior is reconciled.
