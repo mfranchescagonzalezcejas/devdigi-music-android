@@ -58,14 +58,14 @@
 
 ## WU2B — Service runtime queue and Media3 synchronization
 
-- [ ] 2.1B Parse and handle own-app replace/append/remove/clear commands.
-- [ ] 2.2B Make `PlaybackService` own the runtime domain queue.
-- [ ] 2.3B Translate queue entries to service-local Media3 items using fresh
+- [x] 2.1B Parse and handle own-app replace/append/remove/clear commands.
+- [x] 2.2B Make `PlaybackService` own the runtime domain queue.
+- [x] 2.3B Translate queue entries to service-local Media3 items using fresh
       transient signed stream URIs.
-- [ ] 2.4B Preserve safe public Media3 metadata.
-- [ ] 2.5B Synchronize Media3 transitions to current index and durable state.
-- [ ] 2.6B Run focused tests and full local quality gates.
-- [ ] 2.7B Measure WU2B against the 1000 changed-line hard review budget.
+- [x] 2.4B Preserve safe public Media3 metadata.
+- [x] 2.5B Synchronize Media3 transitions to current index and durable state.
+- [x] 2.6B Run focused tests and full local quality gates.
+- [x] 2.7B Measure WU2B against the 1000 changed-line hard review budget.
 
 ## WU2C — Restoration, reconciliation and lifecycle
 
