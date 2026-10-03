@@ -14,12 +14,12 @@ import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import dev.devdigi.music.connection.ServerAccountIdentity
-import dev.devdigi.music.features.playback.domain.PlaybackEngine
 import dev.devdigi.music.features.playback.domain.PlaybackEvent
 import dev.devdigi.music.features.playback.domain.PlaybackFailure
 import dev.devdigi.music.features.playback.domain.PlaybackPhase
 import dev.devdigi.music.features.playback.domain.PlaybackState
 import dev.devdigi.music.features.playback.domain.PlaybackTrack
+import dev.devdigi.music.features.playback.domain.QueuePlaybackEngine
 import dev.devdigi.music.features.playback.domain.reducePlaybackState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +31,7 @@ import java.util.concurrent.Executor
 @OptIn(UnstableApi::class)
 internal class Media3ControllerPlaybackEngine(
     context: Context,
-) : PlaybackEngine {
+) : QueuePlaybackEngine {
     private val applicationContext =
         context.applicationContext
 
@@ -214,6 +214,89 @@ internal class Media3ControllerPlaybackEngine(
         }
     }
 
+    override suspend fun replaceQueue(
+        account: ServerAccountIdentity,
+        entries: List<PlaybackTrack>,
+        selectedIndex: Int,
+    ) {
+        if (released) {
+            return
+        }
+
+        val selected =
+            entries.getOrNull(
+                selectedIndex,
+            )
+                ?: return
+
+        val safeEntries =
+            entries.toList()
+
+        exposeControllerState = false
+
+        mutableState.value =
+            PlaybackState(
+                phase =
+                    PlaybackPhase.PREPARING,
+                track = selected,
+            )
+
+        val connected =
+            runCatching {
+                connectedController()
+            }.getOrElse {
+                exposeControllerState = true
+
+                update(
+                    PlaybackEvent.Failed(
+                        PlaybackFailure.UNKNOWN,
+                    ),
+                )
+                return
+            }
+
+        val result =
+            runCatching {
+                connected
+                    .sendCustomCommand(
+                        PlaybackSessionProtocol
+                            .replaceQueueCommand,
+                        replaceQueueArgs(
+                            PlaybackSessionReplaceQueueRequest(
+                                account = account,
+                                entries = safeEntries,
+                                selectedIndex =
+                                selectedIndex,
+                            ),
+                        ),
+                    ).awaitValue()
+            }.getOrElse {
+                exposeControllerState = true
+
+                update(
+                    PlaybackEvent.Failed(
+                        PlaybackFailure.UNKNOWN,
+                    ),
+                )
+                return
+            }
+
+        exposeControllerState = true
+
+        if (
+            result.resultCode !=
+            SessionResult.RESULT_SUCCESS
+        ) {
+            update(
+                PlaybackEvent.Failed(
+                    resultFailure(
+                        result.resultCode,
+                    ),
+                ),
+            )
+        }
+    }
+
     override suspend fun reconcileAccount(account: ServerAccountIdentity?) {
         if (released) {
             return
@@ -267,6 +350,24 @@ internal class Media3ControllerPlaybackEngine(
         syncFromController(
             clearWhenEmpty = true,
         )
+    }
+
+    override fun previous() {
+        if (released) {
+            return
+        }
+
+        controller
+            ?.seekToPreviousMediaItem()
+    }
+
+    override fun next() {
+        if (released) {
+            return
+        }
+
+        controller
+            ?.seekToNextMediaItem()
     }
 
     override fun pause() {

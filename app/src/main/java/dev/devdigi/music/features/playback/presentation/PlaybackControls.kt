@@ -137,6 +137,8 @@ internal fun playbackFailureLabel(failure: PlaybackFailure): String =
 @Composable
 internal fun PlaybackControls(
     state: PlaybackState,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
@@ -238,6 +240,8 @@ internal fun PlaybackControls(
                     ) {
                         PlaybackActionButtons(
                             policy = policy,
+                            onPrevious = onPrevious,
+                            onNext = onNext,
                             onPause = onPause,
                             onResume = onResume,
                             onStop = onStop,
@@ -256,6 +260,8 @@ internal fun PlaybackControls(
                     ) {
                         PlaybackActionButtons(
                             policy = policy,
+                            onPrevious = onPrevious,
+                            onNext = onNext,
                             onPause = onPause,
                             onResume = onResume,
                             onStop = onStop,
@@ -272,6 +278,8 @@ internal fun PlaybackControls(
 @Composable
 private fun PlaybackActionButtons(
     policy: PlaybackControlPolicy,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
@@ -284,6 +292,20 @@ private fun PlaybackActionButtons(
         } else {
             Modifier
         }
+
+    OutlinedButton(
+        onClick = onPrevious,
+        modifier = modifier,
+    ) {
+        Text("Previous")
+    }
+
+    OutlinedButton(
+        onClick = onNext,
+        modifier = modifier,
+    ) {
+        Text("Next")
+    }
 
     if (policy.pause) {
         Button(

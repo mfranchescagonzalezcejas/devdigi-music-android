@@ -3,10 +3,10 @@ package dev.devdigi.music.features.playback.presentation
 import dev.devdigi.music.connection.EndpointParseResult
 import dev.devdigi.music.connection.ServerAccountIdentity
 import dev.devdigi.music.connection.ServerEndpoint
-import dev.devdigi.music.features.playback.domain.PlaybackEngine
 import dev.devdigi.music.features.playback.domain.PlaybackPhase
 import dev.devdigi.music.features.playback.domain.PlaybackState
 import dev.devdigi.music.features.playback.domain.PlaybackTrack
+import dev.devdigi.music.features.playback.domain.QueuePlaybackEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +17,13 @@ internal data class PlaybackVmTestRequest(
     val track: PlaybackTrack,
 )
 
-internal class FakePlaybackEngine : PlaybackEngine {
+internal data class PlaybackVmQueueRequest(
+    val account: ServerAccountIdentity,
+    val entries: List<PlaybackTrack>,
+    val selectedIndex: Int,
+)
+
+internal class FakePlaybackEngine : QueuePlaybackEngine {
     private val mutableState =
         MutableStateFlow(
             PlaybackState(),
@@ -32,6 +38,12 @@ internal class FakePlaybackEngine : PlaybackEngine {
 
     val reconciliations =
         mutableListOf<ServerAccountIdentity?>()
+
+    val queueReplacements =
+        mutableListOf<PlaybackVmQueueRequest>()
+
+    var previousCalls = 0
+    var nextCalls = 0
 
     private var activeAccount:
         ServerAccountIdentity? = null
@@ -59,6 +71,36 @@ internal class FakePlaybackEngine : PlaybackEngine {
             )
     }
 
+    override suspend fun replaceQueue(
+        account: ServerAccountIdentity,
+        entries: List<PlaybackTrack>,
+        selectedIndex: Int,
+    ) {
+        val selected =
+            entries.getOrNull(
+                selectedIndex,
+            )
+                ?: return
+
+        queueReplacements +=
+            PlaybackVmQueueRequest(
+                account = account,
+                entries = entries.toList(),
+                selectedIndex =
+                selectedIndex,
+            )
+
+        activeAccount =
+            account
+
+        mutableState.value =
+            PlaybackState(
+                phase =
+                    PlaybackPhase.PREPARING,
+                track = selected,
+            )
+    }
+
     override suspend fun reconcileAccount(account: ServerAccountIdentity?) {
         reconciliations += account
 
@@ -70,6 +112,14 @@ internal class FakePlaybackEngine : PlaybackEngine {
             mutableState.value =
                 PlaybackState()
         }
+    }
+
+    override fun previous() {
+        previousCalls += 1
+    }
+
+    override fun next() {
+        nextCalls += 1
     }
 
     override fun pause() {

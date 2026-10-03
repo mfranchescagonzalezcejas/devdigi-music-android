@@ -7,10 +7,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.devdigi.music.connection.ServerAccountIdentity
-import dev.devdigi.music.features.playback.domain.PlaybackEngine
 import dev.devdigi.music.features.playback.domain.PlaybackPhase
 import dev.devdigi.music.features.playback.domain.PlaybackState
 import dev.devdigi.music.features.playback.domain.PlaybackTrack
+import dev.devdigi.music.features.playback.domain.QueuePlaybackEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class PlaybackViewModel(
-    private val engineFactory: () -> PlaybackEngine,
+    private val engineFactory: () -> QueuePlaybackEngine,
     private val scope: CoroutineScope? = null,
 ) : ViewModel() {
     var state by mutableStateOf(
@@ -27,7 +27,7 @@ class PlaybackViewModel(
         private set
 
     private var ownedEngine:
-        PlaybackEngine? = null
+        QueuePlaybackEngine? = null
 
     private var stateJob:
         Job? = null
@@ -41,6 +41,9 @@ class PlaybackViewModel(
     private var currentAccount:
         ServerAccountIdentity? = null
 
+    private var restoreAdoptionAccount:
+        ServerAccountIdentity? = null
+
     private var generation = 0L
 
     private var activeTarget:
@@ -49,12 +52,17 @@ class PlaybackViewModel(
     private var acceptedGeneration:
         Long? = null
 
+    private var serviceTransitionsUnlocked =
+        false
+
     fun play(
         account: ServerAccountIdentity,
         track: PlaybackTrack,
     ) {
         accountJob?.cancel()
         currentAccount = account
+        restoreAdoptionAccount = null
+        serviceTransitionsUnlocked = false
 
         generation += 1
 
@@ -123,6 +131,96 @@ class PlaybackViewModel(
             }
     }
 
+    fun playQueue(
+        account: ServerAccountIdentity,
+        entries: List<PlaybackTrack>,
+        selectedIndex: Int,
+    ) {
+        val selected =
+            entries.getOrNull(
+                selectedIndex,
+            )
+                ?: return
+
+        val requestEntries =
+            entries.toList()
+
+        accountJob?.cancel()
+        currentAccount = account
+        restoreAdoptionAccount = null
+        serviceTransitionsUnlocked = false
+
+        generation += 1
+
+        val requestGeneration =
+            generation
+
+        val target =
+            PlaybackTarget(
+                account = account,
+                track = selected,
+                allowServiceTransitions =
+                true,
+            )
+
+        activeTarget = target
+        acceptedGeneration = null
+
+        state =
+            PlaybackState(
+                phase =
+                    PlaybackPhase.PREPARING,
+                track = selected,
+            )
+
+        val engine =
+            engine()
+
+        val previous =
+            playJob
+
+        playJob =
+            coroutineScope.launch {
+                previous?.cancelAndJoin()
+
+                if (
+                    !isCurrent(
+                        requestGeneration,
+                        target,
+                    )
+                ) {
+                    return@launch
+                }
+
+                engine.replaceQueue(
+                    account = account,
+                    entries = requestEntries,
+                    selectedIndex =
+                    selectedIndex,
+                )
+
+                if (
+                    !isCurrent(
+                        requestGeneration,
+                        target,
+                    )
+                ) {
+                    return@launch
+                }
+
+                acceptedGeneration =
+                    requestGeneration
+
+                publish(
+                    candidate =
+                        engine.state.value,
+                    requestGeneration =
+                    requestGeneration,
+                    target = target,
+                )
+            }
+    }
+
     fun retry() {
         activeTarget?.let { target ->
             play(
@@ -130,6 +228,44 @@ class PlaybackViewModel(
                 track = target.track,
             )
         }
+    }
+
+    fun previous() {
+        if (
+            acceptedGeneration == null ||
+            state.track == null
+        ) {
+            return
+        }
+
+        activeTarget
+            ?.takeIf {
+                it.allowServiceTransitions
+            }?.let {
+                serviceTransitionsUnlocked =
+                    true
+            }
+
+        ownedEngine?.previous()
+    }
+
+    fun next() {
+        if (
+            acceptedGeneration == null ||
+            state.track == null
+        ) {
+            return
+        }
+
+        activeTarget
+            ?.takeIf {
+                it.allowServiceTransitions
+            }?.let {
+                serviceTransitionsUnlocked =
+                    true
+            }
+
+        ownedEngine?.next()
     }
 
     fun pause() {
@@ -165,6 +301,8 @@ class PlaybackViewModel(
             generation
 
         acceptedGeneration = null
+        restoreAdoptionAccount = null
+        serviceTransitionsUnlocked = false
 
         state =
             PlaybackState(
@@ -219,6 +357,7 @@ class PlaybackViewModel(
 
     fun onAccountChanged(account: ServerAccountIdentity?) {
         currentAccount = account
+        restoreAdoptionAccount = null
 
         val target =
             activeTarget
@@ -233,6 +372,7 @@ class PlaybackViewModel(
             generation += 1
             acceptedGeneration = null
             activeTarget = null
+            serviceTransitionsUnlocked = false
             playJob?.cancel()
             state = PlaybackState()
         }
@@ -243,7 +383,8 @@ class PlaybackViewModel(
             } else {
                 ownedEngine
                     ?: run {
-                        state = PlaybackState()
+                        state =
+                            PlaybackState()
                         return
                     }
             }
@@ -252,10 +393,13 @@ class PlaybackViewModel(
 
         accountJob =
             coroutineScope.launch {
-                engine.reconcileAccount(account)
+                engine.reconcileAccount(
+                    account,
+                )
 
                 if (
-                    currentAccount != account
+                    currentAccount !=
+                    account
                 ) {
                     return@launch
                 }
@@ -267,30 +411,30 @@ class PlaybackViewModel(
                     return@launch
                 }
 
-                val candidate =
-                    engine.state.value
-
-                val track =
-                    candidate.track
-
-                if (
-                    account == null ||
-                    track == null
-                ) {
-                    state = PlaybackState()
+                if (account == null) {
+                    state =
+                        PlaybackState()
                     return@launch
                 }
 
-                activeTarget =
-                    PlaybackTarget(
+                restoreAdoptionAccount =
+                    account
+
+                val immediate =
+                    engine.state.value
+
+                if (
+                    immediate.track != null
+                ) {
+                    adoptRestoredState(
                         account = account,
-                        track = track,
+                        candidate = immediate,
+                        allowPlaying = true,
                     )
-
-                acceptedGeneration =
-                    generation
-
-                state = candidate
+                } else {
+                    restoreAdoptionAccount =
+                        account
+                }
             }
     }
 
@@ -302,9 +446,12 @@ class PlaybackViewModel(
 
         acceptedGeneration = null
         activeTarget = null
+        restoreAdoptionAccount = null
+        serviceTransitionsUnlocked = false
         accountJob?.cancel()
 
-        state = PlaybackState()
+        state =
+            PlaybackState()
 
         val engine =
             ownedEngine
@@ -327,7 +474,8 @@ class PlaybackViewModel(
 
                 engine.stop()
 
-                state = PlaybackState()
+                state =
+                    PlaybackState()
             }
     }
 
@@ -335,6 +483,8 @@ class PlaybackViewModel(
         generation += 1
         acceptedGeneration = null
         activeTarget = null
+        restoreAdoptionAccount = null
+        serviceTransitionsUnlocked = false
 
         playJob?.cancel()
         accountJob?.cancel()
@@ -346,7 +496,7 @@ class PlaybackViewModel(
         super.onCleared()
     }
 
-    private fun engine(): PlaybackEngine {
+    private fun engine(): QueuePlaybackEngine {
         ownedEngine?.let {
             return it
         }
@@ -361,7 +511,20 @@ class PlaybackViewModel(
                 created.state.collect { candidate ->
                     val target =
                         activeTarget
-                            ?: return@collect
+
+                    if (target == null) {
+                        val account =
+                            restoreAdoptionAccount
+                                ?: return@collect
+
+                        adoptRestoredState(
+                            account = account,
+                            candidate = candidate,
+                            allowPlaying = false,
+                        )
+
+                        return@collect
+                    }
 
                     val accepted =
                         acceptedGeneration
@@ -380,6 +543,55 @@ class PlaybackViewModel(
         return created
     }
 
+    private fun adoptRestoredState(
+        account: ServerAccountIdentity,
+        candidate: PlaybackState,
+        allowPlaying: Boolean,
+    ) {
+        if (
+            account != currentAccount ||
+            restoreAdoptionAccount !=
+            account ||
+            activeTarget != null
+        ) {
+            return
+        }
+
+        val track =
+            candidate.track
+                ?: return
+
+        if (
+            !allowPlaying &&
+            candidate.phase !=
+            PlaybackPhase.PREPARING &&
+            candidate.phase !=
+            PlaybackPhase.PAUSED
+        ) {
+            return
+        }
+
+        activeTarget =
+            PlaybackTarget(
+                account = account,
+                track = track,
+                allowServiceTransitions =
+                true,
+            )
+
+        acceptedGeneration =
+            generation
+
+        serviceTransitionsUnlocked =
+            true
+
+        restoreAdoptionAccount =
+            null
+
+        state =
+            candidate
+    }
+
     private fun publish(
         candidate: PlaybackState,
         requestGeneration: Long,
@@ -391,33 +603,77 @@ class PlaybackViewModel(
                 target,
             ) ||
             acceptedGeneration !=
-            requestGeneration ||
-            candidate.track != target.track
+            requestGeneration
         ) {
             return
         }
 
-        state = candidate
+        val candidateTrack =
+            candidate.track
+                ?: return
+
+        if (
+            candidateTrack ==
+            target.track
+        ) {
+            if (
+                target
+                    .allowServiceTransitions &&
+                candidate.phase !=
+                PlaybackPhase.ERROR
+            ) {
+                serviceTransitionsUnlocked =
+                    true
+            }
+
+            state =
+                candidate
+
+            return
+        }
+
+        if (
+            !target
+                .allowServiceTransitions ||
+            !serviceTransitionsUnlocked
+        ) {
+            return
+        }
+
+        // The service remains the queue authority. Only the
+        // current presentation target follows its transition.
+        activeTarget =
+            target.copy(
+                track = candidateTrack,
+            )
+
+        state =
+            candidate
     }
 
     private fun isCurrent(
         requestGeneration: Long,
         target: PlaybackTarget,
     ): Boolean =
-        requestGeneration == generation &&
-            target == activeTarget
+        requestGeneration ==
+            generation &&
+            target ==
+            activeTarget
 
     private val coroutineScope:
         CoroutineScope
-        get() = scope ?: viewModelScope
+        get() =
+            scope
+                ?: viewModelScope
 
     private data class PlaybackTarget(
         val account: ServerAccountIdentity,
         val track: PlaybackTrack,
+        val allowServiceTransitions: Boolean = false,
     )
 
     companion object {
-        fun factory(engineFactory: () -> PlaybackEngine): ViewModelProvider.Factory =
+        fun factory(engineFactory: () -> QueuePlaybackEngine): ViewModelProvider.Factory =
             object :
                 ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {

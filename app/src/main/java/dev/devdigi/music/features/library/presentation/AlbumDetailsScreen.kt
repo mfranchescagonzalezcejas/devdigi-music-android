@@ -76,7 +76,9 @@ internal fun albumDetailsLayoutSpec(availableWidth: Dp): AlbumDetailsLayoutSpec 
 fun AlbumDetailsScreen(
     state: AlbumDetailsUiState,
     playbackState: PlaybackState,
-    onTrackSelected: (AlbumTrack) -> Unit,
+    onTrackSelected: (List<AlbumTrack>, Int) -> Unit,
+    onPreviousPlayback: () -> Unit,
+    onNextPlayback: () -> Unit,
     onPausePlayback: () -> Unit,
     onResumePlayback: () -> Unit,
     onStopPlayback: () -> Unit,
@@ -124,6 +126,10 @@ fun AlbumDetailsScreen(
                     playbackState,
                     onTrackSelected =
                     onTrackSelected,
+                    onPreviousPlayback =
+                    onPreviousPlayback,
+                    onNextPlayback =
+                    onNextPlayback,
                     onPausePlayback =
                     onPausePlayback,
                     onResumePlayback =
@@ -188,7 +194,9 @@ private fun AlbumDetailsShellContent(
     state: AlbumDetailsUiState,
     layout: AlbumDetailsLayoutSpec,
     playbackState: PlaybackState,
-    onTrackSelected: (AlbumTrack) -> Unit,
+    onTrackSelected: (List<AlbumTrack>, Int) -> Unit,
+    onPreviousPlayback: () -> Unit,
+    onNextPlayback: () -> Unit,
     onPausePlayback: () -> Unit,
     onResumePlayback: () -> Unit,
     onStopPlayback: () -> Unit,
@@ -246,6 +254,10 @@ private fun AlbumDetailsShellContent(
                 playbackState,
                 onTrackSelected =
                 onTrackSelected,
+                onPreviousPlayback =
+                onPreviousPlayback,
+                onNextPlayback =
+                onNextPlayback,
                 onPausePlayback =
                 onPausePlayback,
                 onResumePlayback =
@@ -265,6 +277,10 @@ private fun AlbumDetailsShellContent(
                 playbackState,
                 onTrackSelected =
                 onTrackSelected,
+                onPreviousPlayback =
+                onPreviousPlayback,
+                onNextPlayback =
+                onNextPlayback,
                 onPausePlayback =
                 onPausePlayback,
                 onResumePlayback =
@@ -285,7 +301,9 @@ private fun AlbumDetailsOverview(
     album: AlbumDetails,
     layout: AlbumDetailsLayoutSpec,
     playbackState: PlaybackState,
-    onTrackSelected: (AlbumTrack) -> Unit,
+    onTrackSelected: (List<AlbumTrack>, Int) -> Unit,
+    onPreviousPlayback: () -> Unit,
+    onNextPlayback: () -> Unit,
     onPausePlayback: () -> Unit,
     onResumePlayback: () -> Unit,
     onStopPlayback: () -> Unit,
@@ -312,6 +330,10 @@ private fun AlbumDetailsOverview(
             item {
                 PlaybackControls(
                     state = playbackState,
+                    onPrevious =
+                    onPreviousPlayback,
+                    onNext =
+                    onNextPlayback,
                     onPause = onPausePlayback,
                     onResume = onResumePlayback,
                     onStop = onStopPlayback,
@@ -355,8 +377,12 @@ private fun AlbumDetailsOverview(
                     selected =
                         track.id ==
                             playbackState.track?.id,
-                    onSelected =
-                    onTrackSelected,
+                    onSelected = {
+                        onTrackSelected(
+                            album.tracks,
+                            index,
+                        )
+                    },
                 )
             }
         }
@@ -415,7 +441,7 @@ private fun AlbumTrackRow(
     albumArtist: String?,
     position: Int,
     selected: Boolean,
-    onSelected: (AlbumTrack) -> Unit,
+    onSelected: () -> Unit,
 ) {
     Surface(
         modifier =
@@ -425,9 +451,7 @@ private fun AlbumTrackRow(
                     this.selected =
                         selected
                 },
-        onClick = {
-            onSelected(track)
-        },
+        onClick = onSelected,
         shape =
             RoundedCornerShape(14.dp),
         color =

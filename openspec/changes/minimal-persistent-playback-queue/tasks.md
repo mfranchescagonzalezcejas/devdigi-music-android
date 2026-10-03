@@ -80,15 +80,15 @@
 
 ## WU3 — Controller, ViewModel and album-selection wiring
 
-- [ ] 3.1 Extend the application playback client with queue operations.
-- [ ] 3.2 Preserve #15 reconnect and stale-event rejection.
-- [ ] 3.3 Replace queue with ordered album tracks on track selection.
-- [ ] 3.4 Start playback at the selected album index.
-- [ ] 3.5 Add app next/previous commands required before #12.
-- [ ] 3.6 Keep queue-editor UI out of scope.
-- [ ] 3.7 Add focused wiring tests.
-- [ ] 3.8 Run full local quality gates.
-- [ ] 3.9 Measure WU3 against the 1000 changed-line hard review budget.
+- [x] 3.1 Extend the application playback client with queue operations.
+- [x] 3.2 Preserve #15 reconnect and stale-event rejection.
+- [x] 3.3 Replace queue with ordered album tracks on track selection.
+- [x] 3.4 Start playback at the selected album index.
+- [x] 3.5 Add app next/previous commands required before #12.
+- [x] 3.6 Keep queue-editor UI out of scope.
+- [x] 3.7 Add focused wiring tests.
+- [x] 3.8 Run full local quality gates.
+- [x] 3.9 Measure WU3 against the 1000 changed-line hard review budget.
 
 ## WU4 — Android validation and closeout
 
