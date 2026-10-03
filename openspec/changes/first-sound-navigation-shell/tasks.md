@@ -17,15 +17,15 @@
 
 ## WU1 — Navigation foundation
 
-- [ ] 1.1 Add focused RED tests for primary/secondary navigation policy.
-- [ ] 1.2 Add the First Sound shell without introducing a second composition root.
-- [ ] 1.3 Expose Home, Library, Search and Discover.
-- [ ] 1.4 Reuse recent-albums and album-details state for Home/Library.
-- [ ] 1.5 Preserve album origin so Back returns to Home or Library correctly.
-- [ ] 1.6 Implement explicit Search and Discover placeholders.
-- [ ] 1.7 Keep playback/queue ownership unchanged.
-- [ ] 1.8 Run focused tests and applicable full local quality gates.
-- [ ] 1.9 Measure tracked + untracked changed lines and split before commit if
+- [x] 1.1 Add focused RED tests for primary/secondary navigation policy.
+- [x] 1.2 Add the First Sound shell without introducing a second composition root.
+- [x] 1.3 Expose Home, Library, Search and Discover.
+- [x] 1.4 Reuse recent-albums and album-details state for Home/Library.
+- [x] 1.5 Preserve album origin so Back returns to Home or Library correctly.
+- [x] 1.6 Implement explicit Search and Discover placeholders.
+- [x] 1.7 Keep playback/queue ownership unchanged.
+- [x] 1.8 Run focused tests and applicable full local quality gates.
+- [x] 1.9 Measure tracked + untracked changed lines and split before commit if
       over 1000.
 
 ## WU2 — Persistent mini-player and Now Playing
