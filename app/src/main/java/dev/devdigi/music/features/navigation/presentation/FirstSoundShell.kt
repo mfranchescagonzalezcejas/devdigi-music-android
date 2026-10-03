@@ -15,47 +15,72 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.devdigi.music.features.playback.domain.PlaybackState
 
 @Composable
 internal fun FirstSoundShell(
     activeDestination: FirstSoundPrimaryDestination,
+    playbackState: PlaybackState,
+    showMiniPlayer: Boolean,
     onDestinationSelected: (FirstSoundPrimaryDestination) -> Unit,
+    onOpenNowPlaying: () -> Unit,
+    onPausePlayback: () -> Unit,
+    onResumePlayback: () -> Unit,
+    onRetryPlayback: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     Scaffold(
         modifier =
             Modifier.fillMaxSize(),
         bottomBar = {
-            NavigationBar {
-                FirstSoundPrimaryDestination
-                    .entries
-                    .forEach { destination ->
-                        NavigationBarItem(
-                            selected =
-                                destination ==
-                                    activeDestination,
-                            onClick = {
-                                onDestinationSelected(
-                                    destination,
-                                )
-                            },
-                            icon = {
-                                Text(
-                                    text =
-                                        destination
-                                            .label
-                                            .take(1),
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text =
-                                        destination.label,
-                                )
-                            },
-                            alwaysShowLabel = true,
-                        )
-                    }
+            Column {
+                if (showMiniPlayer) {
+                    FirstSoundMiniPlayer(
+                        state =
+                        playbackState,
+                        onOpenNowPlaying =
+                        onOpenNowPlaying,
+                        onPause =
+                        onPausePlayback,
+                        onResume =
+                        onResumePlayback,
+                        onRetry =
+                        onRetryPlayback,
+                    )
+                }
+
+                NavigationBar {
+                    FirstSoundPrimaryDestination
+                        .entries
+                        .forEach { destination ->
+                            NavigationBarItem(
+                                selected =
+                                    destination ==
+                                        activeDestination,
+                                onClick = {
+                                    onDestinationSelected(
+                                        destination,
+                                    )
+                                },
+                                icon = {
+                                    Text(
+                                        text =
+                                            destination
+                                                .label
+                                                .take(1),
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text =
+                                            destination
+                                                .label,
+                                    )
+                                },
+                                alwaysShowLabel = true,
+                            )
+                        }
+                }
             }
         },
     ) { contentPadding ->

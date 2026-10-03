@@ -30,16 +30,16 @@
 
 ## WU2 — Persistent mini-player and Now Playing
 
-- [ ] 2.1 Add RED tests for mini-player visibility/action policy.
-- [ ] 2.2 Render one persistent mini-player from existing `PlaybackState`.
-- [ ] 2.3 Wire safe title/artist and play/pause/resume behavior.
-- [ ] 2.4 Add a secondary Now Playing surface.
-- [ ] 2.5 Wire existing Previous/Next/Pause/Resume/Stop/Retry commands.
-- [ ] 2.6 Avoid duplicate player or queue state.
-- [ ] 2.7 Avoid guessing an album route when restored playback has no album id.
-- [ ] 2.8 Reconcile redundant Album Details playback controls if necessary.
-- [ ] 2.9 Run focused tests and full local quality gates.
-- [ ] 2.10 Measure tracked + untracked changed lines and split before commit if
+- [x] 2.1 Add RED tests for mini-player visibility/action policy.
+- [x] 2.2 Render one persistent mini-player from existing `PlaybackState`.
+- [x] 2.3 Wire safe title/artist and play/pause/resume behavior.
+- [x] 2.4 Add a secondary Now Playing surface.
+- [x] 2.5 Wire existing Previous/Next/Pause/Resume/Stop/Retry commands.
+- [x] 2.6 Avoid duplicate player or queue state.
+- [x] 2.7 Avoid guessing an album route when restored playback has no album id.
+- [x] 2.8 Reconcile redundant Album Details playback controls if necessary.
+- [x] 2.9 Run focused tests and full local quality gates.
+- [x] 2.10 Measure tracked + untracked changed lines and split before commit if
       over 1000.
 
 ## WU3 — Account, target and UX hardening
