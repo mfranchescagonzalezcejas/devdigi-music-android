@@ -1,5 +1,7 @@
 package dev.devdigi.music.features.navigation.presentation
 
+import dev.devdigi.music.connection.ServerAccountIdentity
+
 internal enum class FirstSoundPrimaryDestination(
     val label: String,
 ) {
@@ -21,6 +23,11 @@ internal data class FirstSoundNavigationState(
     val primaryDestination: FirstSoundPrimaryDestination,
     val selectedAlbumId: String?,
     val nowPlayingVisible: Boolean = false,
+)
+
+internal data class FirstSoundPlaceholderPresentation(
+    val message: String,
+    val interactive: Boolean = false,
 )
 
 private val FirstSoundPrimaryDestination
@@ -61,6 +68,28 @@ internal fun firstSoundNavigationState(
         nowPlayingVisible,
     )
 }
+
+internal fun firstSoundNavigationAfterAccountChange(
+    state: FirstSoundNavigationState,
+    previousIdentity: ServerAccountIdentity?,
+    currentIdentity: ServerAccountIdentity?,
+    authenticated: Boolean,
+): FirstSoundNavigationState =
+    if (
+        authenticated &&
+        previousIdentity != null &&
+        previousIdentity ==
+        currentIdentity
+    ) {
+        state
+    } else {
+        FirstSoundNavigationState(
+            primaryDestination =
+                FirstSoundPrimaryDestination.HOME,
+            selectedAlbumId = null,
+            nowPlayingVisible = false,
+        )
+    }
 
 internal fun selectFirstSoundPrimary(
     state: FirstSoundNavigationState,
@@ -108,14 +137,39 @@ internal fun closeFirstSoundNowPlaying(state: FirstSoundNavigationState): FirstS
         nowPlayingVisible = false,
     )
 
-internal fun firstSoundPlaceholderMessage(destination: FirstSoundPrimaryDestination): String? =
+internal fun backFromFirstSoundNavigation(state: FirstSoundNavigationState): FirstSoundNavigationState? =
+    when {
+        state.nowPlayingVisible -> {
+            closeFirstSoundNowPlaying(
+                state,
+            )
+        }
+
+        state.selectedAlbumId != null -> {
+            backFromFirstSoundSecondary(
+                state,
+            )
+        }
+
+        else -> {
+            null
+        }
+    }
+
+internal fun firstSoundPlaceholderPresentation(destination: FirstSoundPrimaryDestination): FirstSoundPlaceholderPresentation? =
     when (destination) {
         FirstSoundPrimaryDestination.SEARCH -> {
-            "Search is not implemented yet."
+            FirstSoundPlaceholderPresentation(
+                message =
+                    "Search is not implemented yet.",
+            )
         }
 
         FirstSoundPrimaryDestination.DISCOVER -> {
-            "Discover is not implemented yet."
+            FirstSoundPlaceholderPresentation(
+                message =
+                    "Discover is not implemented yet.",
+            )
         }
 
         FirstSoundPrimaryDestination.HOME,
@@ -124,3 +178,8 @@ internal fun firstSoundPlaceholderMessage(destination: FirstSoundPrimaryDestinat
             null
         }
     }
+
+internal fun firstSoundPlaceholderMessage(destination: FirstSoundPrimaryDestination): String? =
+    firstSoundPlaceholderPresentation(
+        destination,
+    )?.message

@@ -2,6 +2,7 @@ package dev.devdigi.music
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,6 +37,7 @@ import dev.devdigi.music.features.navigation.presentation.FirstSoundNowPlayingSc
 import dev.devdigi.music.features.navigation.presentation.FirstSoundPlaceholderScreen
 import dev.devdigi.music.features.navigation.presentation.FirstSoundPrimaryDestination
 import dev.devdigi.music.features.navigation.presentation.FirstSoundShell
+import dev.devdigi.music.features.navigation.presentation.backFromFirstSoundNavigation
 import dev.devdigi.music.features.navigation.presentation.backFromFirstSoundSecondary
 import dev.devdigi.music.features.navigation.presentation.closeFirstSoundNowPlaying
 import dev.devdigi.music.features.navigation.presentation.firstSoundNavigationState
@@ -195,6 +197,25 @@ class MainActivity : ComponentActivity() {
                             next.selectedAlbumId
                         nowPlayingVisible =
                             next.nowPlayingVisible
+                    }
+
+                    val backNavigationState =
+                        backFromFirstSoundNavigation(
+                            navigationState,
+                        )
+
+                    BackHandler(
+                        enabled =
+                            connectionState.sessionStatus ==
+                                SessionStatus.AUTHENTICATED &&
+                                identity != null &&
+                                backNavigationState != null,
+                    ) {
+                        backNavigationState?.let {
+                            applyNavigation(
+                                it,
+                            )
+                        }
                     }
 
                     LaunchedEffect(
