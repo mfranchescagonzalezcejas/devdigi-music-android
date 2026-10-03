@@ -44,16 +44,16 @@
 
 ## WU3 — Account, target and UX hardening
 
-- [ ] 3.1 Add RED tests for account-change navigation reset behavior.
-- [ ] 3.2 Reset account-specific navigation state on exact identity change.
-- [ ] 3.3 Add deterministic secondary-surface Back behavior.
-- [ ] 3.4 Present `This device` as a read-only local target.
-- [ ] 3.5 Add required accessibility semantics/labels.
-- [ ] 3.6 Add width-responsive primary navigation behavior.
-- [ ] 3.7 Verify placeholders remain honest and non-interactive.
-- [ ] 3.8 Verify no endpoint/username/auth/signed URI enters shell state.
-- [ ] 3.9 Run focused tests and full local quality gates.
-- [ ] 3.10 Measure tracked + untracked changed lines and split before commit if
+- [x] 3.1 Add RED tests for account-change navigation reset behavior.
+- [x] 3.2 Reset account-specific navigation state on exact identity change.
+- [x] 3.3 Add deterministic secondary-surface Back behavior.
+- [x] 3.4 Present `This device` as a read-only local target.
+- [x] 3.5 Add required accessibility semantics/labels.
+- [x] 3.6 Add width-responsive primary navigation behavior.
+- [x] 3.7 Verify placeholders remain honest and non-interactive.
+- [x] 3.8 Verify no endpoint/username/auth/signed URI enters shell state.
+- [x] 3.9 Run focused tests and full local quality gates.
+- [x] 3.10 Measure tracked + untracked changed lines and split before commit if
       over 1000.
 
 ## WU4 — Android validation and closeout

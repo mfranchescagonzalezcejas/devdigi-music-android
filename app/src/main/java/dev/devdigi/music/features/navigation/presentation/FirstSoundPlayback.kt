@@ -17,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.devdigi.music.features.playback.domain.PlaybackPhase
@@ -39,6 +41,18 @@ internal data class FirstSoundMiniPlayerPolicy(
     val artist: String? = null,
     val status: String? = null,
 )
+
+internal data class FirstSoundPlaybackTargetPresentation(
+    val label: String,
+    val interactive: Boolean = false,
+)
+
+internal fun firstSoundPlaybackTargetPresentation(): FirstSoundPlaybackTargetPresentation =
+    FirstSoundPlaybackTargetPresentation(
+        label = "This device",
+    )
+
+internal fun firstSoundOpenNowPlayingLabel(): String = "Open Now Playing"
 
 internal fun firstSoundMiniPlayerPolicy(state: PlaybackState): FirstSoundMiniPlayerPolicy {
     val controls =
@@ -215,7 +229,9 @@ internal fun FirstSoundMiniPlayer(
                 onClick =
                 onOpenNowPlaying,
             ) {
-                Text("Open")
+                Text(
+                    firstSoundOpenNowPlayingLabel(),
+                )
             }
 
             policy.action?.let { action ->
@@ -313,6 +329,9 @@ internal fun FirstSoundNowPlayingScreen(
                             .bodyLarge,
                 )
             } else {
+                val target =
+                    firstSoundPlaybackTargetPresentation()
+
                 Column(
                     modifier =
                         Modifier
@@ -320,7 +339,49 @@ internal fun FirstSoundNowPlayingScreen(
                             .widthIn(
                                 max = 720.dp,
                             ).padding(20.dp),
+                    verticalArrangement =
+                        Arrangement.spacedBy(
+                            16.dp,
+                        ),
                 ) {
+                    Surface(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clearAndSetSemantics {
+                                    contentDescription =
+                                        "Playback target: ${target.label}"
+                                },
+                        shape =
+                            MaterialTheme.shapes.medium,
+                        tonalElevation = 1.dp,
+                    ) {
+                        Column(
+                            modifier =
+                                Modifier.padding(12.dp),
+                            verticalArrangement =
+                                Arrangement.spacedBy(
+                                    4.dp,
+                                ),
+                        ) {
+                            Text(
+                                text =
+                                    "Playback target",
+                                style =
+                                    MaterialTheme.typography
+                                        .labelMedium,
+                            )
+
+                            Text(
+                                text =
+                                    target.label,
+                                style =
+                                    MaterialTheme.typography
+                                        .titleMedium,
+                            )
+                        }
+                    }
+
                     PlaybackControls(
                         state = state,
                         onPrevious = onPrevious,
