@@ -66,10 +66,13 @@ protocol parsing, while other files combine interfaces
 with Android-specific implementations.
 
 The authenticated OkHttp connection boundary, session UI, recent-album and
-album-details browsing, and service-backed one-track Media3 playback are
-implemented. Playback continues through Activity backgrounding and recreation,
-while Android notification, lock-screen and system media controls operate the
-same service-owned player. Queue behavior remains #7 scope.
+album-details browsing, and service-backed Media3 playback are implemented.
+PlaybackService also owns the minimal persistent queue: album selection
+replaces the ordered queue, app/system Next and Previous navigate without
+wrapping, and matching account-scoped state can restore without autoplay.
+Playback continues through Activity backgrounding and recreation, while
+Android notification, lock-screen and system media controls operate the same
+service-owned player and queue.
 
 Existing connection contracts and tests must be preserved
 during architectural evolution.
@@ -219,8 +222,8 @@ Real-device validation confirmed background playback, notification and
 lock-screen controls, media-button dispatch, Activity recreation, account
 switching, recoverable failure behavior and playback-surface privacy.
 
-Queue behavior remains explicitly deferred to #7. Navigation/mini-player
-behavior remains separate #12 scope.
+The minimal persistent queue is implemented under #7. Queue-editor,
+navigation and mini-player behavior remain separate #12 scope.
 
 ## 8. Future provider boundaries
 
@@ -271,8 +274,8 @@ Architecture changes must be incremental and reviewable.
    packages only in separate, test-backed refactors with demonstrated value.
 3. Add the First Sound library flow behind account-scoped domain and data
    boundaries without leaking transport details into presentation.
-4. Extend the implemented service-backed Media3 playback through #7 queue
-   behavior while preserving account ownership and domain boundaries.
+4. Preserve the implemented #7 service-owned queue, account isolation and
+   restoration boundaries while future playback UI evolves independently.
 5. Introduce database or offline persistence structures only when their
    product milestones require them.
 6. Finalize external-provider contracts only after #53, #54 and #55 provide
@@ -307,7 +310,7 @@ The following require separate decisions or implementation:
 - Physical multi-module architecture.
 - Dependency-injection framework adoption.
 - Database and offline persistence design.
-- Queue-domain persistence and playback ordering behavior.
+- Queue-editor, mini-player and navigation UX tracked separately by #12.
 - External music-provider integration.
 - Release automation and additional quality tooling.
 

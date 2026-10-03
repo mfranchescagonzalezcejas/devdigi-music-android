@@ -92,14 +92,14 @@
 
 ## WU4 — Android validation and closeout
 
-- [ ] 4.1 Validate ordered album queue playback.
-- [ ] 4.2 Validate app next/previous boundaries.
-- [ ] 4.3 Validate notification/lock-screen next/previous.
-- [ ] 4.4 Validate queue continuity through Activity recreation/backgrounding.
-- [ ] 4.5 Validate process restoration without autoplay.
-- [ ] 4.6 Validate account-switch/sign-out isolation.
-- [ ] 4.7 Verify persistence/system surfaces expose no endpoint, account
+- [x] 4.1 Validate ordered album queue playback.
+- [x] 4.2 Validate app next/previous boundaries.
+- [x] 4.3 Validate notification/lock-screen next/previous.
+- [x] 4.4 Validate queue continuity through Activity recreation/backgrounding.
+- [x] 4.5 Validate process restoration without autoplay.
+- [x] 4.6 Validate account-switch/sign-out isolation.
+- [x] 4.7 Verify persistence/system surfaces expose no endpoint, account
       identity, credentials or signed stream URI.
 - [ ] 4.8 Run Spotless, full JVM tests, lint, assemble and Jenkins.
-- [ ] 4.9 Refresh docs without expanding #12 or #17.
+- [x] 4.9 Refresh docs without expanding #12 or #17.
 - [ ] 4.10 Record privacy-safe device evidence and close #7 after final merge.
