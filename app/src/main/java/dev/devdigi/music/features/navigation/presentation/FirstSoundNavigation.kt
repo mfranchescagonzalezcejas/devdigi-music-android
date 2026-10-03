@@ -20,6 +20,7 @@ internal enum class FirstSoundPrimaryDestination(
 internal data class FirstSoundNavigationState(
     val primaryDestination: FirstSoundPrimaryDestination,
     val selectedAlbumId: String?,
+    val nowPlayingVisible: Boolean = false,
 )
 
 private val FirstSoundPrimaryDestination
@@ -33,6 +34,7 @@ private val FirstSoundPrimaryDestination
 internal fun firstSoundNavigationState(
     savedPrimaryDestination: String?,
     selectedAlbumId: String?,
+    nowPlayingVisible: Boolean = false,
 ): FirstSoundNavigationState {
     val primaryDestination =
         FirstSoundPrimaryDestination
@@ -55,6 +57,8 @@ internal fun firstSoundNavigationState(
             } else {
                 null
             },
+        nowPlayingVisible =
+        nowPlayingVisible,
     )
 }
 
@@ -66,6 +70,7 @@ internal fun selectFirstSoundPrimary(
         primaryDestination =
         destination,
         selectedAlbumId = null,
+        nowPlayingVisible = false,
     )
 
 internal fun openFirstSoundAlbum(
@@ -78,16 +83,29 @@ internal fun openFirstSoundAlbum(
     ) {
         state.copy(
             selectedAlbumId = albumId,
+            nowPlayingVisible = false,
         )
     } else {
         state.copy(
             selectedAlbumId = null,
+            nowPlayingVisible = false,
         )
     }
 
 internal fun backFromFirstSoundSecondary(state: FirstSoundNavigationState): FirstSoundNavigationState =
     state.copy(
         selectedAlbumId = null,
+        nowPlayingVisible = false,
+    )
+
+internal fun openFirstSoundNowPlaying(state: FirstSoundNavigationState): FirstSoundNavigationState =
+    state.copy(
+        nowPlayingVisible = true,
+    )
+
+internal fun closeFirstSoundNowPlaying(state: FirstSoundNavigationState): FirstSoundNavigationState =
+    state.copy(
+        nowPlayingVisible = false,
     )
 
 internal fun firstSoundPlaceholderMessage(destination: FirstSoundPrimaryDestination): String? =
