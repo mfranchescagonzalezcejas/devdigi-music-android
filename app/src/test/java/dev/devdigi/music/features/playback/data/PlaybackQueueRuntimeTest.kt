@@ -260,6 +260,55 @@ class PlaybackQueueRuntimeTest {
         )
     }
 
+    @Test
+    fun persistedQueueCanRestoreOnlyIntoCompatibleRuntimeOwner() {
+        val restored =
+            dev.devdigi.music.features.playback.domain
+                .PlaybackQueue
+                .empty()
+                .replace(
+                    entries =
+                        listOf(
+                            one,
+                            two,
+                            three,
+                        ),
+                    selectedIndex = 1,
+                )
+
+        val runtime =
+            PlaybackQueueRuntime()
+
+        assertAccepted(
+            runtime.restore(
+                account = alice,
+                restoredQueue = restored,
+            ),
+        )
+
+        assertState(
+            runtime = runtime,
+            account = alice,
+            entries = listOf(one, two, three),
+            index = 1,
+        )
+
+        assertTrue(
+            runtime.hasPrevious(),
+        )
+        assertTrue(
+            runtime.hasNext(),
+        )
+
+        assertSame(
+            QueueRuntimeMutationResult.ACCOUNT_MISMATCH,
+            runtime.restore(
+                account = bob,
+                restoredQueue = restored,
+            ),
+        )
+    }
+
     private fun runtimeWith(
         entries: List<PlaybackTrack>,
         index: Int,

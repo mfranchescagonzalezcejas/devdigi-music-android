@@ -38,6 +38,51 @@ internal fun queueSafePlayerCommands(baseCommands: Player.Commands): Player.Comm
                 }
         }.build()
 
+internal enum class QueueReconcileAction {
+    NONE,
+    PRESERVE,
+    CLEAR,
+    RESTORE,
+    CLEAR_AND_RESTORE,
+}
+
+internal fun queueReconcileAction(
+    activeAccount: ServerAccountIdentity?,
+    currentAccount: ServerAccountIdentity?,
+): QueueReconcileAction =
+    when {
+        currentAccount == null &&
+            activeAccount == null -> {
+            QueueReconcileAction.NONE
+        }
+
+        currentAccount == null -> {
+            QueueReconcileAction.CLEAR
+        }
+
+        activeAccount == null -> {
+            QueueReconcileAction.RESTORE
+        }
+
+        activeAccount ==
+            currentAccount -> {
+            QueueReconcileAction.PRESERVE
+        }
+
+        else -> {
+            QueueReconcileAction.CLEAR_AND_RESTORE
+        }
+    }
+
+internal fun canApplyQueueRestore(
+    expectedGeneration: Long,
+    currentGeneration: Long,
+    activeAccount: ServerAccountIdentity?,
+): Boolean =
+    expectedGeneration ==
+        currentGeneration &&
+        activeAccount == null
+
 internal fun shouldClearServicePlayback(
     activeAccount: ServerAccountIdentity?,
     currentAccount: ServerAccountIdentity?,
