@@ -6,6 +6,7 @@ import androidx.media3.common.util.UnstableApi
 import dev.devdigi.music.connection.AuthSecretStore
 import dev.devdigi.music.connection.SubsonicAuthSigner
 import dev.devdigi.music.features.playback.domain.PlaybackEngine
+import dev.devdigi.music.features.playback.domain.QueuePlaybackEngine
 
 @OptIn(UnstableApi::class)
 fun createMedia3PlaybackEngine(
@@ -22,7 +23,7 @@ fun createMedia3PlaybackEngine(
             ),
     )
 
-fun createMedia3ControllerPlaybackEngine(context: Context): PlaybackEngine =
+fun createMedia3ControllerPlaybackEngine(context: Context): QueuePlaybackEngine =
     Media3ControllerPlaybackEngine(
         context = context,
     )

@@ -252,22 +252,33 @@ class MainActivity : ComponentActivity() {
                                     playbackState =
                                         playbackViewModel
                                             .state,
-                                    onTrackSelected = { track ->
+                                    onTrackSelected = {
+                                        tracks,
+                                        selectedIndex,
+                                        ->
                                         playbackViewModel
-                                            .play(
+                                            .playQueue(
                                                 account =
                                                 identity,
-                                                track =
-                                                    PlaybackTrack(
-                                                        id =
-                                                            track.id,
-                                                        title =
-                                                            track.title,
-                                                        artist =
-                                                            track.artist,
-                                                    ),
+                                                entries =
+                                                    tracks.map { track ->
+                                                        PlaybackTrack(
+                                                            id =
+                                                                track.id,
+                                                            title =
+                                                                track.title,
+                                                            artist =
+                                                                track.artist,
+                                                        )
+                                                    },
+                                                selectedIndex =
+                                                selectedIndex,
                                             )
                                     },
+                                    onPreviousPlayback =
+                                        playbackViewModel::previous,
+                                    onNextPlayback =
+                                        playbackViewModel::next,
                                     onPausePlayback =
                                         playbackViewModel::pause,
                                     onResumePlayback =

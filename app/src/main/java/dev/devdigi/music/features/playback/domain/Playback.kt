@@ -116,3 +116,15 @@ interface PlaybackEngine {
 
     fun release()
 }
+
+interface QueuePlaybackEngine : PlaybackEngine {
+    suspend fun replaceQueue(
+        account: ServerAccountIdentity,
+        entries: List<PlaybackTrack>,
+        selectedIndex: Int,
+    )
+
+    fun previous()
+
+    fun next()
+}
