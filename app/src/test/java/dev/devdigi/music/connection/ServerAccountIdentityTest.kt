@@ -35,6 +35,27 @@ class ServerAccountIdentityTest {
     }
 
     @Test
+    fun sameUsernameOnDifferentServersIsDistinctIdentity() {
+        val first =
+            ServerAccountIdentity(
+                endpoint("https://one.example.com"),
+                "alice",
+            )
+
+        val second =
+            ServerAccountIdentity(
+                endpoint("https://two.example.com"),
+                "alice",
+            )
+
+        assertNotEquals(
+            "same username on different servers must not share identity",
+            first,
+            second,
+        )
+    }
+
+    @Test
     fun distinctUnicodeUsernamesDoNotCollapse() {
         val endpoint = endpoint("https://music.example.com")
 
@@ -50,6 +71,5 @@ class ServerAccountIdentityTest {
         )
     }
 
-    private fun endpoint(value: String): ServerEndpoint =
-        (ServerEndpoint.parse(value) as EndpointParseResult.Valid).endpoint
+    private fun endpoint(value: String): ServerEndpoint = (ServerEndpoint.parse(value) as EndpointParseResult.Valid).endpoint
 }

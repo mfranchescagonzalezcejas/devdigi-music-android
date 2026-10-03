@@ -213,6 +213,91 @@ class AlbumDetailsViewModelHardeningTest {
         }
 
     @Test
+    fun lateResultFromPreviousServerWithSameUsernameCannotReplaceCurrentAccount() =
+        runTest {
+            val first =
+                account(
+                    username = "alice",
+                    endpointValue = "https://one.example.com",
+                )
+
+            val second =
+                account(
+                    username = "alice",
+                    endpointValue = "https://two.example.com",
+                )
+
+            val firstResult =
+                CompletableDeferred<
+                    AlbumDetailsLoadResult,
+                >()
+
+            val secondResult =
+                CompletableDeferred<
+                    AlbumDetailsLoadResult,
+                >()
+
+            val repository =
+                DeferredRepository(
+                    mapOf(
+                        Request(first, "album-1") to
+                            firstResult,
+                        Request(second, "album-1") to
+                            secondResult,
+                    ),
+                )
+
+            val viewModel =
+                AlbumDetailsViewModel(
+                    repository = repository,
+                    scope = backgroundScope,
+                )
+
+            viewModel.load(
+                account = first,
+                albumId = "album-1",
+            )
+            testScheduler.runCurrent()
+
+            viewModel.load(
+                account = second,
+                albumId = "album-1",
+            )
+            testScheduler.runCurrent()
+
+            val current =
+                album("album-1")
+
+            secondResult.complete(
+                success(
+                    account = second,
+                    album = current,
+                ),
+            )
+
+            testScheduler.runCurrent()
+
+            assertEquals(
+                AlbumDetailsUiState.Content(current),
+                viewModel.state,
+            )
+
+            firstResult.complete(
+                success(
+                    account = first,
+                    album = album("album-1"),
+                ),
+            )
+
+            testScheduler.runCurrent()
+
+            assertEquals(
+                AlbumDetailsUiState.Content(current),
+                viewModel.state,
+            )
+        }
+
+    @Test
     fun clearRejectsPendingResultAndReturnsToIdle() =
         runTest {
             val alice = account("alice")
@@ -339,12 +424,15 @@ class AlbumDetailsViewModelHardeningTest {
                 ),
         )
 
-    private fun account(username: String): ServerAccountIdentity =
+    private fun account(
+        username: String,
+        endpointValue: String = "https://music.example.com",
+    ): ServerAccountIdentity =
         ServerAccountIdentity(
             endpoint =
                 (
                     ServerEndpoint.parse(
-                        "https://music.example.com",
+                        endpointValue,
                     ) as EndpointParseResult.Valid
                 ).endpoint,
             username = username,

@@ -243,6 +243,101 @@ class RecentAlbumsViewModelTest {
         }
 
     @Test
+    fun lateResultFromPreviousServerWithSameUsernameCannotReplaceCurrentAccount() =
+        runTest {
+            val first =
+                account(
+                    username = "alice",
+                    endpointValue = "https://one.example.com",
+                )
+
+            val second =
+                account(
+                    username = "alice",
+                    endpointValue = "https://two.example.com",
+                )
+
+            val firstResult =
+                CompletableDeferred<RecentAlbumsLoadResult>()
+
+            val secondResult =
+                CompletableDeferred<RecentAlbumsLoadResult>()
+
+            val repository =
+                DeferredRepository(
+                    results =
+                        mapOf(
+                            first to firstResult,
+                            second to secondResult,
+                        ),
+                )
+
+            val viewModel =
+                RecentAlbumsViewModel(
+                    repository = repository,
+                    scope = backgroundScope,
+                )
+
+            viewModel.load(first)
+            testScheduler.runCurrent()
+
+            viewModel.load(second)
+            testScheduler.runCurrent()
+
+            val currentAlbum =
+                RecentAlbum(
+                    id = "current-album",
+                    title = "Current Album",
+                    artist = null,
+                    coverArtId = null,
+                )
+
+            secondResult.complete(
+                RecentAlbumsLoadResult.Success(
+                    AccountScopedRecentAlbums(
+                        account = second,
+                        albums = listOf(currentAlbum),
+                    ),
+                ),
+            )
+
+            testScheduler.runCurrent()
+
+            assertEquals(
+                RecentAlbumsUiState.Content(
+                    listOf(currentAlbum),
+                ),
+                viewModel.state,
+            )
+
+            firstResult.complete(
+                RecentAlbumsLoadResult.Success(
+                    AccountScopedRecentAlbums(
+                        account = first,
+                        albums =
+                            listOf(
+                                RecentAlbum(
+                                    id = "stale-album",
+                                    title = "Stale Album",
+                                    artist = null,
+                                    coverArtId = null,
+                                ),
+                            ),
+                    ),
+                ),
+            )
+
+            testScheduler.runCurrent()
+
+            assertEquals(
+                RecentAlbumsUiState.Content(
+                    listOf(currentAlbum),
+                ),
+                viewModel.state,
+            )
+        }
+
+    @Test
     fun clearRejectsAnyLateResultAndReturnsToIdle() =
         runTest {
             val alice = account("alice")
@@ -327,12 +422,15 @@ class RecentAlbumsViewModelTest {
             }
     }
 
-    private fun account(username: String): ServerAccountIdentity =
+    private fun account(
+        username: String,
+        endpointValue: String = "https://music.example.com",
+    ): ServerAccountIdentity =
         ServerAccountIdentity(
             endpoint =
                 (
                     ServerEndpoint.parse(
-                        "https://music.example.com",
+                        endpointValue,
                     ) as EndpointParseResult.Valid
                 ).endpoint,
             username = username,
