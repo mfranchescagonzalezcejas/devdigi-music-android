@@ -32,12 +32,15 @@ import dev.devdigi.music.features.library.presentation.RecentAlbumsScreen
 import dev.devdigi.music.features.library.presentation.RecentAlbumsViewModel
 import dev.devdigi.music.features.library.presentation.libraryDestination
 import dev.devdigi.music.features.navigation.presentation.FirstSoundNavigationState
+import dev.devdigi.music.features.navigation.presentation.FirstSoundNowPlayingScreen
 import dev.devdigi.music.features.navigation.presentation.FirstSoundPlaceholderScreen
 import dev.devdigi.music.features.navigation.presentation.FirstSoundPrimaryDestination
 import dev.devdigi.music.features.navigation.presentation.FirstSoundShell
 import dev.devdigi.music.features.navigation.presentation.backFromFirstSoundSecondary
+import dev.devdigi.music.features.navigation.presentation.closeFirstSoundNowPlaying
 import dev.devdigi.music.features.navigation.presentation.firstSoundNavigationState
 import dev.devdigi.music.features.navigation.presentation.openFirstSoundAlbum
+import dev.devdigi.music.features.navigation.presentation.openFirstSoundNowPlaying
 import dev.devdigi.music.features.navigation.presentation.selectFirstSoundPrimary
 import dev.devdigi.music.features.playback.data.createMedia3ControllerPlaybackEngine
 import dev.devdigi.music.features.playback.domain.PlaybackTrack
@@ -167,12 +170,22 @@ class MainActivity : ComponentActivity() {
                             mutableStateOf<String?>(null)
                         }
 
+                    var nowPlayingVisible by
+                        rememberSaveable(
+                            connectionState.sessionStatus,
+                            identity,
+                        ) {
+                            mutableStateOf(false)
+                        }
+
                     val navigationState =
                         firstSoundNavigationState(
                             savedPrimaryDestination =
                             primaryDestinationName,
                             selectedAlbumId =
                             selectedAlbumId,
+                            nowPlayingVisible =
+                            nowPlayingVisible,
                         )
 
                     fun applyNavigation(next: FirstSoundNavigationState) {
@@ -180,6 +193,8 @@ class MainActivity : ComponentActivity() {
                             next.primaryDestination.name
                         selectedAlbumId =
                             next.selectedAlbumId
+                        nowPlayingVisible =
+                            next.nowPlayingVisible
                     }
 
                     LaunchedEffect(
@@ -249,6 +264,12 @@ class MainActivity : ComponentActivity() {
                             activeDestination =
                                 navigationState
                                     .primaryDestination,
+                            playbackState =
+                                playbackViewModel
+                                    .state,
+                            showMiniPlayer =
+                                !navigationState
+                                    .nowPlayingVisible,
                             onDestinationSelected = { destination ->
                                 applyNavigation(
                                     selectFirstSoundPrimary(
@@ -259,131 +280,162 @@ class MainActivity : ComponentActivity() {
                                     ),
                                 )
                             },
+                            onOpenNowPlaying = {
+                                applyNavigation(
+                                    openFirstSoundNowPlaying(
+                                        navigationState,
+                                    ),
+                                )
+                            },
+                            onPausePlayback =
+                                playbackViewModel::pause,
+                            onResumePlayback =
+                                playbackViewModel::resume,
+                            onRetryPlayback =
+                                playbackViewModel::retry,
                         ) {
-                            when (
+                            if (
                                 navigationState
-                                    .primaryDestination
+                                    .nowPlayingVisible
                             ) {
-                                FirstSoundPrimaryDestination
-                                    .HOME,
-                                FirstSoundPrimaryDestination
-                                    .LIBRARY,
-                                -> {
-                                    when (
-                                        val destination =
-                                            libraryDestination(
-                                                navigationState
-                                                    .selectedAlbumId,
-                                            )
-                                    ) {
-                                        LibraryDestination
-                                            .RecentAlbums,
-                                        -> {
-                                            RecentAlbumsScreen(
-                                                state =
-                                                    recentAlbumsViewModel
-                                                        .state,
-                                                username =
-                                                    identity.username,
-                                                selectedAlbumId =
+                                FirstSoundNowPlayingScreen(
+                                    state =
+                                        playbackViewModel
+                                            .state,
+                                    onPrevious =
+                                        playbackViewModel::previous,
+                                    onNext =
+                                        playbackViewModel::next,
+                                    onPause =
+                                        playbackViewModel::pause,
+                                    onResume =
+                                        playbackViewModel::resume,
+                                    onStop =
+                                        playbackViewModel::stop,
+                                    onRetry =
+                                        playbackViewModel::retry,
+                                    onBack = {
+                                        applyNavigation(
+                                            closeFirstSoundNowPlaying(
+                                                navigationState,
+                                            ),
+                                        )
+                                    },
+                                )
+                            } else {
+                                when (
+                                    navigationState
+                                        .primaryDestination
+                                ) {
+                                    FirstSoundPrimaryDestination
+                                        .HOME,
+                                    FirstSoundPrimaryDestination
+                                        .LIBRARY,
+                                    -> {
+                                        when (
+                                            val destination =
+                                                libraryDestination(
                                                     navigationState
                                                         .selectedAlbumId,
-                                                onAlbumSelected = { albumId ->
-                                                    applyNavigation(
-                                                        openFirstSoundAlbum(
-                                                            state =
-                                                            navigationState,
-                                                            albumId =
-                                                            albumId,
-                                                        ),
-                                                    )
-                                                },
-                                                onRetry =
-                                                    recentAlbumsViewModel::retry,
-                                                onSignOut = {
-                                                    playbackViewModel
-                                                        .clearPlayback()
-                                                    connectionViewModel
-                                                        .signOut()
-                                                },
-                                            )
-                                        }
-
-                                        is LibraryDestination
-                                            .AlbumDetails,
-                                        -> {
-                                            AlbumDetailsScreen(
-                                                state =
-                                                    albumDetailsViewModel
-                                                        .state,
-                                                playbackState =
-                                                    playbackViewModel
-                                                        .state,
-                                                onTrackSelected = {
-                                                    tracks,
-                                                    selectedIndex,
-                                                    ->
-                                                    playbackViewModel
-                                                        .playQueue(
-                                                            account =
-                                                            identity,
-                                                            entries =
-                                                                tracks.map { track ->
-                                                                    PlaybackTrack(
-                                                                        id =
-                                                                            track.id,
-                                                                        title =
-                                                                            track.title,
-                                                                        artist =
-                                                                            track.artist,
-                                                                    )
-                                                                },
-                                                            selectedIndex =
-                                                            selectedIndex,
+                                                )
+                                        ) {
+                                            LibraryDestination
+                                                .RecentAlbums,
+                                            -> {
+                                                RecentAlbumsScreen(
+                                                    state =
+                                                        recentAlbumsViewModel
+                                                            .state,
+                                                    username =
+                                                        identity.username,
+                                                    selectedAlbumId =
+                                                        navigationState
+                                                            .selectedAlbumId,
+                                                    onAlbumSelected = { albumId ->
+                                                        applyNavigation(
+                                                            openFirstSoundAlbum(
+                                                                state =
+                                                                navigationState,
+                                                                albumId =
+                                                                albumId,
+                                                            ),
                                                         )
-                                                },
-                                                onPreviousPlayback =
-                                                    playbackViewModel::previous,
-                                                onNextPlayback =
-                                                    playbackViewModel::next,
-                                                onPausePlayback =
-                                                    playbackViewModel::pause,
-                                                onResumePlayback =
-                                                    playbackViewModel::resume,
-                                                onStopPlayback =
-                                                    playbackViewModel::stop,
-                                                onRetryPlayback =
-                                                    playbackViewModel::retry,
-                                                onBack = {
-                                                    applyNavigation(
-                                                        backFromFirstSoundSecondary(
-                                                            navigationState,
-                                                        ),
-                                                    )
-                                                },
-                                                onRetry =
-                                                    albumDetailsViewModel::retry,
-                                                onSignOut = {
-                                                    playbackViewModel
-                                                        .clearPlayback()
-                                                    connectionViewModel
-                                                        .signOut()
-                                                },
-                                            )
+                                                    },
+                                                    onRetry =
+                                                        recentAlbumsViewModel::retry,
+                                                    onSignOut = {
+                                                        playbackViewModel
+                                                            .clearPlayback()
+                                                        connectionViewModel
+                                                            .signOut()
+                                                    },
+                                                )
+                                            }
+
+                                            is LibraryDestination
+                                                .AlbumDetails,
+                                            -> {
+                                                AlbumDetailsScreen(
+                                                    state =
+                                                        albumDetailsViewModel
+                                                            .state,
+                                                    playbackState =
+                                                        playbackViewModel
+                                                            .state,
+                                                    onTrackSelected = {
+                                                        tracks,
+                                                        selectedIndex,
+                                                        ->
+                                                        playbackViewModel
+                                                            .playQueue(
+                                                                account =
+                                                                identity,
+                                                                entries =
+                                                                    tracks.map { track ->
+                                                                        PlaybackTrack(
+                                                                            id =
+                                                                                track.id,
+                                                                            title =
+                                                                                track.title,
+                                                                            artist =
+                                                                                track.artist,
+                                                                        )
+                                                                    },
+                                                                selectedIndex =
+                                                                selectedIndex,
+                                                            )
+                                                    },
+                                                    onBack = {
+                                                        applyNavigation(
+                                                            backFromFirstSoundSecondary(
+                                                                navigationState,
+                                                            ),
+                                                        )
+                                                    },
+                                                    onRetry =
+                                                        albumDetailsViewModel::retry,
+                                                    onSignOut = {
+                                                        playbackViewModel
+                                                            .clearPlayback()
+                                                        connectionViewModel
+                                                            .signOut()
+                                                    },
+                                                )
+                                            }
                                         }
                                     }
-                                }
 
-                                FirstSoundPrimaryDestination
-                                    .SEARCH,
-                                FirstSoundPrimaryDestination
-                                    .DISCOVER,
-                                -> {
-                                    FirstSoundPlaceholderScreen(
-                                        destination =
-                                            navigationState
-                                                .primaryDestination,
-                                    )
+                                    FirstSoundPrimaryDestination
+                                        .SEARCH,
+                                    FirstSoundPrimaryDestination
+                                        .DISCOVER,
+                                    -> {
+                                        FirstSoundPlaceholderScreen(
+                                            destination =
+                                                navigationState
+                                                    .primaryDestination,
+                                        )
+                                    }
                                 }
                             }
                         }

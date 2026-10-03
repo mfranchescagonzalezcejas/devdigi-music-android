@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import dev.devdigi.music.features.library.domain.AlbumDetails
 import dev.devdigi.music.features.library.domain.AlbumTrack
 import dev.devdigi.music.features.playback.domain.PlaybackState
-import dev.devdigi.music.features.playback.presentation.PlaybackControls
 
 internal data class AlbumDetailsLayoutSpec(
     val horizontalPadding: Dp,
@@ -77,12 +76,6 @@ fun AlbumDetailsScreen(
     state: AlbumDetailsUiState,
     playbackState: PlaybackState,
     onTrackSelected: (List<AlbumTrack>, Int) -> Unit,
-    onPreviousPlayback: () -> Unit,
-    onNextPlayback: () -> Unit,
-    onPausePlayback: () -> Unit,
-    onResumePlayback: () -> Unit,
-    onStopPlayback: () -> Unit,
-    onRetryPlayback: () -> Unit,
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
@@ -126,18 +119,6 @@ fun AlbumDetailsScreen(
                     playbackState,
                     onTrackSelected =
                     onTrackSelected,
-                    onPreviousPlayback =
-                    onPreviousPlayback,
-                    onNextPlayback =
-                    onNextPlayback,
-                    onPausePlayback =
-                    onPausePlayback,
-                    onResumePlayback =
-                    onResumePlayback,
-                    onStopPlayback =
-                    onStopPlayback,
-                    onRetryPlayback =
-                    onRetryPlayback,
                     onRetry = onRetry,
                     onSignOut = onSignOut,
                 )
@@ -195,12 +176,6 @@ private fun AlbumDetailsShellContent(
     layout: AlbumDetailsLayoutSpec,
     playbackState: PlaybackState,
     onTrackSelected: (List<AlbumTrack>, Int) -> Unit,
-    onPreviousPlayback: () -> Unit,
-    onNextPlayback: () -> Unit,
-    onPausePlayback: () -> Unit,
-    onResumePlayback: () -> Unit,
-    onStopPlayback: () -> Unit,
-    onRetryPlayback: () -> Unit,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -254,18 +229,6 @@ private fun AlbumDetailsShellContent(
                 playbackState,
                 onTrackSelected =
                 onTrackSelected,
-                onPreviousPlayback =
-                onPreviousPlayback,
-                onNextPlayback =
-                onNextPlayback,
-                onPausePlayback =
-                onPausePlayback,
-                onResumePlayback =
-                onResumePlayback,
-                onStopPlayback =
-                onStopPlayback,
-                onRetryPlayback =
-                onRetryPlayback,
             )
         }
 
@@ -277,18 +240,6 @@ private fun AlbumDetailsShellContent(
                 playbackState,
                 onTrackSelected =
                 onTrackSelected,
-                onPreviousPlayback =
-                onPreviousPlayback,
-                onNextPlayback =
-                onNextPlayback,
-                onPausePlayback =
-                onPausePlayback,
-                onResumePlayback =
-                onResumePlayback,
-                onStopPlayback =
-                onStopPlayback,
-                onRetryPlayback =
-                onRetryPlayback,
                 emptyMessage =
                     "This album has no tracks.",
             )
@@ -302,12 +253,6 @@ private fun AlbumDetailsOverview(
     layout: AlbumDetailsLayoutSpec,
     playbackState: PlaybackState,
     onTrackSelected: (List<AlbumTrack>, Int) -> Unit,
-    onPreviousPlayback: () -> Unit,
-    onNextPlayback: () -> Unit,
-    onPausePlayback: () -> Unit,
-    onResumePlayback: () -> Unit,
-    onStopPlayback: () -> Unit,
-    onRetryPlayback: () -> Unit,
     emptyMessage: String? = null,
 ) {
     LazyColumn(
@@ -324,22 +269,6 @@ private fun AlbumDetailsOverview(
                 album = album,
                 layout = layout,
             )
-        }
-
-        if (playbackState.track != null) {
-            item {
-                PlaybackControls(
-                    state = playbackState,
-                    onPrevious =
-                    onPreviousPlayback,
-                    onNext =
-                    onNextPlayback,
-                    onPause = onPausePlayback,
-                    onResume = onResumePlayback,
-                    onStop = onStopPlayback,
-                    onRetry = onRetryPlayback,
-                )
-            }
         }
 
         item {
