@@ -1,9 +1,10 @@
 # Device validation: First Sound navigation shell
 
-Status: WU4A real-device validation complete
+Status: WU4 real-device validation and closeout complete
 Related issue: #12
 Validation date: 2026-10-03
 Source baseline: develop at fc468856a9922271a6c768b32c9bea2e3487c0da
+Final merged baseline: develop at 4f1f3a22c64b3d2295b43c059eea395f14ad6c54
 
 ## Validation boundary
 
@@ -64,8 +65,23 @@ The WU4A candidate passed:
 - `./gradlew assembleDebug`
 - `git diff --check`
 
-Exact Jenkins branch and pull-request merge checks are intentionally recorded
-only after the WU4A pull request exists.
+## Jenkins and merge closeout
+
+The exact WU4A pull-request head was:
+
+`84774d5b82c2307cb1943ee9f7c932a4fec3d7d5`
+
+For that exact head, both required Jenkins contexts passed:
+
+- `continuous-integration/jenkins/branch`: SUCCESS
+- `continuous-integration/jenkins/pr-merge`: SUCCESS
+
+PR #151 was merged into `develop` with merge commit:
+
+`4f1f3a22c64b3d2295b43c059eea395f14ad6c54`
+
+Issue #12 was then reconciled against the merged behavior and closed as
+completed on 2026-10-03.
 
 ## Scope
 
