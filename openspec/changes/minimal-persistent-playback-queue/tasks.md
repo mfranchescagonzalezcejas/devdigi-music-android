@@ -100,6 +100,6 @@
 - [x] 4.6 Validate account-switch/sign-out isolation.
 - [x] 4.7 Verify persistence/system surfaces expose no endpoint, account
       identity, credentials or signed stream URI.
-- [ ] 4.8 Run Spotless, full JVM tests, lint, assemble and Jenkins.
+- [x] 4.8 Run Spotless, full JVM tests, lint, assemble and Jenkins.
 - [x] 4.9 Refresh docs without expanding #12 or #17.
-- [ ] 4.10 Record privacy-safe device evidence and close #7 after final merge.
+- [x] 4.10 Record privacy-safe device evidence and close #7 after final merge.
