@@ -129,6 +129,40 @@ internal class PlaybackQueueRuntime {
         )
     }
 
+    fun restore(
+        account: ServerAccountIdentity,
+        restoredQueue: PlaybackQueue,
+    ): QueueRuntimeMutationResult {
+        val currentIndex =
+            restoredQueue.currentIndex
+                ?: return QueueRuntimeMutationResult
+                    .INVALID_REQUEST
+
+        return replace(
+            PlaybackSessionReplaceQueueRequest(
+                account = account,
+                entries = restoredQueue.entries,
+                selectedIndex = currentIndex,
+            ),
+        )
+    }
+
+    fun hasNext(): Boolean {
+        val index =
+            queue.currentIndex
+                ?: return false
+
+        return index < queue.entries.lastIndex
+    }
+
+    fun hasPrevious(): Boolean {
+        val index =
+            queue.currentIndex
+                ?: return false
+
+        return index > 0
+    }
+
     fun next(): Boolean =
         navigate {
             it.next()

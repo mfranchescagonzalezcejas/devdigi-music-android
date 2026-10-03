@@ -43,6 +43,9 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var mediaLibrarySession:
         MediaLibrarySession
 
+    private lateinit var sessionPlayer:
+        PlaybackQueueNavigationPlayer
+
     private lateinit var sourceResolver:
         PlaybackSourceResolver
 
@@ -62,6 +65,9 @@ class PlaybackService : MediaLibraryService() {
         Mutex()
 
     private var queuePersistenceGeneration =
+        0L
+
+    private var queueRestoreGeneration =
         0L
 
     private val activeAccount:
@@ -228,6 +234,7 @@ class PlaybackService : MediaLibraryService() {
                         PlaybackSessionProtocol
                             .ACTION_STOP,
                         -> {
+                            cancelPendingQueueRestore()
                             stopPlaybackPreservingQueue()
                             SessionResult.RESULT_SUCCESS
                         }
@@ -279,11 +286,37 @@ class PlaybackService : MediaLibraryService() {
 
         player.addListener(playerListener)
 
+        sessionPlayer =
+            PlaybackQueueNavigationPlayer(
+                player = player,
+                canNavigate = { direction ->
+                    when (direction) {
+                        QueueNavigationDirection
+                            .PREVIOUS,
+                        -> queueRuntime.hasPrevious()
+
+                        QueueNavigationDirection
+                            .NEXT,
+                        -> queueRuntime.hasNext()
+                    }
+                },
+                navigate = { direction ->
+                    navigateQueue(
+                        forward =
+                            direction ==
+                                QueueNavigationDirection
+                                    .NEXT,
+                        autoplay =
+                            player.playWhenReady,
+                    )
+                },
+            )
+
         mediaLibrarySession =
             MediaLibrarySession
                 .Builder(
                     this,
-                    player,
+                    sessionPlayer,
                     sessionCallback,
                 ).build()
     }
@@ -301,7 +334,7 @@ class PlaybackService : MediaLibraryService() {
             player.removeListener(playerListener)
             player.stop()
             player.clearMediaItems()
-            player.release()
+            sessionPlayer.release()
             internalClear = false
         }
 
@@ -313,6 +346,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun handlePlay(args: Bundle): Int {
+        cancelPendingQueueRestore()
         val request =
             PlaybackSessionProtocol
                 .parsePlayRequest(args)
@@ -325,6 +359,8 @@ class PlaybackService : MediaLibraryService() {
             )
         ) {
             QueueRuntimeMutationResult.ACCEPTED -> {
+                refreshSessionQueueCommands()
+
                 persistQueueState(
                     request.account,
                 )
@@ -347,6 +383,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun handleReplaceQueue(args: Bundle): Int {
+        cancelPendingQueueRestore()
         val request =
             parseReplaceQueueRequest(args)
                 ?: return SessionResult
@@ -358,6 +395,8 @@ class PlaybackService : MediaLibraryService() {
             )
         ) {
             QueueRuntimeMutationResult.ACCEPTED -> {
+                refreshSessionQueueCommands()
+
                 persistQueueState(
                     request.account,
                 )
@@ -386,6 +425,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun handleAppendQueue(args: Bundle): Int {
+        cancelPendingQueueRestore()
         val request =
             parseAppendQueueRequest(args)
                 ?: return SessionResult
@@ -397,6 +437,8 @@ class PlaybackService : MediaLibraryService() {
             )
         ) {
             QueueRuntimeMutationResult.ACCEPTED -> {
+                refreshSessionQueueCommands()
+
                 persistQueueState(
                     request.account,
                 )
@@ -416,6 +458,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun handleRemoveQueueEntry(args: Bundle): Int {
+        cancelPendingQueueRestore()
         val request =
             parseRemoveQueueEntryRequest(args)
                 ?: return SessionResult
@@ -432,6 +475,8 @@ class PlaybackService : MediaLibraryService() {
             )
         ) {
             QueueRuntimeMutationResult.ACCEPTED -> {
+                refreshSessionQueueCommands()
+
                 persistQueueState(
                     request.account,
                 )
@@ -470,6 +515,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun handleClearQueue(args: Bundle): Int {
+        cancelPendingQueueRestore()
         val request =
             parseClearQueueRequest(args)
                 ?: return SessionResult
@@ -482,6 +528,8 @@ class PlaybackService : MediaLibraryService() {
         ) {
             QueueRuntimeMutationResult.ACCEPTED -> {
                 requestGeneration += 1
+
+                refreshSessionQueueCommands()
                 clearPlayerItem()
                 persistQueueState(
                     request.account,
@@ -508,29 +556,159 @@ class PlaybackService : MediaLibraryService() {
                 ?: return SessionResult
                     .RESULT_ERROR_BAD_VALUE
 
-        val currentAccount =
-            when (request) {
-                is PlaybackSessionReconcileRequest
-                    .Account,
-                -> request.account
+        cancelPendingQueueRestore()
 
-                PlaybackSessionReconcileRequest
-                    .SignedOut,
-                -> null
+        when (request) {
+            PlaybackSessionReconcileRequest
+                .SignedOut,
+            -> {
+                if (
+                    queueReconcileAction(
+                        activeAccount =
+                        activeAccount,
+                        currentAccount = null,
+                    ) ==
+                    QueueReconcileAction.CLEAR
+                ) {
+                    invalidatePlayback()
+                }
             }
 
-        if (
-            shouldClearServicePlayback(
-                activeAccount =
-                activeAccount,
-                currentAccount =
-                currentAccount,
-            )
-        ) {
-            invalidatePlayback()
+            is PlaybackSessionReconcileRequest
+                .Account,
+            -> {
+                reconcileAccount(
+                    request.account,
+                )
+            }
         }
 
         return SessionResult.RESULT_SUCCESS
+    }
+
+    private fun reconcileAccount(account: ServerAccountIdentity) {
+        when (
+            queueReconcileAction(
+                activeAccount =
+                activeAccount,
+                currentAccount =
+                account,
+            )
+        ) {
+            QueueReconcileAction.NONE,
+            QueueReconcileAction.CLEAR,
+            -> {
+                Unit
+            }
+
+            QueueReconcileAction.PRESERVE -> {
+                // A previous non-fatal stream resolution may have
+                // left the safe queue intact without a MediaItem.
+                if (
+                    player.currentMediaItem ==
+                    null &&
+                    queueRuntime.queue.current !=
+                    null
+                ) {
+                    loadCurrentQueueItem(
+                        autoplay = false,
+                    )
+                }
+            }
+
+            QueueReconcileAction.RESTORE -> {
+                restorePersistedQueue(
+                    account,
+                )
+            }
+
+            QueueReconcileAction
+                .CLEAR_AND_RESTORE,
+            -> {
+                invalidatePlayback()
+
+                restorePersistedQueue(
+                    account,
+                )
+            }
+        }
+    }
+
+    private fun restorePersistedQueue(account: ServerAccountIdentity) {
+        queueRestoreGeneration += 1
+
+        val generation =
+            queueRestoreGeneration
+
+        serviceScope.launch {
+            val readResult =
+                queuePersistenceMutex
+                    .withLock {
+                        readQueueForRestore(
+                            store = queueStore,
+                            account = account,
+                        )
+                    }
+
+            if (
+                !canApplyQueueRestore(
+                    expectedGeneration =
+                    generation,
+                    currentGeneration =
+                    queueRestoreGeneration,
+                    activeAccount =
+                    activeAccount,
+                )
+            ) {
+                return@launch
+            }
+
+            when (readResult) {
+                QueueRestoreReadResult.Missing -> {
+                    Unit
+                }
+
+                QueueRestoreReadResult.Failed -> {
+                    mediaLibrarySession.sendError(
+                        SessionError(
+                            SessionError.ERROR_UNKNOWN,
+                            "Queue restoration failed.",
+                        ),
+                    )
+                }
+
+                is QueueRestoreReadResult.Restored -> {
+                    when (
+                        queueRuntime.restore(
+                            account = account,
+                            restoredQueue =
+                                readResult.queue,
+                        )
+                    ) {
+                        QueueRuntimeMutationResult.ACCEPTED -> {
+                            refreshSessionQueueCommands()
+
+                            // Rehydrate safe metadata/current index and
+                            // prepare the selected item, but never autoplay.
+                            loadCurrentQueueItem(
+                                autoplay = false,
+                            )
+                        }
+
+                        QueueRuntimeMutationResult.ACCOUNT_MISMATCH,
+                        QueueRuntimeMutationResult.INVALID_REQUEST,
+                        -> {
+                            mediaLibrarySession.sendError(
+                                SessionError(
+                                    SessionError.ERROR_UNKNOWN,
+                                    "Queue restoration failed.",
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun stopPlaybackPreservingQueue() {
@@ -545,9 +723,23 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun invalidatePlayback() {
+        cancelPendingQueueRestore()
+
         requestGeneration += 1
         queueRuntime.reset()
+
+        refreshSessionQueueCommands()
         clearPlayerItem()
+    }
+
+    private fun cancelPendingQueueRestore() {
+        queueRestoreGeneration += 1
+    }
+
+    private fun refreshSessionQueueCommands() {
+        if (::sessionPlayer.isInitialized) {
+            sessionPlayer.refreshQueueCommands()
+        }
     }
 
     private fun clearPlayerItem() {
@@ -674,6 +866,8 @@ class PlaybackService : MediaLibraryService() {
         if (!changed) {
             return false
         }
+
+        refreshSessionQueueCommands()
 
         persistQueueState(
             account,

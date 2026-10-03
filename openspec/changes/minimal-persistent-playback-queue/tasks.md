@@ -69,14 +69,14 @@
 
 ## WU2C — Restoration, reconciliation and lifecycle
 
-- [ ] 2.1C Restore a matching persisted queue without autoplay.
-- [ ] 2.2C Clear runtime queue ownership on sign-out or account mismatch.
-- [ ] 2.3C Preserve recoverable failure and service lifecycle behavior.
-- [ ] 2.4C Verify own-app/trusted next/previous operate on the runtime queue
+- [x] 2.1C Restore a matching persisted queue without autoplay.
+- [x] 2.2C Clear runtime queue ownership on sign-out or account mismatch.
+- [x] 2.3C Preserve recoverable failure and service lifecycle behavior.
+- [x] 2.4C Verify own-app/trusted next/previous operate on the runtime queue
       without MediaItem injection rights.
-- [ ] 2.5C Add focused restore, account-isolation, transition and error tests.
-- [ ] 2.6C Run focused tests and full local quality gates.
-- [ ] 2.7C Measure WU2C against the 1000 changed-line hard review budget.
+- [x] 2.5C Add focused restore, account-isolation, transition and error tests.
+- [x] 2.6C Run focused tests and full local quality gates.
+- [x] 2.7C Measure WU2C against the 1000 changed-line hard review budget.
 
 ## WU3 — Controller, ViewModel and album-selection wiring
 
