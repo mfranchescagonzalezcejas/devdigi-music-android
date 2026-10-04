@@ -175,20 +175,22 @@ No real infrastructure or account information may appear in committed tests.
 
 ## 11. Implementation strategy
 
-Working subsystems should not be rewritten merely to satisfy #16.
+Working subsystems were not rewritten merely to satisfy #16.
 
-Follow-up WUs add focused regression coverage first.
+Final implementation outcome:
 
-Production changes are justified only where those tests expose an actual gap.
+- WU1 added focused identity, session, library and navigation regression
+  coverage. Existing production behavior already satisfied those boundaries,
+  so WU1 required no production Kotlin changes.
+- WU2 preserved `PlaybackService` as the sole runtime player and queue
+  authority. It extracted the existing stale-stream acceptance condition into
+  a directly testable policy and added durable queue ownership regression
+  coverage, without changing the intended playback semantics.
+- WU3 reconciles architecture, security and OpenSpec documentation and
+  verifies the issue remained inside its approved scope.
 
-Planned boundaries:
-
-- WU1: identity, session, library and navigation isolation;
-- WU2: playback and queue isolation;
-- WU3: documentation, OpenSpec reconciliation and closeout.
-
-Every WU remains below 1000 changed lines and should preferably remain below
-approximately 800 to 850 lines.
+All WUs remain below the 1000 changed-line hard limit and below the preferred
+approximately 800 to 850 line review ceiling.
 
 ## 12. Relationship to #17
 

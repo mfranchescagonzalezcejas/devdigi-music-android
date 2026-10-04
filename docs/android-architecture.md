@@ -179,9 +179,18 @@ endpoint and the exact, opaque username.
 Credentials are bound to the corresponding server account.
 Secrets must never be included in logs or public artifacts.
 
-Account isolation also applies to future local library data,
-preferences, downloads, playback history and queue state.
-Switching accounts must not expose another account's data.
+Issue #16 makes `ServerAccountIdentity` the ownership boundary for
+implemented First Sound account-scoped state: authenticated session
+publication, recent albums, album details, account-owned navigation,
+service playback, runtime queue state and durable queue restoration.
+
+Stale asynchronous work is accepted only while its generation, target and
+account ownership still match. The single durable queue snapshot remains
+safe metadata only: it restores only for a matching account fingerprint and
+may remain after sign-out while runtime ownership is cleared.
+
+Future account-specific preferences, downloads and playback history must use
+the same server-plus-user isolation boundary.
 
 The existing encrypted credential-store guarantees remain
 mandatory throughout refactoring.
@@ -224,17 +233,26 @@ Activity recreation releases only the application controller. It does not
 release the service-owned player. Reconnection reconciles the active account
 and reconstructs only safe matching playback state.
 
-Account changes and sign-out clear service playback when ownership no longer
-matches. Presentation generation/target checks reject stale playback events.
+Account changes and sign-out clear service playback and runtime queue
+ownership when ownership no longer matches. Presentation generation/target
+checks reject stale playback events, while service-side generation, account
+and track checks reject stale stream resolutions before they can become
+Media3 items.
 
 Real-device validation confirmed background playback, notification and
 lock-screen controls, media-button dispatch, Activity recreation, account
 switching, recoverable failure behavior and playback-surface privacy.
 
-The minimal persistent queue is implemented under #7. The implemented
-#12 First Sound shell consumes that same authority through its persistent
-mini-player and Now Playing surface without duplicating player or queue state.
-Queue editing remains deferred.
+The minimal persistent queue is implemented under #7 and hardened by #16.
+`PlaybackService` remains the sole runtime player and queue authority. A
+matching account snapshot can restore safe queue metadata and current index
+without autoplay; a different server-plus-user identity cannot restore or
+play that snapshot. Sign-out clears runtime ownership without requiring the
+safe durable snapshot to be deleted.
+
+The implemented #12 First Sound shell consumes that same authority through
+its persistent mini-player and Now Playing surface without duplicating player
+or queue state. Queue editing remains deferred.
 
 ## 8. Future provider boundaries
 
@@ -283,8 +301,8 @@ Architecture changes must be incremental and reviewable.
    contracts together with their regression tests.
 2. Keep the current single-module composition explicit; extract mixed
    packages only in separate, test-backed refactors with demonstrated value.
-3. Add the First Sound library flow behind account-scoped domain and data
-   boundaries without leaking transport details into presentation.
+3. Preserve the implemented First Sound library flow and its account-scoped
+   domain, data and presentation ownership boundaries.
 4. Preserve the implemented #7 service-owned queue, account isolation and
    restoration boundaries while future playback UI evolves independently.
 5. Introduce database or offline persistence structures only when their
