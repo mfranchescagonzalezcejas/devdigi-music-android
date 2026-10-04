@@ -36,21 +36,21 @@ WU0 MUST NOT modify production Kotlin.
 
 ## WU2 — playback and queue isolation
 
-- [ ] Confirm account mismatch rejects runtime queue mutation.
-- [ ] Confirm account switch invalidates previous runtime playback ownership.
-- [ ] Confirm stale stream resolution cannot become current after ownership
+- [x] Confirm account mismatch rejects runtime queue mutation.
+- [x] Confirm account switch invalidates previous runtime playback ownership.
+- [x] Confirm stale stream resolution cannot become current after ownership
       changes.
-- [ ] Confirm a matching queue snapshot may restore without autoplay.
-- [ ] Confirm a different-account queue snapshot cannot restore or play.
-- [ ] Confirm sign-out removes runtime ownership while preserving the existing
+- [x] Confirm a matching queue snapshot may restore without autoplay.
+- [x] Confirm a different-account queue snapshot cannot restore or play.
+- [x] Confirm sign-out removes runtime ownership while preserving the existing
       safe durable-snapshot policy.
-- [ ] Preserve `PlaybackService` as the sole runtime queue/player authority.
-- [ ] Make only the smallest production changes required by failing tests.
-- [ ] Run `./gradlew spotlessCheck`.
-- [ ] Run `./gradlew testDebugUnitTest`.
-- [ ] Run `./gradlew lint`.
-- [ ] Run `./gradlew assembleDebug`.
-- [ ] Keep WU2 below 1000 changed lines.
+- [x] Preserve `PlaybackService` as the sole runtime queue/player authority.
+- [x] Make only the smallest production changes required by failing tests.
+- [x] Run `./gradlew spotlessCheck`.
+- [x] Run `./gradlew testDebugUnitTest`.
+- [x] Run `./gradlew lint`.
+- [x] Run `./gradlew assembleDebug`.
+- [x] Keep WU2 below 1000 changed lines.
 
 ## WU3 — reconciliation and closeout
 

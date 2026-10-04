@@ -3,6 +3,7 @@ package dev.devdigi.music.features.playback.data
 import dev.devdigi.music.connection.EndpointParseResult
 import dev.devdigi.music.connection.ServerAccountIdentity
 import dev.devdigi.music.connection.ServerEndpoint
+import dev.devdigi.music.features.playback.domain.PlaybackTrack
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -72,6 +73,65 @@ class PlaybackSessionPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun resolvedStreamAppliesOnlyToCurrentGenerationAccountAndTrack() {
+        val alice = account("alice")
+        val bob = account("bob")
+        val expected = track("expected")
+        val replacement = track("replacement")
+
+        assertTrue(
+            canApplyResolvedStream(
+                expectedGeneration = 7L,
+                currentGeneration = 7L,
+                expectedAccount = alice,
+                activeAccount = alice,
+                expectedTrack = expected,
+                currentTrack = expected,
+            ),
+        )
+
+        assertFalse(
+            canApplyResolvedStream(
+                expectedGeneration = 7L,
+                currentGeneration = 8L,
+                expectedAccount = alice,
+                activeAccount = alice,
+                expectedTrack = expected,
+                currentTrack = expected,
+            ),
+        )
+
+        assertFalse(
+            canApplyResolvedStream(
+                expectedGeneration = 7L,
+                currentGeneration = 7L,
+                expectedAccount = alice,
+                activeAccount = bob,
+                expectedTrack = expected,
+                currentTrack = expected,
+            ),
+        )
+
+        assertFalse(
+            canApplyResolvedStream(
+                expectedGeneration = 7L,
+                currentGeneration = 7L,
+                expectedAccount = alice,
+                activeAccount = alice,
+                expectedTrack = expected,
+                currentTrack = replacement,
+            ),
+        )
+    }
+
+    private fun track(id: String): PlaybackTrack =
+        PlaybackTrack(
+            id = id,
+            title = "Track $id",
+            artist = "Synthetic Artist",
+        )
 
     private fun account(username: String): ServerAccountIdentity =
         ServerAccountIdentity(
