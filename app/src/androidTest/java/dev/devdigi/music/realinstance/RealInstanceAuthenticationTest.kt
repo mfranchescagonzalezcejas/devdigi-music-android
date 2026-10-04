@@ -1,5 +1,8 @@
 package dev.devdigi.music.realinstance
 
+import android.content.Intent
+import android.os.ParcelFileDescriptor
+import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
@@ -7,6 +10,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollToNode
@@ -35,7 +39,11 @@ class RealInstanceAuthenticationTest {
         safeStage(
             "REAL_STAGE_AUTH_FAILED",
         ) {
-            authenticate(input)
+            authenticate(
+                endpoint = input.endpoint,
+                username = input.username,
+                password = input.password,
+            )
         }
 
         val probeResult =
@@ -156,6 +164,251 @@ class RealInstanceAuthenticationTest {
             backToAlbum()
             waitTrackSelected(1)
         }
+
+        val observer =
+            safeStage(
+                "REAL_STAGE_SYSTEM_CONTROLLER_FAILED",
+            ) {
+                RealInstancePlaybackObserver.connect()
+            }
+
+        observer.use { observer ->
+            safeStage(
+                "REAL_STAGE_BACKGROUND_PLAYBACK_FAILED",
+            ) {
+                openNowPlayingAndWaitForPlayback()
+
+                backgroundActivity()
+
+                waitUntilCondition(
+                    timeoutMillis =
+                    PLAYBACK_TIMEOUT_MS,
+                    condition =
+                        observer::isPlaying,
+                )
+            }
+
+            safeStage(
+                "REAL_STAGE_SYSTEM_PAUSE_FAILED",
+            ) {
+                sendMediaKey(
+                    KeyEvent.KEYCODE_MEDIA_PAUSE,
+                )
+
+                waitUntilCondition(
+                    timeoutMillis =
+                    PLAYBACK_TIMEOUT_MS,
+                    condition =
+                        observer::isPausedWithMedia,
+                )
+
+                foregroundActivity()
+
+                waitUntilDisplayed(
+                    tag =
+                        "playback-phase-PAUSED",
+                    timeoutMillis =
+                    PLAYBACK_TIMEOUT_MS,
+                )
+            }
+
+            safeStage(
+                "REAL_STAGE_SYSTEM_PLAY_FAILED",
+            ) {
+                backgroundActivity()
+
+                sendMediaKey(
+                    KeyEvent.KEYCODE_MEDIA_PLAY,
+                )
+
+                waitUntilCondition(
+                    timeoutMillis =
+                    PLAYBACK_TIMEOUT_MS,
+                    condition =
+                        observer::isPlaying,
+                )
+
+                foregroundActivity()
+
+                waitUntilDisplayed(
+                    tag =
+                        "playback-phase-PLAYING",
+                    timeoutMillis =
+                    PLAYBACK_TIMEOUT_MS,
+                )
+            }
+
+            safeStage(
+                "REAL_STAGE_SYSTEM_NEXT_FAILED",
+            ) {
+                val transitionBefore =
+                    observer.transitionCount()
+
+                backgroundActivity()
+
+                sendMediaKey(
+                    KeyEvent.KEYCODE_MEDIA_NEXT,
+                )
+
+                waitUntilCondition(
+                    timeoutMillis =
+                    PLAYBACK_TIMEOUT_MS,
+                    condition = {
+                        observer.transitionCount() >
+                            transitionBefore
+                    },
+                )
+
+                foregroundActivity()
+                backToAlbum()
+                waitTrackSelected(2)
+            }
+
+            safeStage(
+                "REAL_STAGE_SYSTEM_PREVIOUS_FAILED",
+            ) {
+                openNowPlayingAndWaitForPlayback()
+
+                val transitionBefore =
+                    observer.transitionCount()
+
+                backgroundActivity()
+
+                sendMediaKey(
+                    KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+                )
+
+                waitUntilCondition(
+                    timeoutMillis =
+                    PLAYBACK_TIMEOUT_MS,
+                    condition = {
+                        observer.transitionCount() >
+                            transitionBefore
+                    },
+                )
+
+                foregroundActivity()
+                backToAlbum()
+                waitTrackSelected(1)
+            }
+
+            safeStage(
+                "REAL_STAGE_SIGN_OUT_FAILED",
+            ) {
+                composeRule
+                    .onNodeWithText(
+                        "Back",
+                    ).assertIsDisplayed()
+                    .performClick()
+
+                waitUntilDisplayed(
+                    tag =
+                        "recent-albums-screen",
+                    timeoutMillis =
+                    UI_TIMEOUT_MS,
+                )
+
+                composeRule
+                    .onNodeWithText(
+                        "Sign out",
+                    ).assertIsDisplayed()
+                    .performClick()
+
+                waitUntilDisplayed(
+                    tag =
+                        "connection-server-url",
+                    timeoutMillis =
+                    UI_TIMEOUT_MS,
+                )
+            }
+
+            safeStage(
+                "REAL_STAGE_SIGN_OUT_PRESENTATION_CLEAR_FAILED",
+            ) {
+                assertTagAbsent(
+                    "recent-albums-screen",
+                )
+
+                assertTagAbsent(
+                    "album-details-screen",
+                )
+
+                assertTagAbsent(
+                    "first-sound-now-playing",
+                )
+
+                assertTagAbsent(
+                    "first-sound-open-now-playing",
+                )
+            }
+
+            safeStage(
+                "REAL_STAGE_SIGN_OUT_RUNTIME_CLEAR_FAILED",
+            ) {
+                waitUntilCondition(
+                    timeoutMillis =
+                    PLAYBACK_TIMEOUT_MS,
+                    condition = {
+                        !observer.hasMediaItem() &&
+                            !observer.hasPreviousCommand() &&
+                            !observer.hasNextCommand()
+                    },
+                )
+            }
+        }
+        input.secondary?.let { secondary ->
+            safeStage(
+                "REAL_STAGE_SECOND_IDENTITY_AUTH_FAILED",
+            ) {
+                authenticate(
+                    endpoint = secondary.endpoint,
+                    username = secondary.username,
+                    password = secondary.password,
+                )
+            }
+
+            safeStage(
+                "REAL_STAGE_SECOND_IDENTITY_ISOLATION_FAILED",
+            ) {
+                waitUntilDisplayed(
+                    tag =
+                        "recent-albums-screen",
+                    timeoutMillis =
+                    AUTH_TIMEOUT_MS,
+                )
+
+                assertTagAbsent(
+                    "album-details-screen",
+                )
+
+                assertTagAbsent(
+                    "first-sound-now-playing",
+                )
+
+                assertTagAbsent(
+                    "first-sound-open-now-playing",
+                )
+            }
+
+            safeStage(
+                "REAL_STAGE_SECOND_IDENTITY_RUNTIME_ISOLATION_FAILED",
+            ) {
+                RealInstancePlaybackObserver
+                    .connect()
+                    .use { secondaryObserver ->
+                        waitUntilCondition(
+                            timeoutMillis =
+                            PLAYBACK_TIMEOUT_MS,
+                            condition = {
+                                !secondaryObserver.isPlaying() &&
+                                    !secondaryObserver.hasMediaItem() &&
+                                    !secondaryObserver.hasPreviousCommand() &&
+                                    !secondaryObserver.hasNextCommand()
+                            },
+                        )
+                    }
+            }
+        }
     }
 
     private fun <T> safeStage(
@@ -170,13 +423,17 @@ class RealInstanceAuthenticationTest {
             throw AssertionError(marker)
         }
 
-    private fun authenticate(input: RealInstanceInput) {
+    private fun authenticate(
+        endpoint: String,
+        username: String,
+        password: String,
+    ) {
         composeRule
             .onNodeWithTag(
                 "connection-server-url",
             ).assertExists()
             .performTextReplacement(
-                input.endpoint,
+                endpoint,
             )
 
         waitUntilEnabled(
@@ -193,7 +450,7 @@ class RealInstanceAuthenticationTest {
                 "connection-username",
             ).assertExists()
             .performTextReplacement(
-                input.username,
+                username,
             )
 
         composeRule
@@ -201,7 +458,7 @@ class RealInstanceAuthenticationTest {
                 "connection-password",
             ).assertExists()
             .performTextReplacement(
-                input.password,
+                password,
             )
 
         waitUntilEnabled(
@@ -315,6 +572,87 @@ class RealInstanceAuthenticationTest {
         )
     }
 
+    private fun backgroundActivity() {
+        val moved =
+            composeRule
+                .activity
+                .moveTaskToBack(true)
+
+        if (!moved) {
+            throw AssertionError(
+                "REAL_BACKGROUND_FAILED",
+            )
+        }
+    }
+
+    private fun foregroundActivity() {
+        val context =
+            InstrumentationRegistry
+                .getInstrumentation()
+                .targetContext
+
+        val intent =
+            Intent(
+                context,
+                MainActivity::class.java,
+            ).addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,
+            )
+
+        context.startActivity(intent)
+
+        waitUntilDisplayed(
+            tag = "first-sound-now-playing",
+            timeoutMillis = UI_TIMEOUT_MS,
+        )
+    }
+
+    private fun sendMediaKey(keyCode: Int) {
+        val instrumentation =
+            InstrumentationRegistry
+                .getInstrumentation()
+
+        val descriptor =
+            instrumentation
+                .uiAutomation
+                .executeShellCommand(
+                    "input keyevent $keyCode",
+                )
+
+        ParcelFileDescriptor
+            .AutoCloseInputStream(
+                descriptor,
+            ).use { stream ->
+                while (stream.read() != -1) {
+                    Unit
+                }
+            }
+    }
+
+    private fun waitUntilCondition(
+        timeoutMillis: Long,
+        condition: () -> Boolean,
+    ) {
+        composeRule.waitUntil(
+            timeoutMillis = timeoutMillis,
+            condition = condition,
+        )
+    }
+
+    private fun assertTagAbsent(tag: String) {
+        val nodes =
+            composeRule
+                .onAllNodesWithTag(tag)
+                .fetchSemanticsNodes()
+
+        if (nodes.isNotEmpty()) {
+            throw AssertionError(
+                "REAL_PRESENTATION_STATE_REMAINS",
+            )
+        }
+    }
+
     private fun waitUntilDisplayed(
         tag: String,
         timeoutMillis: Long = UI_TIMEOUT_MS,
@@ -406,6 +744,60 @@ class RealInstanceAuthenticationTest {
                 "password",
             )
 
+        val secondary =
+            json
+                .optJSONObject(
+                    "secondary",
+                )?.let { secondaryJson ->
+                    val secondaryEndpoint =
+                        requiredValue(
+                            secondaryJson,
+                            "endpoint",
+                        )
+
+                    val secondaryUsername =
+                        requiredValue(
+                            secondaryJson,
+                            "username",
+                        )
+
+                    val secondaryPassword =
+                        requiredValue(
+                            secondaryJson,
+                            "password",
+                        )
+
+                    if (
+                        !secondaryEndpoint.startsWith(
+                            "https://",
+                        )
+                    ) {
+                        throw AssertionError(
+                            "REAL_SECOND_IDENTITY_INVALID",
+                        )
+                    }
+
+                    if (
+                        secondaryEndpoint ==
+                        endpoint &&
+                        secondaryUsername ==
+                        username
+                    ) {
+                        throw AssertionError(
+                            "REAL_SECOND_IDENTITY_NOT_DISTINCT",
+                        )
+                    }
+
+                    RealSecondaryIdentityInput(
+                        endpoint =
+                        secondaryEndpoint,
+                        username =
+                        secondaryUsername,
+                        password =
+                        secondaryPassword,
+                    )
+                }
+
         if (
             !endpoint.startsWith(
                 "https://",
@@ -420,6 +812,7 @@ class RealInstanceAuthenticationTest {
             endpoint = endpoint,
             username = username,
             password = password,
+            secondary = secondary,
         )
     }
 
@@ -443,6 +836,13 @@ class RealInstanceAuthenticationTest {
     }
 
     private data class RealInstanceInput(
+        val endpoint: String,
+        val username: String,
+        val password: String,
+        val secondary: RealSecondaryIdentityInput?,
+    )
+
+    private data class RealSecondaryIdentityInput(
         val endpoint: String,
         val username: String,
         val password: String,

@@ -60,19 +60,19 @@ Jenkins changes or production Kotlin changes.
 
 ## WU3 — background, system controls and account isolation
 
-- [ ] Background the Activity automatically.
-- [ ] Prove playback continues in the service.
-- [ ] Exercise Android system Pause/Play without publishing media metadata.
-- [ ] Exercise Android system Next/Previous against the same queue.
-- [ ] Return to the app and verify service/UI state reconciliation.
-- [ ] Sign out automatically.
-- [ ] Prove account-bound library/navigation state is cleared.
-- [ ] Prove runtime playback/queue ownership is cleared.
-- [ ] Support an optional second real identity.
-- [ ] When supplied, prove identity B does not inherit A state.
-- [ ] Keep missing optional second identity explicit rather than faking it.
-- [ ] Run applicable Android gates.
-- [ ] Keep WU3 below 1000 changed lines.
+- [x] Background the Activity automatically.
+- [x] Prove playback continues in the service.
+- [x] Exercise Android system Pause/Play without publishing media metadata.
+- [x] Exercise Android system Next/Previous against the same queue.
+- [x] Return to the app and verify service/UI state reconciliation.
+- [x] Sign out automatically.
+- [x] Prove account-bound library/navigation state is cleared.
+- [x] Prove runtime playback/queue ownership is cleared.
+- [x] Support an optional second real identity.
+- [ ] When supplied, prove identity B does not inherit A state. **BLOCKED / NOT RUN:** no second real identity was supplied.
+- [x] Keep missing optional second identity explicit rather than faking it.
+- [x] Run applicable Android gates.
+- [x] Keep WU3 below 1000 changed lines.
 
 ## WU4 — real execution and closeout
 
