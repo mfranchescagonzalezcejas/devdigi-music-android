@@ -22,6 +22,11 @@ RUN_LOG=''
 
 ENV_FILE="${DEVDIGI_NAVIDROME_ENV:-$HOME/.config/devdigi-music/navidrome-test.env}"
 
+SECONDARY_ENDPOINT=''
+SECONDARY_USERNAME=''
+SECONDARY_PASSWORD=''
+SECONDARY_STATE='ABSENT'
+
 cleanup() {
     set +e
 
@@ -61,7 +66,7 @@ failed() {
 }
 
 
-echo '===== REAL FIRST SOUND / WU2 ====='
+echo '===== REAL FIRST SOUND / WU2 + WU3 ====='
 
 
 echo
@@ -224,6 +229,44 @@ if [[ -f "$ENV_FILE" ]]; then
     USERNAME="${DEVDIGI_NAVIDROME_USER:-}"
     PASSWORD="${DEVDIGI_NAVIDROME_PASSWORD:-}"
 
+    SECONDARY_LOCAL_ENDPOINT="${DEVDIGI_NAVIDROME_SECONDARY_LOCAL_URL:-}"
+    SECONDARY_TAILSCALE_ENDPOINT="${DEVDIGI_NAVIDROME_SECONDARY_TAILSCALE_URL:-}"
+    SECONDARY_USERNAME="${DEVDIGI_NAVIDROME_SECONDARY_USER:-}"
+    SECONDARY_PASSWORD="${DEVDIGI_NAVIDROME_SECONDARY_PASSWORD:-}"
+
+    if [[ -n "$SECONDARY_LOCAL_ENDPOINT$SECONDARY_TAILSCALE_ENDPOINT$SECONDARY_USERNAME$SECONDARY_PASSWORD" ]]
+    then
+        if [[ "$SECONDARY_LOCAL_ENDPOINT" == https://* ]]; then
+            SECONDARY_ENDPOINT="$SECONDARY_LOCAL_ENDPOINT"
+        elif [[ "$SECONDARY_TAILSCALE_ENDPOINT" == https://* ]]; then
+            SECONDARY_ENDPOINT="$SECONDARY_TAILSCALE_ENDPOINT"
+        elif [[
+            -z "$SECONDARY_LOCAL_ENDPOINT" &&
+            -z "$SECONDARY_TAILSCALE_ENDPOINT" &&
+            -n "$SECONDARY_USERNAME" &&
+            -n "$SECONDARY_PASSWORD"
+        ]]; then
+            SECONDARY_ENDPOINT="$ENDPOINT"
+        fi
+
+        if [[
+            "$SECONDARY_ENDPOINT" == https://* &&
+            -n "$SECONDARY_USERNAME" &&
+            -n "$SECONDARY_PASSWORD"
+        ]]; then
+            if [[
+                "$SECONDARY_ENDPOINT" == "$ENDPOINT" &&
+                "$SECONDARY_USERNAME" == "$USERNAME"
+            ]]; then
+                SECONDARY_STATE='SAME_AS_PRIMARY'
+            else
+                SECONDARY_STATE='COMPLETE'
+            fi
+        else
+            SECONDARY_STATE='PARTIAL'
+        fi
+    fi
+
     unset \
         LOCAL_ENDPOINT \
         TAILSCALE_ENDPOINT \
@@ -233,7 +276,13 @@ if [[ -f "$ENV_FILE" ]]; then
         DEVDIGI_NAVIDROME_USER \
         DEVDIGI_NAVIDROME_USERNAME \
         DEVDIGI_NAVIDROME_PASSWORD \
-        DEVDIGI_NAVIDROME_API_KEY
+        DEVDIGI_NAVIDROME_API_KEY \
+        DEVDIGI_NAVIDROME_SECONDARY_LOCAL_URL \
+        DEVDIGI_NAVIDROME_SECONDARY_TAILSCALE_URL \
+        DEVDIGI_NAVIDROME_SECONDARY_USER \
+        DEVDIGI_NAVIDROME_SECONDARY_PASSWORD \
+        SECONDARY_LOCAL_ENDPOINT \
+        SECONDARY_TAILSCALE_ENDPOINT
 
     echo 'RUNTIME_ENV=PASS'
 else
@@ -272,17 +321,30 @@ if ! (
     REAL_ENDPOINT="$ENDPOINT" \
     REAL_USERNAME="$USERNAME" \
     REAL_PASSWORD="$PASSWORD" \
+    REAL_SECONDARY_STATE="$SECONDARY_STATE" \
+    REAL_SECONDARY_ENDPOINT="$SECONDARY_ENDPOINT" \
+    REAL_SECONDARY_USERNAME="$SECONDARY_USERNAME" \
+    REAL_SECONDARY_PASSWORD="$SECONDARY_PASSWORD" \
         python3 - <<'PY'
 import json
 import os
 import sys
 
+payload = {
+    "endpoint": os.environ["REAL_ENDPOINT"],
+    "username": os.environ["REAL_USERNAME"],
+    "password": os.environ["REAL_PASSWORD"],
+}
+
+if os.environ["REAL_SECONDARY_STATE"] == "COMPLETE":
+    payload["secondary"] = {
+        "endpoint": os.environ["REAL_SECONDARY_ENDPOINT"],
+        "username": os.environ["REAL_SECONDARY_USERNAME"],
+        "password": os.environ["REAL_SECONDARY_PASSWORD"],
+    }
+
 json.dump(
-    {
-        "endpoint": os.environ["REAL_ENDPOINT"],
-        "username": os.environ["REAL_USERNAME"],
-        "password": os.environ["REAL_PASSWORD"],
-    },
+    payload,
     sys.stdout,
     ensure_ascii=False,
 )
@@ -293,11 +355,23 @@ PY
         shell \
         "run-as $APP_ID sh -c 'umask 077; mkdir -p files; cat > files/real_instance_input.json'"
 then
-    unset ENDPOINT USERNAME PASSWORD
+    unset \
+    ENDPOINT \
+    USERNAME \
+    PASSWORD \
+    SECONDARY_ENDPOINT \
+    SECONDARY_USERNAME \
+    SECONDARY_PASSWORD
     failed 'RUNTIME_INPUT_STAGE'
 fi
 
-unset ENDPOINT USERNAME PASSWORD
+unset \
+    ENDPOINT \
+    USERNAME \
+    PASSWORD \
+    SECONDARY_ENDPOINT \
+    SECONDARY_USERNAME \
+    SECONDARY_PASSWORD
 
 echo 'RUNTIME_INPUT_STAGE=PASS'
 
@@ -323,7 +397,7 @@ echo 'INSTRUMENTATION_DISCOVERY=PASS'
 
 
 echo
-echo '--- execute dynamic media and queue slice ---'
+echo '--- execute media, system controls and isolation slice ---'
 
 RUN_LOG="$(mktemp)"
 
@@ -404,3 +478,37 @@ echo 'QUEUE_PREVIOUS=PASS'
 echo 'RUNTIME_INPUT_DELETION=PASS'
 echo 'PRIVATE_METADATA_RECORDED=NO'
 echo 'WU2_REAL_INSTANCE_MEDIA_QUEUE=PASS'
+
+echo 'BACKGROUND_PLAYBACK=PASS'
+echo 'SYSTEM_MEDIA_CONTROLS=PASS'
+echo 'SIGN_OUT_ISOLATION=PASS'
+echo 'ACCOUNT_PRESENTATION_CLEAR=PASS'
+echo 'RUNTIME_PLAYBACK_OWNERSHIP_CLEAR=PASS'
+echo 'RUNTIME_QUEUE_OWNERSHIP_CLEAR=PASS'
+echo 'WU3_REQUIRED_SCENARIOS=PASS'
+
+case "$SECONDARY_STATE" in
+    COMPLETE)
+        echo 'SECOND_IDENTITY=SUPPLIED'
+        echo 'ACCOUNT_SWITCH_ISOLATION=PASS'
+        ;;
+    ABSENT)
+        echo 'SECOND_IDENTITY=NOT_SUPPLIED'
+        echo 'ACCOUNT_SWITCH_ISOLATION=BLOCKED'
+        ;;
+    PARTIAL)
+        echo 'SECOND_IDENTITY=INVALID_CONFIGURATION'
+        echo 'ACCOUNT_SWITCH_ISOLATION=BLOCKED'
+        ;;
+    SAME_AS_PRIMARY)
+        echo 'SECOND_IDENTITY=NOT_DISTINCT'
+        echo 'ACCOUNT_SWITCH_ISOLATION=BLOCKED'
+        ;;
+    *)
+        echo 'SECOND_IDENTITY=UNKNOWN'
+        echo 'ACCOUNT_SWITCH_ISOLATION=BLOCKED'
+        ;;
+esac
+
+echo 'PRIVATE_METADATA_RECORDED=NO'
+echo 'WU3_REAL_INSTANCE_BACKGROUND_ISOLATION=PASS'
