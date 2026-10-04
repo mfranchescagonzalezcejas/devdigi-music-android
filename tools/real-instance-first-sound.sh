@@ -61,7 +61,7 @@ failed() {
 }
 
 
-echo '===== REAL FIRST SOUND / WU1 ====='
+echo '===== REAL FIRST SOUND / WU2 ====='
 
 
 echo
@@ -323,7 +323,7 @@ echo 'INSTRUMENTATION_DISCOVERY=PASS'
 
 
 echo
-echo '--- execute authentication slice ---'
+echo '--- execute dynamic media and queue slice ---'
 
 RUN_LOG="$(mktemp)"
 
@@ -353,10 +353,41 @@ then
 fi
 
 if [[ "$SUCCESS" -ne 1 ]]; then
-    echo 'REAL_INSTANCE_CONNECTION=FAIL'
-    echo 'AUTHENTICATION=FAIL'
+    if grep -Fq \
+        'REAL_MEDIA_CANDIDATE_BLOCKED' \
+        "$RUN_LOG"
+    then
+        echo 'MEDIA_CANDIDATE=BLOCKED'
+        echo 'PRIVATE_METADATA_RECORDED=NO'
+        echo 'WU2_REAL_INSTANCE_MEDIA_QUEUE=BLOCKED'
+        exit 2
+    fi
+
+    if grep -Fq \
+        'REAL_MEDIA_CANDIDATE_PROBE_FAILED' \
+        "$RUN_LOG"
+    then
+        echo 'MEDIA_CANDIDATE=FAIL'
+        echo 'PRIVATE_METADATA_RECORDED=NO'
+        echo 'WU2_REAL_INSTANCE_MEDIA_QUEUE=FAIL'
+        exit 1
+    fi
+
+    STAGE_MARKER="$(
+        grep -Eo \
+            'REAL_STAGE_[A-Z0-9_]+' \
+            "$RUN_LOG" |
+            head -n 1
+    )"
+
+    if [[ -n "$STAGE_MARKER" ]]; then
+        echo "FAIL_STAGE=${STAGE_MARKER#REAL_STAGE_}"
+    else
+        echo 'FAIL_STAGE=UNCLASSIFIED'
+    fi
+
+    echo 'WU2_REAL_INSTANCE_MEDIA_QUEUE=FAIL'
     echo 'PRIVATE_METADATA_RECORDED=NO'
-    echo 'WU1_REAL_INSTANCE_AUTH=FAIL'
     exit 1
 fi
 
@@ -365,6 +396,11 @@ echo
 echo 'REAL_INSTANCE_CONNECTION=PASS'
 echo 'AUTHENTICATION=PASS'
 echo 'RECENT_ALBUMS_DESTINATION=PASS'
+echo 'MEDIA_CANDIDATE=PASS'
+echo 'DYNAMIC_ALBUM_OPEN=PASS'
+echo 'FLAC_PLAYBACK=PASS'
+echo 'QUEUE_NEXT=PASS'
+echo 'QUEUE_PREVIOUS=PASS'
 echo 'RUNTIME_INPUT_DELETION=PASS'
 echo 'PRIVATE_METADATA_RECORDED=NO'
-echo 'WU1_REAL_INSTANCE_AUTH=PASS'
+echo 'WU2_REAL_INSTANCE_MEDIA_QUEUE=PASS'

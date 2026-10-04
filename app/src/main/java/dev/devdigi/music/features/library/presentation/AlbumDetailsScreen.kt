@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,7 +82,10 @@ fun AlbumDetailsScreen(
     onSignOut: () -> Unit,
 ) {
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .testTag("album-details-screen"),
         topBar = {
             AlbumDetailsHeader(
                 onBack = onBack,
@@ -256,7 +260,10 @@ private fun AlbumDetailsOverview(
     emptyMessage: String? = null,
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .testTag("album-track-list"),
         contentPadding =
             PaddingValues(
                 bottom = 24.dp,
@@ -376,7 +383,9 @@ private fun AlbumTrackRow(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .semantics {
+                .testTag(
+                    "album-track-row-$position",
+                ).semantics {
                     this.selected =
                         selected
                 },

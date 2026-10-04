@@ -13,6 +13,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -159,7 +160,11 @@ internal fun PlaybackControls(
 
     Surface(
         modifier =
-            Modifier.fillMaxWidth(),
+            Modifier
+                .fillMaxWidth()
+                .testTag(
+                    "playback-phase-${state.phase.name}",
+                ),
         shape =
             MaterialTheme.shapes
                 .large,
@@ -295,14 +300,20 @@ private fun PlaybackActionButtons(
 
     OutlinedButton(
         onClick = onPrevious,
-        modifier = modifier,
+        modifier =
+            modifier.testTag(
+                "playback-previous",
+            ),
     ) {
         Text("Previous")
     }
 
     OutlinedButton(
         onClick = onNext,
-        modifier = modifier,
+        modifier =
+            modifier.testTag(
+                "playback-next",
+            ),
     ) {
         Text("Next")
     }
