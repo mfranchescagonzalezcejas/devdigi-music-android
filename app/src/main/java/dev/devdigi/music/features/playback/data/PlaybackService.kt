@@ -778,13 +778,21 @@ class PlaybackService : MediaLibraryService() {
             ) {
                 is StreamResolutionResult.Success -> {
                     if (
-                        generation !=
-                        requestGeneration ||
-                        activeAccount !=
-                        account ||
-                        queueRuntime.queue
-                            .current !=
-                        track
+                        !canApplyResolvedStream(
+                            expectedGeneration =
+                            generation,
+                            currentGeneration =
+                            requestGeneration,
+                            expectedAccount =
+                            account,
+                            activeAccount =
+                            activeAccount,
+                            expectedTrack =
+                            track,
+                            currentTrack =
+                                queueRuntime.queue
+                                    .current,
+                        )
                     ) {
                         return@launch
                     }

@@ -4,6 +4,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.devdigi.music.connection.ServerAccountIdentity
+import dev.devdigi.music.features.playback.domain.PlaybackTrack
 
 internal fun isOwnApplicationController(
     controllerPackageName: String,
@@ -89,3 +90,15 @@ internal fun shouldClearServicePlayback(
 ): Boolean =
     activeAccount != null &&
         activeAccount != currentAccount
+
+internal fun canApplyResolvedStream(
+    expectedGeneration: Long,
+    currentGeneration: Long,
+    expectedAccount: ServerAccountIdentity,
+    activeAccount: ServerAccountIdentity?,
+    expectedTrack: PlaybackTrack,
+    currentTrack: PlaybackTrack?,
+): Boolean =
+    expectedGeneration == currentGeneration &&
+        activeAccount == expectedAccount &&
+        currentTrack == expectedTrack

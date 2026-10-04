@@ -105,6 +105,34 @@ class PlaybackQueuePersistenceTest {
         }
 
     @Test
+    fun sameUsernameOnDifferentServerCannotRestoreQueueAndDoesNotDestroySnapshot() =
+        runBlocking {
+            val dataStore = dataStore()
+            val store = DataStorePlaybackQueueStore(dataStore)
+            val queue = queue()
+
+            val otherServerAlice =
+                identity(
+                    endpoint = "https://music-alt.example.com",
+                    username = "alice",
+                )
+
+            store.save(
+                account = accountA,
+                queue = queue,
+            )
+
+            assertNull(
+                store.read(otherServerAlice),
+            )
+
+            assertEquals(
+                queue,
+                store.read(accountA),
+            )
+        }
+
+    @Test
     fun durableSnapshotContainsOnlySafeQueueMaterial() =
         runBlocking {
             val dataStore = dataStore()
