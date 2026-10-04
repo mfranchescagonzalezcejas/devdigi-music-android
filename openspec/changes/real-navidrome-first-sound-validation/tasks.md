@@ -44,19 +44,19 @@ Jenkins changes or production Kotlin changes.
 
 ## WU2 — dynamic media, FLAC and queue validation
 
-- [ ] Add the narrow privacy-safe real-server media candidate probe.
-- [ ] Reuse production authentication/transport boundaries where practical.
-- [ ] Add only the semantic selectors required for deterministic UI driving.
-- [ ] Ensure selectors contain no private server/account/media identifiers.
-- [ ] Select the first Recent Album with at least 3 tracks and a FLAC track.
-- [ ] Return BLOCKED when no qualifying candidate exists.
-- [ ] Open the dynamically selected album through the UI.
-- [ ] Select the identified FLAC track through the UI.
-- [ ] Prove active Media3 playback.
-- [ ] Prove service-owned queue Next/Previous behavior across at least 3 tracks.
-- [ ] Emit no private album/artist/track/id/stream evidence.
-- [ ] Run applicable Android gates.
-- [ ] Keep WU2 below 1000 changed lines.
+- [x] Add the narrow privacy-safe real-server media candidate probe.
+- [x] Reuse production authentication/transport boundaries where practical.
+- [x] Add only the semantic selectors required for deterministic UI driving.
+- [x] Ensure selectors contain no private server/account/media identifiers.
+- [x] Select the first Recent Album with at least 3 tracks and a FLAC track.
+- [x] Return BLOCKED when no qualifying candidate exists.
+- [x] Open the dynamically selected album through the UI.
+- [x] Select the identified FLAC track through the UI.
+- [x] Prove active Media3 playback.
+- [x] Prove service-owned queue Next/Previous behavior across at least 3 tracks.
+- [x] Emit no private album/artist/track/id/stream evidence.
+- [x] Run applicable Android gates.
+- [x] Keep WU2 below 1000 changed lines.
 
 ## WU3 — background, system controls and account isolation
 

@@ -384,3 +384,35 @@ The runner:
 The verified WU1 real-instance run reached authenticated Recent Albums using
 one command, with no routine screen interaction and no per-run credential
 entry.
+
+## 18. WU2 verified implementation
+
+WU2 extends the local real-instance command with dynamic media and queue
+validation while keeping private server and library data out of committed
+evidence.
+
+The implementation:
+
+- reuses the production Recent Albums and Album Details transport/authentication
+  boundaries for candidate discovery;
+- keeps codec inspection inside a narrow Android-test probe rather than
+  expanding the product `AlbumTrack` model solely for test data;
+- selects the first Recent Album with at least three tracks and at least one
+  FLAC track;
+- returns sanitized BLOCKED evidence when no qualifying candidate exists;
+- drives album and track selection through positional Compose semantics that
+  contain no server, account or media identifiers;
+- proves the dynamically selected FLAC track reaches active Media3 playback;
+- proves service-owned queue navigation across at least three tracks with
+  Next and Previous;
+- keeps raw instrumentation output private and emits only sanitized result
+  labels;
+- leaves Jenkins unchanged.
+
+Real-device validation completed through the repository-owned one-command
+runner with no routine screen interaction. After correcting the album-content
+readiness wait, the WU2 scenario completed three consecutive real-instance
+runs successfully.
+
+No album title, artist, track title, media identifier, stream URL, endpoint,
+credential or device serial is committed as validation evidence.

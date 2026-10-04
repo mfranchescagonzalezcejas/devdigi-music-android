@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -201,7 +201,11 @@ fun RecentAlbumsScreen(
                                         layout.minimumCellWidth,
                                 ),
                             modifier =
-                                Modifier.fillMaxSize(),
+                                Modifier
+                                    .fillMaxSize()
+                                    .testTag(
+                                        "recent-album-grid",
+                                    ),
                             horizontalArrangement =
                                 Arrangement.spacedBy(
                                     16.dp,
@@ -211,12 +215,15 @@ fun RecentAlbumsScreen(
                                     20.dp,
                                 ),
                         ) {
-                            items(
+                            itemsIndexed(
                                 items = state.albums,
-                                key = RecentAlbum::id,
-                            ) { album ->
+                                key = { _, album ->
+                                    album.id
+                                },
+                            ) { index, album ->
                                 AlbumCard(
                                     album = album,
+                                    position = index,
                                     selected =
                                         album.id ==
                                             selectedAlbumId,
@@ -400,11 +407,16 @@ private fun MessageContent(
 @Composable
 private fun AlbumCard(
     album: RecentAlbum,
+    position: Int,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
     Card(
         onClick = onClick,
+        modifier =
+            Modifier.testTag(
+                "recent-album-card-$position",
+            ),
         colors =
             CardDefaults.cardColors(
                 containerColor =
