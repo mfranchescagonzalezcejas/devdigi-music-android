@@ -361,6 +361,8 @@ WU1 provides the repository-owned local entry point:
 
 ```text
 ./tools/real-instance-first-sound.sh
+```
+
 The runner:
 - requires exactly one authorized Android device;
 - does not print or persist its device serial;
