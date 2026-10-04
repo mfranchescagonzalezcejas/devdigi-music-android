@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -175,7 +176,10 @@ fun ServerConnectionScreen(
             OutlinedTextField(
                 value = state.endpointInput,
                 onValueChange = onEndpointChanged,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag("connection-server-url"),
                 label = { Text("Server URL") },
                 placeholder = {
                     Text("https://music.example.com")
@@ -210,7 +214,10 @@ fun ServerConnectionScreen(
             Button(
                 onClick = onConfirm,
                 enabled = policy.canSaveServer,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag("connection-save-server"),
             ) {
                 Text(
                     if (state.profile == null) {
@@ -233,7 +240,10 @@ fun ServerConnectionScreen(
             OutlinedTextField(
                 value = state.usernameInput,
                 onValueChange = onUsernameChanged,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag("connection-username"),
                 enabled =
                     policy.credentialsEditable,
                 label = { Text("Username") },
@@ -249,7 +259,10 @@ fun ServerConnectionScreen(
             OutlinedTextField(
                 value = state.passwordInput,
                 onValueChange = onPasswordChanged,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag("connection-password"),
                 enabled =
                     policy.credentialsEditable,
                 label = { Text("Password") },
@@ -328,7 +341,10 @@ fun ServerConnectionScreen(
                     Button(
                         onClick = onSignIn,
                         enabled = policy.canSignIn,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .testTag("connection-sign-in"),
                     ) {
                         Text("Sign in")
                     }

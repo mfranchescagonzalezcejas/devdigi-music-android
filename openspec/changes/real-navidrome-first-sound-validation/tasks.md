@@ -30,17 +30,17 @@ Jenkins changes or production Kotlin changes.
 
 ## WU1 — local runner and instrumentation foundation
 
-- [ ] Add the minimum Android instrumentation dependencies.
-- [ ] Add a targeted real-instance `androidTest` entry point.
-- [ ] Add connected-device preflight without printing device serials.
-- [ ] Add privacy-safe runtime input prompting.
-- [ ] Transfer runtime data without embedding secrets in command arguments.
-- [ ] Delete temporary app-private runtime input on success and failure.
-- [ ] Drive app launch and BYON authentication automatically.
-- [ ] Emit only sanitized authentication/connection evidence.
-- [ ] Do not modify Jenkins.
-- [ ] Run applicable Android gates.
-- [ ] Keep WU1 below 1000 changed lines.
+- [x] Add the minimum Android instrumentation dependencies.
+- [x] Add a targeted real-instance `androidTest` entry point.
+- [x] Add connected-device preflight without printing device serials.
+- [x] Add privacy-safe runtime input prompting.
+- [x] Transfer runtime data without embedding secrets in command arguments.
+- [x] Delete temporary app-private runtime input on success and failure.
+- [x] Drive app launch and BYON authentication automatically.
+- [x] Emit only sanitized authentication/connection evidence.
+- [x] Do not modify Jenkins.
+- [x] Run applicable Android gates.
+- [x] Keep WU1 below 1000 changed lines.
 
 ## WU2 — dynamic media, FLAC and queue validation
 
