@@ -57,6 +57,19 @@ dependencies {
     testImplementation(libs.mockwebserver3)
     testImplementation(libs.androidx.datastore.preferences.core)
     testImplementation(libs.coroutines.test)
+
+    androidTestImplementation(
+        platform(libs.androidx.compose.bom),
+    )
+    androidTestImplementation(
+        libs.androidx.compose.ui.test.junit4,
+    )
+    androidTestImplementation(
+        libs.androidx.test.ext.junit,
+    )
+    androidTestImplementation(
+        libs.androidx.test.runner,
+    )
 }
 
 tasks.register<Test>("navidromeIntegrationTest") {

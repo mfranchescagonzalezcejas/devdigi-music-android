@@ -353,3 +353,34 @@ reviewable.
 
 Large testing-framework work must be deferred to #104 rather than expanding
 #17.
+
+
+## 17. WU1 verified implementation
+
+WU1 provides the repository-owned local entry point:
+
+```text
+./tools/real-instance-first-sound.sh
+```
+
+The runner:
+- requires exactly one authorized Android device;
+- does not print or persist its device serial;
+- builds and installs the debug app and instrumentation APK;
+- resets app state before the real-instance authentication scenario;
+- reads runtime credentials from
+  ~/.config/devdigi-music/navidrome-test.env by default;
+- accepts DEVDIGI_NAVIDROME_ENV as a local-only path override;
+- requires the env file to use restrictive 400 or 600 permissions;
+- prefers the configured local endpoint when it is HTTPS;
+- otherwise uses the configured Tailscale endpoint when it is HTTPS;
+- stages credentials only in temporary app-private storage;
+- removes the temporary input after reading and again during cleanup;
+- drives BYON configuration and authentication through Compose semantics;
+- uses the password IME Done action so the soft keyboard does not require a
+  manual Sign In tap;
+- emits only sanitized PASS, FAIL or BLOCKED evidence;
+- remains local and is not executed by Jenkins.
+The verified WU1 real-instance run reached authenticated Recent Albums using
+one command, with no routine screen interaction and no per-run credential
+entry.
