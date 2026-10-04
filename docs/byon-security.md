@@ -113,13 +113,21 @@ Two accounts on one server are distinct identities.
 The same username on two different servers also
 represents two distinct identities.
 
-Future account-specific library state, preferences,
-downloads, history and playback queues must not
-be shared accidentally between identities.
+Implemented First Sound state uses this identity boundary for
+authenticated session publication, recent albums, album details,
+account-owned navigation, service playback, runtime queue ownership
+and durable queue restoration.
 
-Full account-scoped application state is a planned
-capability. The current UI stores one server profile;
-it is not a complete multi-account session manager.
+Stale asynchronous results from a previous identity are rejected rather
+than published into the current session. Switching identity or signing out
+clears account-bound transient presentation and playback ownership.
+
+The app still stores one selected server profile, one active encrypted
+credential snapshot and one safe queue snapshot. Account isolation therefore
+does not make the app a multi-account session manager.
+
+Future account-specific preferences, downloads and history must use the
+same server-plus-user isolation boundary.
 
 ## 6. Credential storage
 
@@ -215,8 +223,10 @@ Own-application account-bearing session commands are restricted to the
 application identity. System media controllers receive supported transport
 controls without authority to inject authenticated media items.
 
-Sign-out and account changes reconcile service-owned playback before
-credential/session ownership changes can expose stale playback state.
+Sign-out and account changes reconcile service-owned playback and runtime
+queue ownership before stale state can cross identities. Stream-resolution
+results are accepted only while their generation, account and selected track
+still match the current service state.
 
 Real-device validation under #15 confirmed background playback, application
 reconnection, notification and lock-screen controls, standard media-button
@@ -227,6 +237,11 @@ The minimal persistent queue implemented under #7 stores only a versioned
 account fingerprint, current index and safe track metadata. Raw endpoint,
 username, credentials, authentication material and signed stream URLs are
 excluded from queue persistence and public playback/system surfaces.
+
+Issue #16 confirms that the single safe snapshot restores only for its
+matching server-plus-user identity and never autoplays during restoration.
+A different account cannot restore or play it. Sign-out removes runtime
+ownership while the safe snapshot may remain for a later matching session.
 
 Queue-editor and mini-player/navigation behavior remain separate #12 scope.
 

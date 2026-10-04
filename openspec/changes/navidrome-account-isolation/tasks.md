@@ -54,16 +54,16 @@ WU0 MUST NOT modify production Kotlin.
 
 ## WU3 — reconciliation and closeout
 
-- [ ] Reconcile `docs/android-architecture.md` with implemented #16 behavior.
-- [ ] Reconcile `docs/byon-security.md` with implemented #16 behavior.
-- [ ] Reconcile this OpenSpec change against the final implementation.
-- [ ] Verify no real #17 private-server evidence is committed into #16.
-- [ ] Verify no #34 Android instrumented CI scope entered #16.
-- [ ] Verify no #104 reusable QA/BDD infrastructure scope entered #16.
-- [ ] Verify no Search, Discover, recommendations, queue editor, remote
+- [x] Reconcile `docs/android-architecture.md` with implemented #16 behavior.
+- [x] Reconcile `docs/byon-security.md` with implemented #16 behavior.
+- [x] Reconcile this OpenSpec change against the final implementation.
+- [x] Verify no real #17 private-server evidence is committed into #16.
+- [x] Verify no #34 Android instrumented CI scope entered #16.
+- [x] Verify no #104 reusable QA/BDD infrastructure scope entered #16.
+- [x] Verify no Search, Discover, recommendations, queue editor, remote
       playback or external-provider scope entered #16.
-- [ ] Run validation appropriate to the changed files.
-- [ ] Keep WU3 below 1000 changed lines.
+- [x] Run validation appropriate to the changed files.
+- [x] Keep WU3 below 1000 changed lines.
 
 ## Follow-up
 
