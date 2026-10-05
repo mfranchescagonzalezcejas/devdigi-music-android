@@ -76,17 +76,17 @@ Jenkins changes or production Kotlin changes.
 
 ## WU4 — real execution and closeout
 
-- [ ] Run the complete suite against the user-provided real instance.
-- [ ] Record only sanitized PASS/FAIL/BLOCKED results.
-- [ ] Confirm no endpoint/account/device/library metadata entered evidence.
-- [ ] If a deterministic bug appears, add synthetic regression coverage first.
-- [ ] Retry fixed scenarios against the real instance.
-- [ ] Reconcile architecture/security/QA documentation if required.
-- [ ] Verify #34 scope did not enter #17.
-- [ ] Verify #104 general QA/BDD scope did not enter #17.
-- [ ] Keep #17 below its approved product/testing scope.
-- [ ] Run final applicable validation.
-- [ ] Keep WU4 below 1000 changed lines.
+- [x] Run the complete suite against the user-provided real instance.
+- [x] Record only sanitized PASS/FAIL/BLOCKED results.
+- [x] Confirm no endpoint/account/device/library metadata entered evidence.
+- [x] If a deterministic bug appears, add synthetic regression coverage first. **DONE:** Compose-timeout stage classification received synthetic instrumentation coverage before the harness fix.
+- [x] Retry fixed scenarios against the real instance. **PASS:** five consecutive complete real runs plus the final canonical run passed.
+- [x] Reconcile architecture/security/QA documentation if required. **NO CHANGE REQUIRED:** WU4 is limited to issue-specific test harness and closeout evidence.
+- [x] Verify #34 scope did not enter #17.
+- [x] Verify #104 general QA/BDD scope did not enter #17.
+- [x] Keep #17 below its approved product/testing scope.
+- [x] Run final applicable validation.
+- [x] Keep WU4 below 1000 changed lines.
 
 ## Follow-up
 
