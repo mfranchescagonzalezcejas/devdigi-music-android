@@ -5,6 +5,7 @@ import android.os.ParcelFileDescriptor
 import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -36,15 +37,11 @@ class RealInstanceAuthenticationTest {
         val input =
             readRuntimeInput()
 
-        safeStage(
-            "REAL_STAGE_AUTH_FAILED",
-        ) {
-            authenticate(
-                endpoint = input.endpoint,
-                username = input.username,
-                password = input.password,
-            )
-        }
+        authenticate(
+            endpoint = input.endpoint,
+            username = input.username,
+            password = input.password,
+        )
 
         val probeResult =
             safeStage(
@@ -415,65 +412,113 @@ class RealInstanceAuthenticationTest {
         marker: String,
         action: () -> T,
     ): T =
-        try {
-            action()
-        } catch (_: AssertionError) {
-            throw AssertionError(marker)
-        } catch (_: Exception) {
-            throw AssertionError(marker)
-        }
+        realInstanceStage(
+            marker = marker,
+            action = action,
+        )
 
     private fun authenticate(
         endpoint: String,
         username: String,
         password: String,
     ) {
-        composeRule
-            .onNodeWithTag(
-                "connection-server-url",
-            ).assertExists()
-            .performTextReplacement(
-                endpoint,
-            )
+        realInstanceStage(
+            marker =
+                "REAL_STAGE_AUTH_SERVER_INPUT_FAILED",
+        ) {
+            composeRule
+                .onNodeWithTag(
+                    "connection-server-url",
+                ).assertExists()
+                .performTextReplacement(
+                    endpoint,
+                )
+        }
 
-        waitUntilEnabled(
-            "connection-save-server",
-        )
-
-        composeRule
-            .onNodeWithTag(
+        realInstanceStage(
+            marker =
+                "REAL_STAGE_AUTH_SERVER_ENABLE_FAILED",
+        ) {
+            waitUntilEnabled(
                 "connection-save-server",
-            ).performClick()
-
-        composeRule
-            .onNodeWithTag(
-                "connection-username",
-            ).assertExists()
-            .performTextReplacement(
-                username,
             )
+        }
 
-        composeRule
-            .onNodeWithTag(
-                "connection-password",
-            ).assertExists()
-            .performTextReplacement(
-                password,
+        realInstanceStage(
+            marker =
+                "REAL_STAGE_AUTH_SERVER_SAVE_FAILED",
+        ) {
+            composeRule
+                .onNodeWithTag(
+                    "connection-save-server",
+                ).assertIsEnabled()
+                .performClick()
+        }
+
+        realInstanceStage(
+            marker =
+                "REAL_STAGE_AUTH_SERVER_PERSIST_FAILED",
+        ) {
+            composeRule.waitUntil(
+                timeoutMillis = UI_TIMEOUT_MS,
+            ) {
+                runCatching {
+                    composeRule
+                        .onNodeWithTag(
+                            "connection-save-server",
+                        ).assertIsNotEnabled()
+
+                    true
+                }.getOrDefault(false)
+            }
+        }
+
+        realInstanceStage(
+            marker =
+                "REAL_STAGE_AUTH_CREDENTIALS_FAILED",
+        ) {
+            composeRule
+                .onNodeWithTag(
+                    "connection-username",
+                ).assertExists()
+                .performTextReplacement(
+                    username,
+                )
+
+            composeRule
+                .onNodeWithTag(
+                    "connection-password",
+                ).assertExists()
+                .performTextReplacement(
+                    password,
+                )
+
+            waitUntilEnabled(
+                "connection-sign-in",
             )
+        }
 
-        waitUntilEnabled(
-            "connection-sign-in",
-        )
+        realInstanceStage(
+            marker =
+                "REAL_STAGE_AUTH_SUBMIT_FAILED",
+        ) {
+            composeRule
+                .onNodeWithTag(
+                    "connection-password",
+                ).performImeAction()
+        }
 
-        composeRule
-            .onNodeWithTag(
-                "connection-password",
-            ).performImeAction()
-
-        waitUntilDisplayed(
-            tag = "recent-albums-screen",
-            timeoutMillis = AUTH_TIMEOUT_MS,
-        )
+        realInstanceStage(
+            marker =
+                "REAL_STAGE_AUTH_DESTINATION_FAILED",
+        ) {
+            waitUntilDisplayed(
+                tag =
+                    "recent-albums-screen",
+                timeoutMillis =
+                AUTH_TIMEOUT_MS,
+            )
+        }
     }
 
     private fun openAlbum(index: Int) {
