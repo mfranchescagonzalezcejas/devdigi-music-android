@@ -196,12 +196,12 @@ pipeline {
                         echo 'RELEASE_PROVENANCE_SHA256=PASS'
                         echo 'RELEASE_SIGNING=PASS'
                     '''
-
-                    archiveArtifacts(
-                        artifacts: 'app/build/outputs/apk/release/*.apk,app/build/outputs/bundle/release/*.aab,app/build/outputs/release-sha256.txt',
-                        fingerprint: true
-                    )
                 }
+
+                archiveArtifacts(
+                    artifacts: 'app/build/outputs/apk/release/*.apk,app/build/outputs/bundle/release/*.aab,app/build/outputs/release-sha256.txt',
+                    fingerprint: true
+                )
             }
         }
 
