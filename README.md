@@ -142,5 +142,7 @@ Both `main` and `develop` are protected. Normal integration requires pull
 requests, resolved review conversations and the Jenkins `pr-merge` check.
 The repository uses merge commits and GitFlow. See
 [GitFlow and branch governance](docs/gitflow-governance.md) for the full policy.
+Production versioning, release-candidate promotion, tagging and GitHub Release
+steps are defined in [Releasing DevDigi Music](docs/releasing.md).
 
 
