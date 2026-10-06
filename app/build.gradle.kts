@@ -7,6 +7,30 @@ plugins {
     alias(libs.plugins.spotless)
 }
 
+val appVersionName =
+    providers
+        .gradleProperty("devdigi.versionName")
+        .orNull
+        ?: throw GradleException(
+            "devdigi.versionName must be defined in gradle.properties.",
+        )
+
+val appVersionCode =
+    providers
+        .gradleProperty("devdigi.versionCode")
+        .orNull
+        ?.toIntOrNull()
+        ?.takeIf { it > 0 }
+        ?: throw GradleException(
+            "devdigi.versionCode must be a positive integer.",
+        )
+
+if (!Regex("""^\d+\.\d+\.\d+$""").matches(appVersionName)) {
+    throw GradleException(
+        "devdigi.versionName must use numeric MAJOR.MINOR.PATCH.",
+    )
+}
+
 val releaseStoreFile =
     providers.environmentVariable("DEVDIGI_RELEASE_STORE_FILE").orNull
 val releaseStorePassword =
@@ -78,8 +102,8 @@ android {
         applicationId = "dev.devdigi.music"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
