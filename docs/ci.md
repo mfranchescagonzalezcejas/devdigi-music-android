@@ -2,6 +2,8 @@
 
 Jenkins is the primary CI system. GitHub Actions CI has been removed to avoid a duplicate primary build.
 
+The project-wide testing layers and named `smoke`, `sanity`, `regression`, and `device` suite contract are defined in [QA strategy](qa/strategy.md). Jenkins remains the primary CI authority within that model.
+
 ## Implemented pipeline
 
 CI-0 Basic pipeline is complete. The root `Jenkinsfile` runs visible formatting/static-analysis, unit-test, lint, debug-assembly, and synthetic Navidrome integration stages. It publishes ordinary unit-test and Navidrome integration JUnit results separately and archives available debug APK, test, and lint artifacts even when an earlier stage fails.
