@@ -46,7 +46,9 @@ Repository-owned branches and same-repository pull requests may run the Docker-b
 
 The previous automated trusted-server Navidrome credential hook has been removed. Real user-provided Navidrome validation remains the separate manual #17 workflow and is not replaced by synthetic CI.
 
-Signing and Play publishing credentials, when implemented, belong only in Jenkins Credentials and must be supplied only to explicitly trusted release jobs. They must never be stored in repository files, documentation, logs, or artifacts.
+Secure Android release signing is defined in [Android release signing](release-signing.md). Jenkins binds signing credentials only inside trusted `main` or `release/*` branch jobs; PRs and non-release refs do not receive them. The runtime capability is considered validated only after the Jenkins credentials are provisioned and a trusted release job successfully verifies signed APK/AAB artifacts.
+
+Signing and Play publishing credentials belong only in Jenkins Credentials and must never be stored in repository files, documentation, logs, or artifacts.
 
 The interactive Jenkins UI remains protected. Machine-triggered webhook access is restricted to the dedicated integration path required for GitHub delivery rather than bypassing authentication for the Jenkins interface as a whole.
 
@@ -59,7 +61,7 @@ The interactive Jenkins UI remains protected. Machine-triggered webhook access i
 | CI-2 | Implemented | #33 eliminated duplicate tests/lint; #62 introduces ratcheted Spotless as a separate formatting gate. |
 | CI-3 | Implemented | #35 provides pinned, ephemeral synthetic Navidrome integration with isolated runtime state and separate JUnit evidence. |
 | CI-4 | Planned  | Investigate and add useful Android instrumented CI testing.                                                                                |
-| CI-5 | Planned  | Secure Android release signing from trusted refs.                                                                                          |
+| CI-5 | Implemented; validation pending | Trusted-ref APK/AAB signing and verification; operational closeout requires Jenkins credentials and a successful trusted release build. |
 | CI-6 | Planned  | Tagged GitHub and Google Play release automation after signing is available.                                                               |
 
 Automatic GitHub-to-Jenkins triggering tracked by #32 has been implemented and validated. Webhooks are now the primary trigger mechanism, while interactive Jenkins access remains protected separately.

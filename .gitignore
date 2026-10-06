@@ -15,3 +15,10 @@ captures/
 
 # Gentle AI runtime/state (repository-local, never versioned)
 /.pi/
+
+
+# Android release signing material
+*.jks
+*.keystore
+*.p12
+keystore.properties

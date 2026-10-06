@@ -1,3 +1,4 @@
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.testing.Test
 
 plugins {
@@ -6,10 +7,72 @@ plugins {
     alias(libs.plugins.spotless)
 }
 
+val releaseStoreFile =
+    providers.environmentVariable("DEVDIGI_RELEASE_STORE_FILE").orNull
+val releaseStorePassword =
+    providers.environmentVariable("DEVDIGI_RELEASE_STORE_PASSWORD").orNull
+val releaseKeyAlias =
+    providers.environmentVariable("DEVDIGI_RELEASE_KEY_ALIAS").orNull
+val releaseKeyPassword =
+    providers.environmentVariable("DEVDIGI_RELEASE_KEY_PASSWORD").orNull
+
+val releaseSigningValues =
+    listOf(
+        releaseStoreFile,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword,
+    )
+
+val releaseSigningReady =
+    releaseSigningValues.all { !it.isNullOrBlank() }
+
+val releaseTaskRequested =
+    gradle.startParameter.taskNames.any { taskName ->
+        taskName
+            .substringAfterLast(':')
+            .contains("Release")
+    }
+
+if (releaseTaskRequested && !releaseSigningReady) {
+    throw GradleException(
+        "Release signing credentials are required for release tasks.",
+    )
+}
+
+if (
+    releaseTaskRequested &&
+    releaseSigningReady &&
+    !file(requireNotNull(releaseStoreFile)).isFile
+) {
+    throw GradleException(
+        "Release signing keystore credential file is unavailable.",
+    )
+}
+
 android {
     namespace = "dev.devdigi.music"
     compileSdk = 36
     testBuildType = providers.gradleProperty("unitTestBuildType").orElse("debug").get()
+
+    signingConfigs {
+        if (releaseSigningReady) {
+            create("release") {
+                storeFile = file(requireNotNull(releaseStoreFile))
+                storePassword = requireNotNull(releaseStorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            if (releaseSigningReady) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "dev.devdigi.music"
