@@ -10,19 +10,18 @@ Scope: DevDigi Music Android
 This document defines the operational handoff between Jira, GitHub, Jenkins,
 and QA.
 
-Use it together with:
-
+Use it with:
 - [QA strategy](strategy.md) for testing layers and suite semantics;
 - [GitFlow and branch governance](../gitflow-governance.md) for branch routing,
   protected branches, and merge policy;
 - [CI](../ci.md) for Jenkins behavior and trust boundaries.
 
-Jira owns planning and workflow state. GitHub owns code, PRs, versioned test
+Jira owns planning/workflow state. GitHub owns code, PRs, versioned test
 specifications, and executable evidence. Jenkins is the required CI authority.
 
 ## 2. Jira workflow
 
-The normal delivery path is:
+Normal delivery:
 
 ```text
 Por hacer / Necesita Revision
@@ -40,137 +39,107 @@ Por hacer / Necesita Revision
       Listo
 ```
 
-`Bloqueado` may be entered whenever progress cannot continue for a material
-dependency or environment reason.
+`Bloqueado` may be entered whenever a material dependency or environment
+condition prevents progress.
 
-Not every low-risk change must visit every QA status. A documentation-only or
-similarly low-risk change may move from `En Revision` to `Listo` after merge
-when QA is explicitly recorded as N/A with a reason. Product behavior changes
-should use the full QA handoff when acceptance risk justifies it.
+Low-risk documentation/configuration may move from `En Revision` to `Listo`
+after merge when executable QA is explicitly N/A with a reason. Product
+behavior changes should use the QA handoff whenever acceptance risk requires it.
 
-### Por hacer
+### Por hacer / Necesita Revision
 
-Use for backlog work that is known but not yet ready to start.
+`Por hacer` is known backlog work not yet ready to start.
 
-The issue may still need scope, acceptance, dependencies, priority, or an
-estimate.
-
-### Necesita Revision
-
-Use for intake that requires triage/refinement before it can be considered
-Ready.
-
-Typical examples:
-
+`Necesita Revision` is intake requiring triage/refinement, for example:
 - newly imported GitHub work;
-- ambiguous reports;
-- duplicate candidates;
-- unclear product/technical ownership;
-- issues whose acceptance criteria no longer match the current product.
+- ambiguous/duplicate reports;
+- unclear ownership or acceptance;
+- historical scope that no longer matches the product.
 
 ### Ready
 
-An item is Ready when:
-
-- scope and out-of-scope are understandable;
+Ready means:
+- scope/out-of-scope are understandable;
 - acceptance is observable;
 - dependencies/blockers are known;
-- relevant security/privacy risk is considered;
-- the issue is estimated when sprint planning needs an estimate;
-- Jira metadata is usable;
-- the work can start without another discovery pass.
+- security/privacy risk is considered;
+- estimate/metadata are usable when planning needs them;
+- work can start without another discovery pass.
 
 Being in a sprint does not by itself make an issue Ready.
 
 ### En curso
 
-Move the Jira item to `En curso` when implementation or substantive
-documentation work actually starts.
+Move here when implementation or substantive documentation actually starts.
 
-At that point:
-
+Then:
 - branch from the correct current baseline;
 - include the Jira key in the branch name when practical;
-- keep the work limited to the Jira scope;
-- update the Jira item if scope, risk, dependency, or estimate materially
-  changes.
+- keep work limited to Jira scope;
+- update Jira when scope, risk, dependency, or estimate materially changes.
 
 Do not leave active work in Ready.
 
 ### En Revision
 
-Move to `En Revision` when the pull request is open and ready for review.
+Move here when the PR is open and ready for review.
 
-The PR must identify the Jira item and record:
-
-- purpose and scope;
-- out-of-scope;
+The PR records:
+- purpose, scope, and out-of-scope;
 - QA impact;
-- affected Gherkin scenarios/tags when applicable;
-- automated verification evidence;
-- manual/device evidence or why it is not required;
-- known risks/dependencies;
+- affected Gherkin scenarios/tags where applicable;
+- automated and manual/device evidence;
+- risks/dependencies;
 - security/privacy impact;
 - rollback;
 - changed-line budget.
 
-The repository review budget is normally **400 changed lines**. A larger
-cohesive change needs an explicit justification.
+Normal review budget: **400 changed lines**. A larger cohesive change needs an
+explicit justification.
 
 ### Listo para QA
 
-Use when review/CI evidence is sufficient for the planned QA execution and the
-candidate should no longer be changing except to address findings.
+Use when review/CI evidence is sufficient for planned QA and the candidate
+should no longer change except to address findings.
 
-Before this state, confirm as applicable:
-
-- relevant local checks passed or exceptions are documented;
-- required Jenkins evidence is green for the candidate;
-- review conversations are resolved or understood;
+Confirm as applicable:
+- local checks passed or exceptions are documented;
+- required Jenkins evidence is green;
+- review conversations are resolved/understood;
 - acceptance/Gherkin scope is identified;
-- the Test Execution or equivalent QA record is ready;
-- the candidate build/commit can be identified.
+- Test Execution/equivalent record is ready;
+- candidate build/commit is identifiable.
 
-If QA is intentionally N/A, record why instead of manufacturing empty QA work.
+If QA is N/A, record why instead of manufacturing empty QA work.
 
 ### En QA
 
-Use while the planned acceptance, smoke, sanity, regression, or device
-validation is actively being executed.
+Use while planned acceptance, smoke, sanity, regression, or device validation
+is running.
 
-Record results using:
-
-- PASS;
-- FAIL;
-- BLOCKED;
-- NOT RUN;
-- N/A.
-
-The Test Execution/equivalent record must identify the build/commit and retain
-only privacy-safe evidence.
+Record PASS / FAIL / BLOCKED / NOT RUN / N/A and identify the build/commit.
+Evidence must be privacy-safe.
 
 ### Listo
 
-An item is Done only when:
+Done requires:
+- integration through the required PR path;
+- required Jenkins status PASS;
+- required QA PASS, or justified N/A;
+- linked Bugs for actionable QA failures;
+- required retests PASS;
+- acceptance satisfied;
+- residual risks recorded;
+- no unresolved blocker.
 
-- implementation/documentation is integrated through the required PR path;
-- required Jenkins status passed;
-- required QA is PASS, or QA is explicitly N/A with a justified reason;
-- actionable QA failures have linked Bugs;
-- required retests passed;
-- acceptance criteria are satisfied;
-- residual risks are recorded;
-- no unresolved blocker remains.
-
-`Listo` means potentially releasable for the issue's scope. It does not mean
-the whole product release has been published.
+`Listo` means potentially releasable for the issue scope, not that the whole
+product release has been published.
 
 ## 3. Branch and commit contract
 
 Ordinary work starts from current `develop`.
 
-Preferred examples:
-
+Examples:
 ```text
 feature/MUSIC-123-album-search
 fix/MUSIC-124-session-restore
@@ -179,175 +148,141 @@ test/MUSIC-9-authentication-validation
 ci/MUSIC-49-release-signing
 ```
 
-Commit messages use Conventional Commits. Including the Jira key is encouraged
-for traceability when it remains readable:
-
+Use Conventional Commits. Including the Jira key is encouraged when readable:
 ```text
 docs(qa): define Jira QA handoff (MUSIC-7)
 ```
 
 Do not create artificial commits merely to change Jira state or trigger CI.
-Use repository/Jenkins operational controls when a build needs rediscovery.
 
 ## 4. Pull-request contract
 
-All normal integration into protected branches uses a PR.
+All normal protected-branch integration uses a PR.
 
 A PR targeting `develop` is merge-ready only when:
-
 - scope matches the linked Jira item;
-- final diff was reviewed;
-- required review conversations are resolved;
+- final diff is reviewed;
+- required conversations are resolved;
 - `continuous-integration/jenkins/pr-merge` is PASS;
-- QA requirements for the change are satisfied or explicitly deferred to the
-  defined pre-merge QA handoff;
-- privacy/security review is complete;
-- rollback is understood;
-- branch divergence from the target has been evaluated.
+- QA requirements are satisfied or follow the defined pre-merge QA handoff;
+- privacy/security review and rollback are complete;
+- target-branch divergence has been evaluated.
 
 Use **Create a merge commit** only. Do not squash, rebase, force-push, or
 directly push protected branches.
 
-A skipped automated reviewer is not a review and is not a substitute for
-Jenkins or human inspection.
+A skipped automated reviewer is not a review and does not replace Jenkins or
+human inspection.
 
 ## 5. QA impact in a PR
 
-Every PR declares one of the following:
-
-- **N/A** — no executable QA is relevant; explain why;
+Every PR declares one or more:
+- **N/A** — no executable QA applies; explain why;
 - **Sanity** — changed behavior and immediate dependencies;
 - **Smoke** — critical product path confidence;
 - **Regression** — broader established behavior;
-- **Device** — Android hardware/runtime or real system-surface validation.
+- **Device** — Android hardware/runtime or real system surfaces.
 
-Multiple suites may apply.
+When Gherkin exists, reference affected scenarios/tags rather than copying the
+specification. When automation exists, record the actual command/check/result.
 
-When Gherkin exists, reference the affected feature/scenario or tags instead of
-copying the whole specification into the PR.
+## 6. Review → QA handoff
 
-When automation exists, record the actual command/check/result. Do not write
-"tests pass" without identifying the evidence source.
+For behavior changes needing explicit QA:
 
-## 6. Review to QA handoff
-
-For behavior changes that need explicit QA:
-
-1. Open the PR and move Jira to `En Revision`.
-2. Complete code/document review and required automated checks.
-3. Identify the candidate commit/build and QA scope.
+1. Open PR; move Jira to `En Revision`.
+2. Complete review and required automated checks.
+3. Identify candidate commit/build and QA scope.
 4. Move Jira to `Listo para QA`.
-5. Start the Test Execution and move Jira to `En QA`.
-6. Record scenario results and evidence.
-7. If QA passes, merge through the protected-branch workflow and move Jira to
-   `Listo`.
-8. If QA fails, create/link Bug(s) and return the implementation item to
-   `En curso` when rework is required.
+5. Start Test Execution; move Jira to `En QA`.
+6. Record scenario results/evidence.
+7. If PASS, merge through the protected path and move Jira to `Listo`.
+8. If FAIL, link Bug(s) and return implementation to `En curso` when rework starts.
 
-If new commits materially change the candidate after QA, reassess which QA
+If new commits materially change a QA-tested candidate, reassess the QA that
 must be repeated.
 
 ## 7. QA failure and defect loop
 
-A failed scenario does not become a vague PR note.
-
-For an actionable product defect:
-
+For an actionable failed scenario:
 - create/link a Jira Bug;
-- record expected vs actual;
-- record safe environment/build context;
-- link the failed Test Execution/scenario and affected requirement;
+- record expected vs actual plus safe environment/build context;
+- link failed Test Execution/scenario and affected requirement;
 - classify priority separately from severity;
-- move implementation back to `En curso` when rework starts;
-- fix via branch/PR/Jenkins;
-- retest the failed scenario;
-- run proportional regression;
-- record the retest outcome before closing the Bug.
+- move implementation to `En curso` when rework starts;
+- fix through branch/PR/Jenkins;
+- retest the failure and run proportional regression;
+- record retest outcome before closing the Bug.
 
-A BLOCKED test is not automatically a product defect. Record the blocking
-dependency/environment and next action.
+A BLOCKED test is not automatically a product defect; record the blocker and
+next action.
 
 ## 8. Jenkins evidence
 
 The protected `develop` ruleset requires:
-
 ```text
 continuous-integration/jenkins/pr-merge
 ```
 
-Do not merge while that required status is missing, pending, or failing.
+Do not merge while it is missing, pending, or failing.
 
 If Jenkins was unavailable when the PR event occurred, rediscover/rebuild the
 PR through Jenkins rather than bypassing protection or adding meaningless
 source changes.
 
-Administrator PR bypass is emergency recovery only and follows the exceptional
-procedure in GitFlow governance.
+Administrator bypass is emergency recovery only, per GitFlow governance.
 
-## 9. Intake and needs-review
+## 9. Intake and migration-on-touch
 
-GitHub issue forms may label new reports with `status:needs-review`. That is
-intake metadata, not the canonical delivery state.
+GitHub issue-form `status:needs-review` is intake metadata, not canonical
+delivery state.
 
 For work that will be acted on:
+- locate/create the Jira counterpart;
+- normalize scope, acceptance, dependencies, risk, labels, priority, and
+  estimate as needed;
+- use `Necesita Revision` while refinement remains;
+- move to `Ready` only when Ready criteria are met.
 
-- locate/create the corresponding Jira item;
-- normalize scope, acceptance, dependencies, risk, labels, and priority;
-- use `Necesita Revision` while refinement is still required;
-- move to `Ready` only when the Ready criteria in this document are met.
+For an existing historical GitHub issue being touched:
+1. confirm its Jira counterpart;
+2. review current GitHub source/history;
+3. update Jira with current scope, acceptance, dependencies, QA impact, and estimate;
+4. link Jira with relevant GitHub issue/PR;
+5. use Jira for current status, sprint, priority, blockers, and QA state;
+6. keep GitHub for repository history, code discussion, PRs, and executable evidence.
 
-Jira status wins if GitHub labels and Jira disagree.
+Jira status wins if GitHub labels disagree. Avoid two competing status systems.
 
-## 10. Migration-on-touch for historical GitHub issues
+## 10. Dependency, risk, privacy, and rollback
 
-Do not rewrite historical GitHub issues merely to make them look like new Jira
-work.
+Before merge, record material dependencies and risks.
 
-When an existing GitHub issue is touched for new implementation:
-
-1. Confirm its Jira counterpart exists.
-2. Review the current GitHub source and historical context.
-3. Update Jira with current scope, acceptance, dependencies, QA impact, and
-   estimate as needed.
-4. Link Jira and the relevant GitHub issue/PR.
-5. Use Jira for current status, sprint, priority, blockers, and QA state.
-6. Keep GitHub as the source for repository history, code discussion, PRs, and
-   versioned executable evidence.
-
-Avoid maintaining two competing status systems by hand.
-
-## 11. Dependency, risk, privacy, and rollback
-
-Before merge, record material dependencies and risks rather than relying on
-tribal knowledge.
-
-Security/privacy-sensitive changes must specifically evaluate:
-
-- credential handling;
+Security/privacy-sensitive changes explicitly consider:
+- credentials;
 - account/server isolation;
 - persistence/backups;
-- logs and diagnostics;
+- logs/diagnostics;
 - public artifacts/screenshots;
-- authenticated URLs or media metadata.
+- authenticated URLs/media metadata.
 
-Rollback must explain how the change can be safely reversed. If rollback is
-not simple, state why and identify recovery constraints.
+Rollback explains how to reverse the change safely. If rollback is not simple,
+state why and identify recovery constraints.
 
-## 12. Definition of Done
+## 11. Definition of Done
 
-The repository-level Definition of Done for a normal Jira item is:
+Repository-level Done requires:
+- current Jira scope/acceptance;
+- implementation matching scope;
+- tests at the lowest useful layer;
+- required QA evidence;
+- complete PR template;
+- resolved review threads;
+- required Jenkins PR status PASS;
+- privacy/security review;
+- linked defects/retests where applicable;
+- documented rollback;
+- approved merge-commit integration;
+- Jira reflecting the real final state.
 
-- Jira scope and acceptance are current;
-- implementation matches that scope;
-- tests are at the lowest useful layer;
-- required QA evidence is recorded;
-- PR template is complete;
-- review threads are resolved;
-- required Jenkins PR status passes;
-- privacy/security review is complete;
-- defects/retests are linked when applicable;
-- rollback is documented;
-- merge uses the approved merge-commit path;
-- Jira reflects the real final state.
-
-Release-level readiness remains a separate decision from issue-level Done.
+Release-level readiness remains separate from issue-level Done.
