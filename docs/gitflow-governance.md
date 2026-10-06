@@ -58,6 +58,8 @@ Each substantial PR should reference its issue or
 specification, explain its scope, document relevant tests
 and provide rollback information.
 
+The detailed Jira state, QA handoff, defect/retest, and PR evidence contract is defined in [Jira QA and pull-request workflow](qa/jira-pr-workflow.md).
+
 Resolve required review conversations before merging.
 
 A sole maintainer cannot provide an independent approval
