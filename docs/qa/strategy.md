@@ -17,6 +17,8 @@ This document defines the reusable QA contract for DevDigi Music:
 
 The goal is repeatable evidence without duplicating useful tests or forcing every check through Android UI automation.
 
+The operational Jira → PR → Jenkins → QA handoff is defined in [Jira QA and pull-request workflow](jira-pr-workflow.md).
+
 ## 2. Ownership and principles
 
 | Concern | Canonical source |
