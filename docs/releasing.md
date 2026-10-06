@@ -18,7 +18,7 @@ merge commit
   ↓
 tag vX.Y.Z on the verified main commit
   ↓
-GitHub Release
+GitHub Release + Google Play
 ```
 
 Do not tag `develop` directly.
@@ -90,7 +90,7 @@ independent Android flavors.
 | DEV | Developer/internal builds; future separate app identity and Firebase DEV distribution. |
 | STG | Production-like staging; future separate app identity and Firebase STG distribution. |
 | RC | Exact signed production artifact under release-candidate validation. |
-| PROD | Promotion/publication of the approved RC artifact. |
+| PROD | Promotion of the approved RC artifact to GitHub Release and Google Play. |
 
 RC and PROD must use the same approved production artifact. Do not validate one
 binary and rebuild another merely to publish it.
@@ -165,10 +165,9 @@ building a new production binary after QA:
 - verified signed AAB;
 - checksum/provenance manifest when available.
 
-The GitHub Release is the canonical publication target for v0.1.0.
-
-Google Play and Firebase App Distribution are deliberately deferred for this
-first release unless an explicit release decision changes before publication.
+GitHub Release and Google Play are both required publication targets for
+v0.1.0. Upload the same approved production AAB to the Play track selected in
+MUSIC-62. Firebase App Distribution remains deferred to MUSIC-61.
 
 ## Release notes
 
@@ -213,9 +212,10 @@ After merging to `main`:
 - [ ] verify the exact main merge commit.
 - [ ] tag it `v0.1.0`.
 - [ ] create GitHub Release from that tag.
-- [ ] attach the approved signed artifacts/provenance.
+- [ ] publish the approved production AAB to the selected Google Play track.
+- [ ] attach/record the approved signed artifacts and provenance.
 - [ ] reconcile release-only changes back to `develop` if required.
-- [ ] mark Jira Release `v0.1.0 — First Sound` released only after publication.
+- [ ] mark Jira Release `v0.1.0 — First Sound` released only after both publications succeed.
 
 ## Failure and rollback
 
