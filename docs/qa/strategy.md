@@ -207,6 +207,8 @@ Priority and severity are separate concepts.
 
 ## 9. Gherkin tags
 
+Canonical acceptance feature files live under [`qa/features/`](../../qa/features/).
+
 Canonical initial tags:
 - `@smoke`, `@sanity`, `@regression`;
 - `@manual`, `@automated`, `@automation-candidate`;
