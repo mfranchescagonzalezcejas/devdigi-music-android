@@ -120,6 +120,9 @@ Avoid adding unrelated work to an existing PR.
 
 ## 6. Release procedure
 
+The detailed version/build, RC promotion, tagging and publication contract lives
+in [Releasing DevDigi Music](releasing.md).
+
 Create `release/*` from the intended `develop` release
 baseline.
 
