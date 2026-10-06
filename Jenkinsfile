@@ -98,14 +98,29 @@ pipeline {
                     sh '''#!/usr/bin/env bash
                         set -eu
 
+                        rm -rf \
+                            app/build/outputs/apk/release \
+                            app/build/outputs/bundle/release \
+                            app/build/outputs/release-sha256.txt
+
                         ./gradlew assembleRelease bundleRelease
 
                         APK="$(
-                            find app/build/outputs/apk/release                                 -maxdepth 1                                 -type f                                 -name '*-release.apk'                                 | sort                                 | head -n 1
+                            find app/build/outputs/apk/release \
+                                -maxdepth 1 \
+                                -type f \
+                                -name '*-release.apk' \
+                                | sort \
+                                | head -n 1
                         )"
 
                         AAB="$(
-                            find app/build/outputs/bundle/release                                 -maxdepth 1                                 -type f                                 -name '*-release.aab'                                 | sort                                 | head -n 1
+                            find app/build/outputs/bundle/release \
+                                -maxdepth 1 \
+                                -type f \
+                                -name '*-release.aab' \
+                                | sort \
+                                | head -n 1
                         )"
 
                         [ -n "$APK" ] || {
@@ -126,7 +141,12 @@ pipeline {
                         }
 
                         APKSIGNER="$(
-                            find "$SDK_ROOT/build-tools"                                 -type f                                 -name apksigner                                 2>/dev/null                                 | sort -V                                 | tail -n 1
+                            find "$SDK_ROOT/build-tools" \
+                                -type f \
+                                -name apksigner \
+                                2>/dev/null \
+                                | sort -V \
+                                | tail -n 1
                         )"
 
                         [ -n "$APKSIGNER" ] || {
@@ -139,16 +159,36 @@ pipeline {
                             exit 1
                         }
 
-                        "$APKSIGNER" verify "$APK" >/dev/null
+                        if ! "$APKSIGNER" verify "$APK" >/dev/null; then
+                            echo 'RELEASE_APK_SIGNATURE=FAIL_VERIFY'
+                            exit 1
+                        fi
 
-                        jarsigner                             -verify                             "$AAB"                             >/dev/null 2>&1
+                        AAB_VERIFY="$(
+                            LC_ALL=C jarsigner -verify "$AAB" 2>&1
+                        )" || {
+                            echo 'RELEASE_AAB_SIGNATURE=FAIL_VERIFY'
+                            exit 1
+                        }
+
+                        printf '%s\n' "$AAB_VERIFY" \
+                            | grep -Fq 'jar verified.' || {
+                                echo 'RELEASE_AAB_SIGNATURE=FAIL_UNSIGNED'
+                                exit 1
+                            }
+
+                        unset AAB_VERIFY
 
                         APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
                         AAB_SHA="$(sha256sum "$AAB" | awk '{print $1}')"
 
                         {
-                            printf '%s  %s\n'                                 "$APK_SHA"                                 "$(basename "$APK")"
-                            printf '%s  %s\n'                                 "$AAB_SHA"                                 "$(basename "$AAB")"
+                            printf '%s  %s\n' \
+                                "$APK_SHA" \
+                                "$(basename "$APK")"
+                            printf '%s  %s\n' \
+                                "$AAB_SHA" \
+                                "$(basename "$AAB")"
                         } > app/build/outputs/release-sha256.txt
 
                         echo 'RELEASE_APK_SIGNATURE=PASS'
@@ -156,6 +196,11 @@ pipeline {
                         echo 'RELEASE_PROVENANCE_SHA256=PASS'
                         echo 'RELEASE_SIGNING=PASS'
                     '''
+
+                    archiveArtifacts(
+                        artifacts: 'app/build/outputs/apk/release/*.apk,app/build/outputs/bundle/release/*.aab,app/build/outputs/release-sha256.txt',
+                        fingerprint: true
+                    )
                 }
             }
         }
@@ -179,7 +224,7 @@ pipeline {
             )
             archiveArtifacts(
                 allowEmptyArchive: true,
-                artifacts: 'app/build/outputs/apk/debug/*.apk,app/build/outputs/apk/release/*.apk,app/build/outputs/bundle/release/*.aab,app/build/outputs/release-sha256.txt,app/build/test-results/**/*.xml,app/build/reports/lint-results-*.xml,app/build/reports/lint-results-*.html'
+                artifacts: 'app/build/outputs/apk/debug/*.apk,app/build/test-results/**/*.xml,app/build/reports/lint-results-*.xml,app/build/reports/lint-results-*.html'
             )
         }
     }
