@@ -20,11 +20,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.devdigi.music.MainActivity
 import kotlinx.coroutines.runBlocking
-import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class RealInstanceAuthenticationTest {
@@ -35,7 +33,7 @@ class RealInstanceAuthenticationTest {
     @Test
     fun validatesDynamicMediaAndQueueAgainstRuntimeProvidedInstance() {
         val input =
-            readRuntimeInput()
+            RealInstanceRuntimeInputLoader.read()
 
         authenticate(
             endpoint = input.endpoint,
@@ -475,6 +473,25 @@ class RealInstanceAuthenticationTest {
 
         realInstanceStage(
             marker =
+                "REAL_STAGE_AUTH_SERVER_NOT_AUTHENTICATED_FAILED",
+        ) {
+            assertTagAbsent(
+                "recent-albums-screen",
+            )
+
+            composeRule
+                .onNodeWithTag(
+                    "connection-username",
+                ).assertIsDisplayed()
+
+            composeRule
+                .onNodeWithTag(
+                    "connection-password",
+                ).assertIsDisplayed()
+        }
+
+        realInstanceStage(
+            marker =
                 "REAL_STAGE_AUTH_CREDENTIALS_FAILED",
         ) {
             composeRule
@@ -733,170 +750,7 @@ class RealInstanceAuthenticationTest {
         }
     }
 
-    private fun readRuntimeInput(): RealInstanceInput {
-        val context =
-            InstrumentationRegistry
-                .getInstrumentation()
-                .targetContext
-
-        val inputFile =
-            File(
-                context.filesDir,
-                INPUT_FILE_NAME,
-            )
-
-        if (!inputFile.isFile) {
-            throw AssertionError(
-                "REAL_INSTANCE_INPUT_MISSING",
-            )
-        }
-
-        val payload =
-            try {
-                inputFile.readText()
-            } catch (_: Throwable) {
-                throw AssertionError(
-                    "REAL_INSTANCE_INPUT_UNREADABLE",
-                )
-            } finally {
-                inputFile.delete()
-            }
-
-        val json =
-            try {
-                JSONObject(payload)
-            } catch (_: Throwable) {
-                throw AssertionError(
-                    "REAL_INSTANCE_INPUT_INVALID",
-                )
-            }
-
-        val endpoint =
-            requiredValue(
-                json,
-                "endpoint",
-            )
-
-        val username =
-            requiredValue(
-                json,
-                "username",
-            )
-
-        val password =
-            requiredValue(
-                json,
-                "password",
-            )
-
-        val secondary =
-            json
-                .optJSONObject(
-                    "secondary",
-                )?.let { secondaryJson ->
-                    val secondaryEndpoint =
-                        requiredValue(
-                            secondaryJson,
-                            "endpoint",
-                        )
-
-                    val secondaryUsername =
-                        requiredValue(
-                            secondaryJson,
-                            "username",
-                        )
-
-                    val secondaryPassword =
-                        requiredValue(
-                            secondaryJson,
-                            "password",
-                        )
-
-                    if (
-                        !secondaryEndpoint.startsWith(
-                            "https://",
-                        )
-                    ) {
-                        throw AssertionError(
-                            "REAL_SECOND_IDENTITY_INVALID",
-                        )
-                    }
-
-                    if (
-                        secondaryEndpoint ==
-                        endpoint &&
-                        secondaryUsername ==
-                        username
-                    ) {
-                        throw AssertionError(
-                            "REAL_SECOND_IDENTITY_NOT_DISTINCT",
-                        )
-                    }
-
-                    RealSecondaryIdentityInput(
-                        endpoint =
-                        secondaryEndpoint,
-                        username =
-                        secondaryUsername,
-                        password =
-                        secondaryPassword,
-                    )
-                }
-
-        if (
-            !endpoint.startsWith(
-                "https://",
-            )
-        ) {
-            throw AssertionError(
-                "REAL_INSTANCE_ENDPOINT_INVALID",
-            )
-        }
-
-        return RealInstanceInput(
-            endpoint = endpoint,
-            username = username,
-            password = password,
-            secondary = secondary,
-        )
-    }
-
-    private fun requiredValue(
-        json: JSONObject,
-        key: String,
-    ): String {
-        val value =
-            json.optString(
-                key,
-                "",
-            )
-
-        if (value.isBlank()) {
-            throw AssertionError(
-                "REAL_INSTANCE_INPUT_INVALID",
-            )
-        }
-
-        return value
-    }
-
-    private data class RealInstanceInput(
-        val endpoint: String,
-        val username: String,
-        val password: String,
-        val secondary: RealSecondaryIdentityInput?,
-    )
-
-    private data class RealSecondaryIdentityInput(
-        val endpoint: String,
-        val username: String,
-        val password: String,
-    )
-
     private companion object {
-        const val INPUT_FILE_NAME =
-            "real_instance_input.json"
-
         const val UI_TIMEOUT_MS =
             10_000L
 
