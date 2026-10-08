@@ -205,6 +205,57 @@ pipeline {
             }
         }
 
+        stage('RC smoke signed instrumentation (trusted opt-in)') {
+            when {
+                expression {
+                    !env.CHANGE_ID &&
+                        env.BRANCH_NAME == 'main' &&
+                        env.DEVDIGI_RC_SMOKE_SIGNING_ENABLED == 'true'
+                }
+            }
+            steps {
+                // No production credentials during Gradle execution.
+                sh './gradlew :app:assembleDebugAndroidTest'
+
+                // Clear generated test output, never the approved RC.
+                sh 'rm -rf -- app/build/outputs/rc-smoke'
+
+                withCredentials([
+                    file(
+                        credentialsId: 'android-release-keystore',
+                        variable: 'DEVDIGI_RELEASE_STORE_FILE'
+                    ),
+                    string(
+                        credentialsId: 'android-release-store-password',
+                        variable: 'DEVDIGI_RELEASE_STORE_PASSWORD'
+                    ),
+                    string(
+                        credentialsId: 'android-release-key-alias',
+                        variable: 'DEVDIGI_RELEASE_KEY_ALIAS'
+                    ),
+                    string(
+                        credentialsId: 'android-release-key-password',
+                        variable: 'DEVDIGI_RELEASE_KEY_PASSWORD'
+                    ),
+                    file(
+                        credentialsId: 'android-rc1-approved-apk',
+                        variable: 'DEVDIGI_RC_REFERENCE_APK'
+                    ),
+                    string(
+                        credentialsId: 'android-rc1-approved-sha256',
+                        variable: 'DEVDIGI_RC_APPROVED_SHA256'
+                    )
+                ]) {
+                    sh './tools/sign-rc-test-apk.sh'
+                }
+
+                archiveArtifacts(
+                    fingerprint: true,
+                    artifacts: 'app/build/outputs/rc-smoke/*.apk,app/build/outputs/rc-smoke/*.txt'
+                )
+            }
+        }
+
         stage('archive APK and test/lint reports') {
             steps {
                 echo 'Artifacts are archived in the post block.'
