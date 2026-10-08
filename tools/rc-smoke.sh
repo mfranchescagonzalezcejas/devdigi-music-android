@@ -525,6 +525,7 @@ TEST_INSTALL="$(
     "$ADB" \
         -s "$SERIAL" \
         install \
+        -t \
         "$TEST_APK" \
         2>&1
 )"
@@ -774,6 +775,48 @@ then
     exit 1
 fi
 
+
+
+echo
+echo '--- validate actual Smoke case evidence ---'
+
+if ! python3 - "$RUN_LOG" <<'PY_CASES'
+import pathlib
+import re
+import sys
+
+expected = [
+    "MUSIC-64", "MUSIC-65", "MUSIC-72",
+    "MUSIC-75", "MUSIC-80", "MUSIC-81",
+    "MUSIC-82", "MUSIC-83", "MUSIC-85",
+    "MUSIC-86", "MUSIC-87", "MUSIC-89",
+    "MUSIC-69",
+]
+
+log = pathlib.Path(sys.argv[1]).read_text(
+    encoding="utf-8",
+    errors="replace",
+)
+
+observed = []
+
+for line in log.splitlines():
+    match = re.fullmatch(
+        r"INSTRUMENTATION_STATUS: devdigi\.rc\.case=(MUSIC-[0-9]+)",
+        line.strip(),
+    )
+    if match:
+        observed.append(match.group(1))
+
+if observed != expected:
+    raise SystemExit("RC_SMOKE_CASE_EVIDENCE=FAIL")
+
+print("RC_SMOKE_CASE_EVIDENCE=PASS")
+print("RC_SMOKE_VERIFIED_CASES=13")
+PY_CASES
+then
+    failed 'RC_SMOKE_CASE_EVIDENCE'
+fi
 
 echo
 echo '--- result mapping ---'

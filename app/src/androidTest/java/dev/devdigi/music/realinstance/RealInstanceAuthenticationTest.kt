@@ -1,6 +1,7 @@
 package dev.devdigi.music.realinstance
 
 import android.content.Intent
+import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
@@ -39,7 +40,9 @@ class RealInstanceAuthenticationTest {
             endpoint = input.endpoint,
             username = input.username,
             password = input.password,
+            reportSmokeCases = true,
         )
+        emitSmokeCase("MUSIC-65")
 
         val probeResult =
             safeStage(
@@ -84,12 +87,23 @@ class RealInstanceAuthenticationTest {
         }
 
         safeStage(
+            "REAL_STAGE_RECENT_ALBUMS_FAILED",
+        ) {
+            composeRule
+                .onNodeWithTag("recent-album-grid")
+                .assertIsDisplayed()
+        }
+        emitSmokeCase("MUSIC-72")
+
+        safeStage(
             "REAL_STAGE_ALBUM_OPEN_FAILED",
         ) {
             openAlbum(
                 candidate.albumIndex,
             )
         }
+
+        emitSmokeCase("MUSIC-75")
 
         safeStage(
             "REAL_STAGE_FLAC_SELECTION_FAILED",
@@ -113,6 +127,8 @@ class RealInstanceAuthenticationTest {
                 candidate.flacTrackIndex,
             )
         }
+
+        emitSmokeCase("MUSIC-80")
 
         safeStage(
             "REAL_STAGE_QUEUE_SEED_FAILED",
@@ -148,6 +164,9 @@ class RealInstanceAuthenticationTest {
             openNowPlayingAndWaitForPlayback()
         }
 
+        emitSmokeCase("MUSIC-81")
+        emitSmokeCase("MUSIC-82")
+
         safeStage(
             "REAL_STAGE_QUEUE_PREVIOUS_FAILED",
         ) {
@@ -159,6 +178,8 @@ class RealInstanceAuthenticationTest {
             backToAlbum()
             waitTrackSelected(1)
         }
+
+        emitSmokeCase("MUSIC-83")
 
         val observer =
             safeStage(
@@ -182,6 +203,8 @@ class RealInstanceAuthenticationTest {
                         observer::isPlaying,
                 )
             }
+
+            emitSmokeCase("MUSIC-85")
 
             safeStage(
                 "REAL_STAGE_SYSTEM_PAUSE_FAILED",
@@ -232,6 +255,8 @@ class RealInstanceAuthenticationTest {
                     PLAYBACK_TIMEOUT_MS,
                 )
             }
+
+            emitSmokeCase("MUSIC-86")
 
             safeStage(
                 "REAL_STAGE_SYSTEM_NEXT_FAILED",
@@ -286,6 +311,8 @@ class RealInstanceAuthenticationTest {
                 backToAlbum()
                 waitTrackSelected(1)
             }
+
+            emitSmokeCase("MUSIC-87")
 
             safeStage(
                 "REAL_STAGE_SIGN_OUT_FAILED",
@@ -351,6 +378,9 @@ class RealInstanceAuthenticationTest {
                 )
             }
         }
+        emitSmokeCase("MUSIC-89")
+        emitSmokeCase("MUSIC-69")
+
         input.secondary?.let { secondary ->
             safeStage(
                 "REAL_STAGE_SECOND_IDENTITY_AUTH_FAILED",
@@ -406,6 +436,17 @@ class RealInstanceAuthenticationTest {
         }
     }
 
+    private fun emitSmokeCase(key: String) {
+        val status =
+            Bundle().apply {
+                putString("devdigi.rc.case", key)
+            }
+
+        InstrumentationRegistry
+            .getInstrumentation()
+            .sendStatus(0, status)
+    }
+
     private fun <T> safeStage(
         marker: String,
         action: () -> T,
@@ -419,6 +460,7 @@ class RealInstanceAuthenticationTest {
         endpoint: String,
         username: String,
         password: String,
+        reportSmokeCases: Boolean = false,
     ) {
         realInstanceStage(
             marker =
@@ -488,6 +530,10 @@ class RealInstanceAuthenticationTest {
                 .onNodeWithTag(
                     "connection-password",
                 ).assertIsDisplayed()
+        }
+
+        if (reportSmokeCases) {
+            emitSmokeCase("MUSIC-64")
         }
 
         realInstanceStage(

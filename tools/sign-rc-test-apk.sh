@@ -40,6 +40,25 @@ SOURCE_COMMIT="$(git rev-parse HEAD)" ||
 [[ "$SOURCE_COMMIT" == "$GIT_COMMIT" ]] ||
     blocked 'SOURCE_COMMIT_MISMATCH'
 
+RC_BASE_SHA='06c863290733490dd04d342aef991157f71be314'
+
+git merge-base --is-ancestor "$RC_BASE_SHA" "$SOURCE_COMMIT" ||
+    blocked 'RC_SOURCE_BASELINE'
+
+git diff --quiet "$RC_BASE_SHA" "$SOURCE_COMMIT" -- app/src/main ||
+    blocked 'RC_PRODUCTION_SOURCE_DRIFT'
+
+APPROVED_TEST_SOURCE="${DEVDIGI_RC_APPROVED_TEST_SOURCE_SHA:-}"
+
+[[ "$APPROVED_TEST_SOURCE" =~ ^[0-9a-f]{40}$ ]] ||
+    blocked 'TEST_SOURCE_APPROVAL_FORMAT'
+
+[[ "$SOURCE_COMMIT" == "$APPROVED_TEST_SOURCE" ]] ||
+    blocked 'TEST_SOURCE_NOT_APPROVED'
+
+echo 'TEST_SOURCE_APPROVAL=PASS'
+echo 'RC_PRODUCTION_SOURCE_BASELINE=PASS'
+
 for name in \
     DEVDIGI_RELEASE_STORE_FILE \
     DEVDIGI_RELEASE_STORE_PASSWORD \
@@ -255,6 +274,8 @@ printf '%s  %s\n' \
 
 {
     printf 'source_commit=%s\n' "$SOURCE_COMMIT"
+    printf 'rc_source_baseline=%s\n' "$RC_BASE_SHA"
+    printf 'test_source_approved=yes\n'
     printf 'approved_rc_sha256=%s\n' "$EXPECTED_SHA"
     printf 'signed_test_sha256=%s\n' "$SIGNED_SHA"
     printf 'test_package=dev.devdigi.music.test\n'

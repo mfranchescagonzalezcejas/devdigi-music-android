@@ -40,6 +40,13 @@ pipeline {
             }
         }
 
+        stage('assembleDebugAndroidTest') {
+            steps {
+                // PR and branch compilation; no release credentials.
+                sh './gradlew :app:assembleDebugAndroidTest'
+            }
+        }
+
         stage('Navidrome integration preflight') {
             when {
                 expression {
@@ -214,9 +221,7 @@ pipeline {
                 }
             }
             steps {
-                // No production credentials during Gradle execution.
-                sh './gradlew :app:assembleDebugAndroidTest'
-
+                // Built previously without production signing credentials.
                 // Clear generated test output, never the approved RC.
                 sh 'rm -rf -- app/build/outputs/rc-smoke'
 
@@ -244,6 +249,10 @@ pipeline {
                     string(
                         credentialsId: 'android-rc1-approved-sha256',
                         variable: 'DEVDIGI_RC_APPROVED_SHA256'
+                    ),
+                    string(
+                        credentialsId: 'android-rc1-test-approved-commit',
+                        variable: 'DEVDIGI_RC_APPROVED_TEST_SOURCE_SHA'
                     )
                 ]) {
                     sh './tools/sign-rc-test-apk.sh'
