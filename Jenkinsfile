@@ -213,7 +213,12 @@ pipeline {
         }
 
         stage('RC smoke signed instrumentation (trusted opt-in)') {
+            // Only a separately provisioned signing worker may use this label.
+            // A Jenkins label alone does not provide security isolation.
+            agent { label 'android-signing' }
+
             when {
+                beforeAgent true
                 expression {
                     !env.CHANGE_ID &&
                         env.BRANCH_NAME == 'main' &&
@@ -221,7 +226,10 @@ pipeline {
                 }
             }
             steps {
-                // Built previously without production signing credentials.
+                // Rebuild on the trusted signing worker before credentials.
+                // Never sign APKs transferred from shared PR workspaces.
+                sh './gradlew :app:assembleDebugAndroidTest'
+
                 // Clear generated test output, never the approved RC.
                 sh 'rm -rf -- app/build/outputs/rc-smoke'
 
