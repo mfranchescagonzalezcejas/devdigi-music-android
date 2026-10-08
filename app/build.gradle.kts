@@ -105,6 +105,7 @@ android {
         versionCode = appVersionCode
         versionName = appVersionName
 
+        testApplicationId = "dev.devdigi.music.test"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
