@@ -32,6 +32,9 @@ TEST_APK="${DEVDIGI_RC_TEST_APK:-}"
 REPORT="${DEVDIGI_RC_SMOKE_JUNIT:-$ROOT/build/test-results/rcSmoke/TEST-rc-smoke.xml}"
 readonly REPORT
 
+JSON_REPORT="${DEVDIGI_RC_SMOKE_JSON:-$ROOT/build/test-results/rcSmoke/report.json}"
+readonly JSON_REPORT
+
 EXPECTED_VERSION_NAME="${DEVDIGI_RC_VERSION_NAME:-0.1.0}"
 
 EXPECTED_VERSION_CODE="${DEVDIGI_RC_VERSION_CODE:-1}"
@@ -113,148 +116,21 @@ cert_digest() {
 
 write_junit() {
     local status="$1"
-    local stage="${2:-}"
+    local stage="${2:-UNCLASSIFIED}"
+    local source_sha
 
-    [[ ! -L "$REPORT" ]] || return 1
+    source_sha="$(git rev-parse HEAD 2>/dev/null)" || return 1
 
-    mkdir -p \
-        "$(dirname "$REPORT")" ||
-        return 1
-
-    RC_SMOKE_STATUS="$status" \
-    RC_SMOKE_STAGE="$stage" \
-    RC_SMOKE_REPORT="$REPORT" \
-        python3 - <<'PY'
-import os
-import xml.etree.ElementTree as ET
-
-cases = [
-    (
-        "MUSIC-64",
-        "Saving a compatible server does not authenticate the user",
-    ),
-    (
-        "MUSIC-65",
-        "Sign in successfully with valid credentials",
-    ),
-    (
-        "MUSIC-72",
-        "Recent albums load for the authenticated account",
-    ),
-    (
-        "MUSIC-75",
-        "Open album details from Recent Albums",
-    ),
-    (
-        "MUSIC-80",
-        "Start FLAC playback from an album",
-    ),
-    (
-        "MUSIC-81",
-        "Selecting an album track creates an ordered queue",
-    ),
-    (
-        "MUSIC-82",
-        "Next advances to the next queue item",
-    ),
-    (
-        "MUSIC-83",
-        "Previous returns to the previous queue item",
-    ),
-    (
-        "MUSIC-85",
-        "Playback continues when the app moves to background",
-    ),
-    (
-        "MUSIC-86",
-        "Android system Play and Pause controls",
-    ),
-    (
-        "MUSIC-87",
-        "Android system Next and Previous controls",
-    ),
-    (
-        "MUSIC-89",
-        "Sign out clears playback and queue ownership",
-    ),
-    (
-        "MUSIC-69",
-        "Sign out clears authenticated presentation state",
-    ),
-]
-
-status = os.environ["RC_SMOKE_STATUS"]
-stage = os.environ.get(
-    "RC_SMOKE_STAGE",
-    "",
-)
-report = os.environ["RC_SMOKE_REPORT"]
-
-if status == "PASS":
-    suite = ET.Element(
-        "testsuite",
-        name="DevDigi Music RC Smoke",
-        tests=str(len(cases)),
-        failures="0",
-        skipped="0",
-    )
-
-    for key, name in cases:
-        ET.SubElement(
-            suite,
-            "testcase",
-            classname="devdigi.music.rc.smoke",
-            name=f"{key} — {name}",
-        )
-elif status in {"FAIL", "BLOCKED"}:
-    is_blocked = status == "BLOCKED"
-    suite = ET.Element(
-        "testsuite",
-        name="DevDigi Music RC Smoke",
-        tests=str(len(cases) + 1),
-        failures="0" if is_blocked else "1",
-        skipped=str(len(cases) + (1 if is_blocked else 0)),
-    )
-
-    for key, name in cases:
-        case = ET.SubElement(
-            suite,
-            "testcase",
-            classname="devdigi.music.rc.smoke",
-            name=f"{key} — {name}",
-        )
-
-        ET.SubElement(
-            case,
-            "skipped",
-            message="Not promoted after RC Smoke failure",
-        )
-
-    harness = ET.SubElement(
-        suite,
-        "testcase",
-        classname="devdigi.music.rc.smoke",
-        name="RC smoke harness",
-    )
-
-    result = ET.SubElement(
-        harness,
-        "skipped" if is_blocked else "failure",
-        message="RC Smoke blocked" if is_blocked else "RC Smoke failed",
-    )
-
-    result.text = stage or "UNCLASSIFIED"
-else:
-    raise ValueError("Unknown RC Smoke report status")
-
-ET.ElementTree(
-    suite,
-).write(
-    report,
-    encoding="utf-8",
-    xml_declaration=True,
-)
-PY
+    # Raw instrumentation output stays in TMP_DIR and is removed on exit.
+    # The reducer persists only allowlisted per-case evidence.
+    python3 "$ROOT/tools/qa-report.py" generate \
+        --status "$status" \
+        --stage "$stage" \
+        --log "$RUN_LOG" \
+        --source-sha "$source_sha" \
+        --junit "$REPORT" \
+        --json "$JSON_REPORT" \
+        >/dev/null
 }
 
 
@@ -270,6 +146,20 @@ fi
 if [[ -f "$REPORT" ]]; then
     rm -f -- "$REPORT" || {
         echo 'JUNIT_REPORT_RESET=BLOCKED'
+        exit 2
+    }
+fi
+
+# Do not publish an old n8n payload as if it belonged to this run.
+if [[ "$JSON_REPORT" == "$REPORT" || -L "$JSON_REPORT" ||
+      ( -e "$JSON_REPORT" && ! -f "$JSON_REPORT" ) ]]; then
+    echo 'QA_JSON_REPORT_PATH=BLOCKED'
+    exit 2
+fi
+
+if [[ -f "$JSON_REPORT" ]]; then
+    rm -f -- "$JSON_REPORT" || {
+        echo 'QA_JSON_REPORT_RESET=BLOCKED'
         exit 2
     }
 fi

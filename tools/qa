@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Local QA entry point. No network publishing or release signing.
+set +x
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 2
+cd "$ROOT" || exit 2
+REPORT_JSON="${DEVDIGI_RC_SMOKE_JSON:-$ROOT/build/test-results/rcSmoke/report.json}"
+usage() {
+    echo 'Usage: tools/qa smoke --target rc1 | tools/qa report'
+    exit 2
+}
+case "${1:-}" in
+    smoke)
+        [[ "${2:-}" == '--target' && "${3:-}" == 'rc1' && "$#" -eq 3 ]] || usage
+        echo 'LOCAL_QA_MODE=RC1_PHYSICAL_SMOKE'
+        echo 'REQUIRES_APPROVED_RC_AND_SAME_SIGNED_TEST_APK=YES'
+        echo 'NO_RELEASE_APP_INSTALL=YES'
+        RUN_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')" || exit 2
+        RC=0
+        DEVDIGI_QA_RUN_ID="$RUN_ID" DEVDIGI_RC_SMOKE_JSON="$REPORT_JSON" \
+            bash "$ROOT/tools/rc-smoke.sh" || RC=$?
+        if [[ -f "$REPORT_JSON" ]]; then
+            python3 "$ROOT/tools/qa-report.py" show --json "$REPORT_JSON" \
+                --expected-run-id "$RUN_ID" || { echo 'LOCAL_QA_REPORT=INVALID_OR_STALE'; exit 1; }
+        else
+            echo 'LOCAL_QA_REPORT=NOT_GENERATED'
+        fi
+        exit "$RC"
+        ;;
+    report)
+        [[ "$#" -eq 1 ]] || usage
+        [[ -f "$REPORT_JSON" ]] || { echo 'LOCAL_QA_REPORT=NOT_FOUND'; exit 2; }
+        python3 "$ROOT/tools/qa-report.py" show --json "$REPORT_JSON"
+        ;;
+    *) usage ;;
+esac
