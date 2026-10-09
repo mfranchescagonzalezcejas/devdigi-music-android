@@ -59,9 +59,7 @@ cleanup() {
         "$ADB" \
             -s "$SERIAL" \
             shell \
-            run-as "$TEST_APP_ID" \
-            sh -c \
-            'rm -f files/real_instance_input.json' \
+            "run-as $TEST_APP_ID sh -c 'rm -f files/real_instance_input.json'" \
             </dev/null \
             >/dev/null 2>&1 ||
             true
@@ -585,10 +583,9 @@ PYJSON
 ) |
     "$ADB" \
         -s "$SERIAL" \
-        shell \
-        run-as "$TEST_APP_ID" \
-        sh -c \
-        'umask 077; mkdir -p files; cat > files/real_instance_input.json'
+        shell -T \
+        "run-as $TEST_APP_ID sh -c 'umask 077; mkdir -p files; cat > files/real_instance_input.json'" \
+        >/dev/null 2>&1
 then
     unset \
         ENDPOINT \
@@ -605,8 +602,20 @@ unset \
 
 echo 'RUNTIME_INPUT_STAGE=PASS'
 
+# Verify that Android can read a non-empty private input file, without reading
+# its contents or printing paths, usernames, passwords or server addresses.
+"$ADB" \
+    -s "$SERIAL" \
+    shell \
+    "run-as $TEST_APP_ID sh -c 'test -s files/real_instance_input.json'" \
+    </dev/null \
+    >/dev/null 2>&1 ||
+    failed 'RUNTIME_INPUT_PRIVATE_FILE'
+echo 'RUNTIME_INPUT_PRIVATE_FILE=PASS'
+
 
 echo
+
 echo '--- execute signed RC Smoke ---'
 
 "$ADB" \
@@ -627,7 +636,12 @@ echo '--- execute signed RC Smoke ---'
 
 RUN_RC=$?
 
-"$ADB"     -s "$SERIAL"     shell     run-as "$TEST_APP_ID"     sh -c     'rm -f files/real_instance_input.json'     </dev/null     >/dev/null 2>&1 ||
+"$ADB" \
+    -s "$SERIAL" \
+    shell \
+    "run-as $TEST_APP_ID sh -c 'rm -f files/real_instance_input.json'" \
+    </dev/null \
+    >/dev/null 2>&1 ||
     failed 'RUNTIME_INPUT_DELETION'
 
 echo 'RUNTIME_INPUT_DELETION=PASS'
@@ -652,6 +666,10 @@ then
 
     [[ -n "$FAIL_STAGE" ]] ||
         FAIL_STAGE='UNCLASSIFIED'
+
+    # No raw instrumentation/logcat text is printed or persisted.
+    python3 -B "$ROOT/tools/qa-instrumentation-diagnose.py" "$RUN_LOG" ||
+        echo 'INSTRUMENTATION_DIAGNOSTIC=UNAVAILABLE'
 
     write_junit \
         'FAIL' \

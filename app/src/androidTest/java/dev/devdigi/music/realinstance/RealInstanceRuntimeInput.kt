@@ -1,5 +1,7 @@
 package dev.devdigi.music.realinstance
 
+import android.app.Instrumentation
+import android.os.ParcelFileDescriptor
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
 import java.io.File
@@ -17,20 +19,21 @@ internal object RealInstanceRuntimeInputLoader {
                     INPUT_SOURCE_ARGUMENT,
                 ).orEmpty()
 
-        val filesDir =
+        val payload =
             when (source) {
                 "",
                 INPUT_SOURCE_TARGET,
                 -> {
-                    instrumentation
-                        .targetContext
-                        .filesDir
+                    readAndDelete(
+                        File(
+                            instrumentation.targetContext.filesDir,
+                            INPUT_FILE_NAME,
+                        ),
+                    )
                 }
 
                 INPUT_SOURCE_INSTRUMENTATION -> {
-                    instrumentation
-                        .context
-                        .filesDir
+                    readInstrumentationPrivateInput(instrumentation)
                 }
 
                 else -> {
@@ -40,14 +43,37 @@ internal object RealInstanceRuntimeInputLoader {
                 }
             }
 
-        return parse(
-            readAndDelete(
-                File(
-                    filesDir,
-                    INPUT_FILE_NAME,
-                ),
-            ),
-        )
+        return parse(payload)
+    }
+
+    // Instrumentation runs under the release target app UID, not the test
+    // package UID. Direct context.filesDir access crosses an Android sandbox.
+    // UiAutomation executes a fixed, credential-free shell command as shell;
+    // run-as reads the test APK's private 0600 input, into a closed FD.
+    private fun readInstrumentationPrivateInput(instrumentation: Instrumentation): String {
+        if (instrumentation.context.packageName != TEST_APP_ID) {
+            throw AssertionError("REAL_INSTANCE_INPUT_SOURCE_INVALID")
+        }
+
+        val payload =
+            try {
+                val descriptor =
+                    instrumentation.uiAutomation
+                        .executeShellCommand(
+                            "run-as $TEST_APP_ID cat files/$INPUT_FILE_NAME",
+                        )
+                ParcelFileDescriptor
+                    .AutoCloseInputStream(descriptor)
+                    .bufferedReader(Charsets.UTF_8)
+                    .use { it.readText() }
+            } catch (_: Exception) {
+                throw AssertionError("REAL_INSTANCE_INPUT_UNREADABLE")
+            }
+
+        if (payload.isBlank()) {
+            throw AssertionError("REAL_INSTANCE_INPUT_MISSING")
+        }
+        return payload
     }
 
     private fun readAndDelete(inputFile: File): String {
@@ -205,6 +231,9 @@ internal object RealInstanceRuntimeInputLoader {
 
     private const val INPUT_FILE_NAME =
         "real_instance_input.json"
+
+    private const val TEST_APP_ID =
+        "dev.devdigi.music.test"
 }
 
 internal data class RealInstanceInput(
