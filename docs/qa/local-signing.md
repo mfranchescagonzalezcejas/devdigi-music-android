@@ -16,6 +16,21 @@ or distribute it, attach it to issues, or commit it into Git.**
 4. Android SDK build-tools with `apksigner`, `aapt`; working Gradle wrapper,
    installed JDK, and interactive terminal. No release credentials in Gradle.
 
+## WARNING — app state before executing the physical Smoke
+
+The signing step does **not** prepare or reset the device. Before running
+`./tools/qa smoke --target rc1`, the app must be **signed out** and have
+**no saved server URL/profile**. If the same URL is already registered,
+`Save server` remains disabled and the current test may fail with
+`AUTH_SERVER_ENABLE_FAILED` before `MUSIC-64`. Do not delete user data
+automatically. Removing a saved server through the app's **Delete server**
+control requires the user's consent and may remove stored credentials.
+Do **not** clear application storage or uninstall/reinstall production RC1.
+
+See [RC1 physical Smoke preconditions and incident history](local-runner.md#warning--required-deviceapp-state-before-rc1-smoke).
+The warning is advisory until a repeatable-state WU10 implementation is
+reviewed, Jenkins-validated and merged.
+
 ## Use
 
 Run `python3 tools/qa-sign-rc-test.py` from the checked-out repository.
