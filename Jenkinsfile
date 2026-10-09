@@ -22,6 +22,13 @@ pipeline {
             }
         }
 
+        stage('QA CLI offline contracts') {
+            steps {
+                sh 'python3 -B tools/test-qa-setup.py'
+                sh 'python3 -B tools/test-qa-report.py'
+            }
+        }
+
         stage('Unit tests') {
             steps {
                 sh './gradlew testDebugUnitTest'

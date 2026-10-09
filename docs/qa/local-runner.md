@@ -56,6 +56,65 @@ acceptance coverage.
   The prior failure is retained as diagnostic history, not overwritten
   in Jira as if it had never happened.
 
+## Single-command local QA workflow (WU10A)
+
+After cloning on a **new computer**, provision the Android SDK/JDK, Docker
+(for regression integration), the authorized immutable release RC1 APK + SHA
+manifest, and the **matching pre-signed private instrumentation APK** through
+approved private transfer. This repository NEVER contains either APK, passwords,
+keystores or private local configuration. There is no public download or
+on-demand automatic signing with the production release key.
+
+Run **once per machine**:
+
+```bash
+./tools/qa setup
+```
+
+The wizard discovers the approved RC1 manifest, validates the signed test APK
+against `rc-test-sha256.txt`, and can copy it **with explicit consent** to a
+private persistent cache at `~/.local/share/devdigi-music/qa/` (file 0600,
+directory 0700). It writes `~/.config/devdigi-music/qa-local.env` as a local
+**non-secret path map** (0600). If no `navidrome-test.env` exists, it asks once
+for an HTTPS endpoint, test account and password and stores them in
+`~/.config/devdigi-music/navidrome-test.env` (0600), only after explicit
+acceptance. This is **plaintext at rest protected by OS file permissions**, not
+encrypted storage or an OS keyring. Use a low-privilege dedicated test account,
+protect workstation backups, and rotate its password if the workstation is
+compromised. Never put release keystore passwords in either file.
+
+On subsequent runs:
+
+```bash
+./tools/qa smoke
+./tools/qa sanity
+./tools/qa regression
+./tools/qa report
+```
+
+`smoke` reuses the approved RC1 + private signed driver and cached Navidrome
+input without prompting. The old `./tools/qa smoke --target rc1` form remains
+supported. It still performs every existing identity/signer/device check, and
+**does not delete any saved server or modify the production APK**. The warning
+above remains a manual preflight: on an already configured phone, stop rather
+than reset the user's data. Safe repeatability is WU10B, not part of WU10A.
+
+`sanity` runs offline contracts, Spotless, JVM unit tests and AndroidTest
+compilation (no device, credentials, Docker or release signing).
+`regression` adds Android Lint, debug APK build and a **synthetic** Navidrome
+integration run under Docker. It is a repeatable automated regression baseline,
+**not a claim of full manual/device regression** and does not replace the
+physical RC Smoke. Docker must be available locally. All these commands have
+nonzero exit status on failures and do not publish to AgileTest/n8n.
+
+If the signed instrumentation driver is missing after `gradle clean`, rerun
+setup with a separately provisioned private APK or restore your authorized
+private cache. `qa-local.env` is generated per machine: clone/pull onto
+another laptop does not bring it along. Do not commit local `.env` files or
+copy them over chat. If rotation is necessary, securely replace your local
+credential file yourself after confirming the change; setup refuses to
+silently overwrite existing sensitive files.
+
 ## Commands
 
 - `./tools/qa report` — view latest sanitized per-case report; does not use ADB.
