@@ -2,6 +2,13 @@
 .kotlin/
 .idea/
 local.properties
+__pycache__/
+*.pyc
+.env
+.env.*
+# Defense in depth for per-machine QA files if a local path is misconfigured.
+*.env
+!.env.example
 *.iml
 build/
 captures/

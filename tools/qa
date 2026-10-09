@@ -5,13 +5,105 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 2
 cd "$ROOT" || exit 2
 REPORT_JSON="${DEVDIGI_RC_SMOKE_JSON:-$ROOT/build/test-results/rcSmoke/report.json}"
+# Per-machine non-secret paths. The Navidrome secret file is separate and
+# is read by rc-smoke.sh; no private value appears in console or git.
+QA_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/devdigi-music"
+QA_CONFIG="$QA_HOME/qa-local.env"
+qa_load_config() {
+    [[ -e "$QA_CONFIG" || -L "$QA_CONFIG" ]] || return 0
+    [[ -f "$QA_CONFIG" && ! -L "$QA_CONFIG" &&
+       "$(stat -c '%u' "$QA_CONFIG" 2>/dev/null)" == "$(id -u)" ]] || {
+        echo 'QA_LOCAL_CONFIG=BLOCKED'; return 2;
+    }
+    case "$(stat -c '%a' "$QA_CONFIG" 2>/dev/null)" in
+        400|600) ;; *) echo 'QA_LOCAL_CONFIG_PERMISSIONS=BLOCKED'; return 2 ;;
+    esac
+    while IFS='=' read -r key value || [[ -n "$key" ]]; do
+        [[ -n "$key" ]] || continue
+        case "$key" in
+            DEVDIGI_RC_APK|DEVDIGI_RC_SHA256_FILE|DEVDIGI_RC_TEST_APK|DEVDIGI_NAVIDROME_ENV)
+                [[ "$value" == /* ]] || { echo 'QA_CONFIG_PATH=BLOCKED'; return 2; }
+                # Explicit shell environment wins over saved per-machine config.
+                if [[ -z "${!key:-}" ]]; then printf -v "$key" '%s' "$value"; export "$key"; fi
+                ;;
+            *) echo 'QA_CONFIG_KEY=BLOCKED'; return 2 ;;
+        esac
+    done < "$QA_CONFIG"
+    echo 'QA_LOCAL_CONFIG=READY'
+}
+qa_resolve_rc_inputs() {
+    local dir name candidate
+    dir="${DEVDIGI_RC_ARTIFACT_DIR:-$HOME/Descargas/devdigi-music-rc1}"
+    : "${DEVDIGI_RC_SHA256_FILE:=$dir/release-sha256.txt}"
+    if [[ -z "${DEVDIGI_RC_APK:-}" && -f "$DEVDIGI_RC_SHA256_FILE" ]]; then
+        name="$(awk 'NF==2 && $1 ~ /^[0-9a-fA-F]{64}$/ && $2 ~ /^[a-zA-Z0-9._+-]+\.apk$/ {print $2}' "$DEVDIGI_RC_SHA256_FILE")"
+        [[ -n "$name" && "$name" != *$'\n'* ]] || {
+            echo 'QA_RC_APK=NOT_CONFIGURED'; return 2;
+        }
+        DEVDIGI_RC_APK="$dir/$name"
+    fi
+    if [[ -z "${DEVDIGI_RC_APK:-}" ]]; then
+        echo 'QA_RC_APK=NOT_CONFIGURED'
+        echo 'ACTION=./tools/qa setup'
+        return 2
+    fi
+    : "${DEVDIGI_RC_TEST_APK:=$ROOT/app/build/outputs/rc-smoke/devdigi-music-rc1-test-signed.apk}"
+    : "${DEVDIGI_NAVIDROME_ENV:=$QA_HOME/navidrome-test.env}"
+    export DEVDIGI_RC_APK DEVDIGI_RC_SHA256_FILE DEVDIGI_RC_TEST_APK DEVDIGI_NAVIDROME_ENV
+    for candidate in "$DEVDIGI_RC_APK" "$DEVDIGI_RC_SHA256_FILE" "$DEVDIGI_RC_TEST_APK" "$DEVDIGI_NAVIDROME_ENV"; do
+        [[ -f "$candidate" && ! -L "$candidate" ]] || {
+            echo 'QA_INPUTS=NOT_CONFIGURED'
+            echo 'ACTION=./tools/qa setup'
+            return 2
+        }
+    done
+    echo 'QA_LOCAL_INPUTS=READY'
+}
+qa_contracts() {
+    python3 -B tools/test-qa-setup.py &&
+        python3 -B tools/test-qa-report.py &&
+        python3 -B tools/test-qa-sign-rc-test.py &&
+        python3 -B tools/test-qa-instrumentation-bridge.py &&
+        python3 -B tools/test-qa-instrumentation-diagnose.py &&
+        python3 -B tools/test-rc-smoke-adb-quoting.py
+}
 usage() {
-    echo 'Usage: tools/qa smoke --target rc1 | tools/qa report'
+    echo 'Usage: tools/qa setup | smoke [--target rc1] | sanity | regression | doctor | report'
     exit 2
 }
 case "${1:-}" in
+    setup)
+        [[ "$#" -eq 1 ]] || usage
+        exec python3 -B "$ROOT/tools/qa-setup.py"
+        ;;
+    doctor)
+        [[ "$#" -eq 1 ]] || usage
+        qa_load_config || exit 2
+        qa_resolve_rc_inputs || exit 2
+        echo 'QA_DOCTOR=PASS'
+        ;;
+    sanity)
+        [[ "$#" -eq 1 ]] || usage
+        echo 'LOCAL_QA_SUITE=sanity'
+        qa_contracts && ./gradlew spotlessCheck testDebugUnitTest :app:assembleDebugAndroidTest || exit 1
+        echo 'LOCAL_QA_SANITY=PASS'
+        ;;
+    regression)
+        [[ "$#" -eq 1 ]] || usage
+        echo 'LOCAL_QA_SUITE=regression'
+        echo 'REGRESSION_SCOPE=JVM_STATIC_SYNTHETIC_NO_PHYSICAL_DEVICE'
+        qa_contracts &&
+            ./gradlew spotlessCheck testDebugUnitTest lint assembleDebug :app:assembleDebugAndroidTest &&
+            ./integration/navidrome/lifecycle.sh preflight &&
+            ./integration/navidrome/run-integration.sh || exit 1
+        echo 'LOCAL_QA_REGRESSION_BASELINE=PASS'
+        ;;
     smoke)
-        [[ "${2:-}" == '--target' && "${3:-}" == 'rc1' && "$#" -eq 3 ]] || usage
+        if [[ "$#" -ne 1 ]]; then
+            [[ "$#" -eq 3 && "${2:-}" == '--target' && "${3:-}" == rc1 ]] || usage
+        fi
+        qa_load_config || exit 2
+        qa_resolve_rc_inputs || exit 2
         echo 'LOCAL_QA_MODE=RC1_PHYSICAL_SMOKE'
         echo 'REQUIRES_APPROVED_RC_AND_SAME_SIGNED_TEST_APK=YES'
         echo 'NO_RELEASE_APP_INSTALL=YES'

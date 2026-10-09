@@ -91,7 +91,7 @@ Existing privacy-safe OpenSpec evidence is historical input to reusable scenario
 
 ## 4. Named suite contract
 
-Suite names are stable contracts; implementation may evolve. The repository now has `./tools/qa smoke --target rc1` and `./tools/qa report`; `sanity`, `regression` and `device` entry points remain separate future work. Physical RC1 Smoke requires manual verification that the app is signed out with no saved server profile (see local-runner.md).
+Suite names are stable contracts; implementation may evolve. `./tools/qa smoke`, `sanity`, `regression` and `report` are now executable; `device` remains future work. `sanity` covers offline/unit/compile checks, and `regression` covers the automated static/JVM/synthetic Navidrome baseline but not every physical-device acceptance scenario. Physical RC1 Smoke currently requires manual verification that the app is signed out with no saved server profile (see local-runner.md). Machine-local setup is documented there.
 
 ### Smoke
 Purpose: prove the smallest critical user path is alive.
@@ -254,7 +254,7 @@ Use placeholders and sanitized summaries. Temporary local inspection may use sen
 ## 13. Known implementation gaps
 
 This contract does not claim these already exist:
-- generic `./tools/qa smoke|sanity|regression|device` runner (`smoke --target rc1` and `report` already exist; other commands are not implemented);
+- physical `./tools/qa device` runner and automatic repeatability of signed RC Smoke with previously saved server;
 - canonical versioned Gherkin feature files;
 - Android Cucumber integration;
 - instrumented CI;
