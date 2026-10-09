@@ -14,6 +14,19 @@ SOURCE_SHA = "6fae53aa7d9085c94ca11f177c9de4205d1be412"
 
 
 class LocalSmokeContract(unittest.TestCase):
+    def test_rc_smoke_entrypoint_warns_about_saved_server_precondition(self):
+        script = (MODULE.parent / "qa").read_text()
+        warning = "SMOKE_PRECONDITION=SIGNED_OUT_AND_NO_SAVED_SERVER"
+        self.assertEqual(script.count(warning), 1)
+        self.assertIn("AUTH_SERVER_ENABLE_FAILED", script)
+        self.assertIn("Delete server", script)
+        self.assertIn("adb pm clear", script)
+        self.assertIn("manual preflight", script)
+        self.assertLess(script.index(warning), script.index("RUN_ID="))
+        self.assertIn("RC=0", script)
+        self.assertIn("bash \"$ROOT/tools/rc-smoke.sh\"", script)
+        self.assertNotIn("pm clear dev.devdigi.music", script)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
