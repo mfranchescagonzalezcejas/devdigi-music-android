@@ -4,6 +4,7 @@
 import importlib.util
 from pathlib import Path
 import stat
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -113,6 +114,71 @@ class SigningContract(unittest.TestCase):
             '    A: android:targetPackage(0x01010021)="other.application"\n'))
         with self.assertRaises(SystemExit):
             qa.instrumentation_manifest('aapt', 'test.apk')
+
+    def clean_git_fixture(self):
+        repo = self.root / 'repo'
+        repo.mkdir()
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(repo), *args], text=True).strip()
+        git('init', '-q', '-b', 'test/95-wu1-rc-smoke-runner')
+        git('config', 'user.email', 'qa@example.invalid')
+        git('config', 'user.name', 'QA')
+        main = repo / 'app/src/main/Main.kt'
+        main.parent.mkdir(parents=True)
+        main.write_text('production-baseline')
+        git('add', '.')
+        git('commit', '-qm', 'RC baseline')
+        baseline = git('rev-parse', 'HEAD')
+        test = repo / 'app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceRuntimeInput.kt'
+        test.parent.mkdir(parents=True)
+        test.write_text('readInstrumentationPrivateInput(instrumentation)')
+        for name in ('app/build.gradle.kts', 'gradle/libs.versions.toml'):
+            p = repo / name
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text('reviewed-test-dependencies')
+        git('add', '.')
+        git('commit', '-qm', 'add instrumentation')
+        return repo, baseline, git
+
+    def test_git_guard_clean_revision_and_fingerprint(self):
+        repo, baseline, git = self.clean_git_fixture()
+        with mock.patch.object(qa, 'RELEASE_BASE', baseline):
+            head, fingerprint = qa.git_guard(repo)
+            self.assertEqual(head, git('rev-parse', 'HEAD'))
+            self.assertRegex(fingerprint, r'^[0-9a-f]{64}$')
+            self.assertEqual(qa.git_guard(repo), (head, fingerprint))
+            git('checkout', '-qb', 'develop')
+            self.assertEqual(qa.git_guard(repo), (head, fingerprint))
+
+    def test_git_guard_refuses_uncommitted_inputs(self):
+        repo, baseline, _ = self.clean_git_fixture()
+        with mock.patch.object(qa, 'RELEASE_BASE', baseline):
+            for name in ('app/build.gradle.kts',
+                         'app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceRuntimeInput.kt'):
+                path = repo / name
+                original = path.read_text()
+                path.write_text(original + '\nextra')
+                with self.assertRaises(SystemExit):
+                    qa.git_guard(repo)
+                path.write_text(original)
+            (repo / 'untracked-secret-file').write_text('not-allowed')
+            with self.assertRaises(SystemExit):
+                qa.git_guard(repo)
+
+    def test_git_guard_refuses_committed_production_drift(self):
+        repo, baseline, git = self.clean_git_fixture()
+        (repo / 'app/src/main/Main.kt').write_text('modified-production')
+        git('add', '.')
+        git('commit', '-qm', 'unexpected production change')
+        with mock.patch.object(qa, 'RELEASE_BASE', baseline):
+            with self.assertRaises(SystemExit):
+                qa.git_guard(repo)
+
+    def test_jenkins_does_not_archive_privileged_test_apk(self):
+        jenkins = (SCRIPT.parent.parent / 'Jenkinsfile').read_text()
+        self.assertNotIn("artifacts: 'app/build/outputs/rc-smoke/*.apk", jenkins)
+        self.assertIn("artifacts: 'app/build/outputs/rc-smoke/*.txt'", jenkins)
+        self.assertIn("sh 'rm -f -- app/build/outputs/rc-smoke/*.apk'", jenkins)
 
     def test_no_release_apk_mutation_in_script(self):
         code = SCRIPT.read_text()

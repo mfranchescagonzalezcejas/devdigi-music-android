@@ -197,12 +197,15 @@ def password_prompt(prompt):
 
 
 def git_guard(repo):
+    # Signing must be reproducible from a reviewed, committed source revision.
     head = execute(['git', '-C', str(repo), 'rev-parse', 'HEAD'])
     if head.returncode or not re.fullmatch(r'[a-f0-9]{40}\s*', head.stdout):
         stop('SOURCE_COMMIT=BLOCKED')
     source = head.stdout.strip()
     branch = execute(['git', '-C', str(repo), 'branch', '--show-current'])
-    if branch.stdout.strip() != 'test/95-wu1-rc-smoke-runner':
+    if branch.returncode or branch.stdout.strip() not in (
+        'test/95-wu1-rc-smoke-runner', 'develop', 'main'
+    ):
         stop('SOURCE_BRANCH=BLOCKED')
     ancestry = execute(['git', '-C', str(repo), 'merge-base', '--is-ancestor', RELEASE_BASE, source])
     if ancestry.returncode:
@@ -210,17 +213,39 @@ def git_guard(repo):
     production = execute(['git', '-C', str(repo), 'diff', '--quiet', RELEASE_BASE, source, '--', 'app/src/main'])
     if production.returncode:
         stop('RC_PRODUCTION_SOURCE_DRIFT=BLOCKED')
-    local = execute(['git', '-C', str(repo), 'status', '--porcelain', '--', 'app/src/main', 'app/src/androidTest'])
-    expected = 'M app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceRuntimeInput.kt'
-    if local.returncode or local.stdout.strip() != expected:
-        stop('ANDROID_SOURCE_WORKTREE=BLOCKED')
+
+    # Fail closed on ALL tracked/untracked changes, not only AndroidTest.
+    # Ignored build outputs are allowed; reviewed input files are tracked.
+    worktree = execute(['git', '-C', str(repo), 'status', '--porcelain', '--untracked-files=all'])
+    if worktree.returncode or worktree.stdout.strip():
+        stop('SOURCE_WORKTREE=BLOCKED')
     bridge = repo / 'app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceRuntimeInput.kt'
+    if bridge.is_symlink() or not bridge.is_file():
+        stop('ANDROID_TEST_BRIDGE=BLOCKED')
     if 'readInstrumentationPrivateInput(instrumentation)' not in bridge.read_text(encoding='utf-8'):
         stop('ANDROID_TEST_BRIDGE=BLOCKED')
-    diff = execute(['git', '-C', str(repo), 'diff', '--no-ext-diff', '--', str(bridge.relative_to(repo))])
-    if diff.returncode or not diff.stdout or len(diff.stdout) > 24000:
-        stop('ANDROID_TEST_DIFF=BLOCKED')
-    return source, hashlib.sha256(diff.stdout.encode('utf-8')).hexdigest()
+
+    tracked = execute([
+        'git', '-C', str(repo), 'ls-files', '-z', '--',
+        'app/src/androidTest', 'app/build.gradle.kts', 'gradle/libs.versions.toml',
+        'build.gradle.kts', 'settings.gradle.kts', 'gradle/wrapper',
+    ])
+    if tracked.returncode:
+        stop('BUILD_INPUTS=BLOCKED')
+    filenames = sorted(entry for entry in tracked.stdout.split('\0') if entry)
+    if not {'app/build.gradle.kts', 'gradle/libs.versions.toml',
+            'app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceRuntimeInput.kt'}.issubset(filenames):
+        stop('BUILD_INPUTS=BLOCKED')
+    fingerprint = hashlib.sha256()
+    for name in filenames:
+        candidate = repo / name
+        if candidate.is_symlink() or not candidate.is_file():
+            stop('BUILD_INPUTS=BLOCKED')
+        payload = candidate.read_bytes()
+        fingerprint.update(name.encode('utf-8') + b'\0')
+        fingerprint.update(len(payload).to_bytes(8, 'big'))
+        fingerprint.update(payload)
+    return source, fingerprint.hexdigest()
 
 
 def main():
@@ -231,7 +256,7 @@ def main():
     repo = Path(__file__).resolve().parent.parent
     if not (repo / 'gradlew').is_file() or not (repo / 'tools/rc-smoke.sh').is_file():
         stop('REPOSITORY_LAYOUT=BLOCKED')
-    source, test_patch_sha = git_guard(repo)
+    source, build_inputs_sha = git_guard(repo)
     sdk = Path(os.environ.get('ANDROID_SDK_ROOT') or os.environ.get('ANDROID_HOME') or str(Path.home() / 'Android/Sdk'))
     available = sorted((p for p in (sdk / 'build-tools').glob('*/apksigner') if p.is_file() and os.access(p, os.X_OK)),
                        key=lambda p: tuple(int(v) if v.isdecimal() else v for v in re.split(r'(\d+)', p.parent.name)))
@@ -259,8 +284,8 @@ def main():
     if build.returncode:
         stop('ANDROID_TEST_BUILD=FAIL', 1)
     # Abort if reviewed AndroidTest sources changed while Gradle ran.
-    if git_guard(repo)[1] != test_patch_sha:
-        stop('ANDROID_TEST_DIFF_CHANGED=BLOCKED')
+    if git_guard(repo) != (source, build_inputs_sha):
+        stop('BUILD_INPUTS_CHANGED=BLOCKED')
     source_apks = sorted((repo / 'app/build/outputs/apk/androidTest/debug').glob('*.apk'))
     if len(source_apks) != 1 or source_apks[0].is_symlink() or not source_apks[0].is_file():
         stop('TEST_APK_SELECTION=BLOCKED')
@@ -340,7 +365,7 @@ def main():
         (tempdir / 'sha.txt').write_text(test_sha + '  ' + out_apk.name + '\n')
         (tempdir / 'provenance.txt').write_text(
             'source_commit=' + source + '\n' +
-            'android_test_local_diff_sha256=' + test_patch_sha + '\n' +
+            'test_build_inputs_sha256=' + build_inputs_sha + '\n' +
             'rc_source_baseline=' + RELEASE_BASE + '\n' +
             'rc_artifact_sha256=' + rc_sha + '\n' +
             'signed_test_sha256=' + test_sha + '\n' +

@@ -8,7 +8,7 @@ or distribute it, attach it to issues, or commit it into Git.**
 
 ## Prerequisites
 
-1. Git checkout on `test/95-wu1-rc-smoke-runner` with no local Android source edits.
+1. Clean, committed Git checkout on `test/95-wu1-rc-smoke-runner`, `develop`, or `main`; no staged, tracked or untracked source changes. Ignored build outputs are allowed.
 2. Approved original RC1 APK + `release-sha256.txt` under
    `~/Descargas/devdigi-music-rc1/` (or `DEVDIGI_RC_ARTIFACT_DIR`).
 3. Original matching release keystore in private `~/.local/` storage; the keystore
@@ -30,7 +30,7 @@ After verification, output files under **ignored local build tree**
 
 - `devdigi-music-rc1-test-signed.apk`
 - `rc-test-sha256.txt`
-- `rc-test-provenance.txt`
+- `rc-test-provenance.txt` — committed source SHA, tracked AndroidTest/Gradle build-input SHA-256, approved RC1 SHA-256 and signed test APK SHA-256 (no passwords or keystore paths).
 
 If any output exists, the script refuses to overwrite it. Review or archive
 existing artifacts privately before deliberately removing obsolete files.
@@ -43,3 +43,8 @@ The runner checks the installed RC1 SHA/signature and handles only the test APK.
 Provide Navidrome HTTPS input privately; never put secrets in logs or Jira.
 
 **No n8n, AgileTest upload, Jenkins configuration or automatic Smoke execution.**
+
+Trusted Jenkins opt-in (`main` only): only sanitized `.txt` receipts are archived.
+The release-signed instrumentation APK is removed from the signing worker
+workspace after the stage and must not be distributed through Jenkins archives.
+Enabling this stage still requires separate trusted-worker/credential approval.

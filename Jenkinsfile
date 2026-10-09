@@ -266,10 +266,17 @@ pipeline {
                     sh './tools/sign-rc-test-apk.sh'
                 }
 
+                // Only non-secret checksum/provenance receipts may leave the worker.
                 archiveArtifacts(
                     fingerprint: true,
-                    artifacts: 'app/build/outputs/rc-smoke/*.apk,app/build/outputs/rc-smoke/*.txt'
+                    artifacts: 'app/build/outputs/rc-smoke/*.txt'
                 )
+            }
+            post {
+                always {
+                    // Instrumentation shares the release signer: no public artifact.
+                    sh 'rm -f -- app/build/outputs/rc-smoke/*.apk'
+                }
             }
         }
 

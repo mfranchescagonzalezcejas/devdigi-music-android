@@ -29,7 +29,9 @@ markers cannot produce a full PASS report. A harness test in JUnit represents
 overall execution failure separately.
 
 JSON records run ID, execution time, source SHA of **instrumentation runner**
-(not proof of RC1 artifact SHA), 13 case statuses, counts, and suite status.
+(not proof of RC1 artifact SHA or test APK bytes), 13 case statuses, counts, and suite status.
+The signed-test provenance receipt separately binds the APK SHA, approved RC1 SHA,
+committed source SHA and deterministic AndroidTest/Gradle input fingerprint.
 It deliberately excludes raw instrumentation logs, private URLs, usernames,
 Android serials, media metadata, tokens, and signing secrets.
 

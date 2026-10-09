@@ -47,9 +47,9 @@ class TestPrivateInputBridge(unittest.TestCase):
         self.assertIn('catch (_: Exception)',src)
     def test_signer_guards_dirty_android_test_scope_and_provenance(self):
         signer=(root/'tools/qa-sign-rc-test.py').read_text()
-        self.assertIn('ANDROID_SOURCE_WORKTREE=BLOCKED',signer)
-        self.assertIn('android_test_local_diff_sha256=',signer)
-        self.assertIn('ANDROID_TEST_DIFF_CHANGED=BLOCKED',signer)
+        self.assertIn('SOURCE_WORKTREE=BLOCKED',signer)
+        self.assertIn('test_build_inputs_sha256=',signer)
+        self.assertIn('BUILD_INPUTS_CHANGED=BLOCKED',signer)
         self.assertIn("'app/src/main'",signer)
 
     def test_runner_does_not_reinstall_production_rc1(self):
