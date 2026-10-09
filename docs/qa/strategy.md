@@ -18,6 +18,9 @@ This document defines the reusable QA contract for DevDigi Music:
 The goal is repeatable evidence without duplicating useful tests or forcing every check through Android UI automation.
 
 The operational Jira → PR → Jenkins → QA handoff is defined in [Jira QA and pull-request workflow](jira-pr-workflow.md).
+For physical signed RC1 Smoke, the mandatory manual **no saved server URL** precondition,
+test reset warning, and 9 October 2026 incident/retest evidence are documented in
+[Local RC1 Smoke preconditions](local-runner.md#warning--required-deviceapp-state-before-rc1-smoke).
 
 ## 2. Ownership and principles
 
@@ -88,7 +91,7 @@ Existing privacy-safe OpenSpec evidence is historical input to reusable scenario
 
 ## 4. Named suite contract
 
-Suite names are stable contracts; implementation may evolve. Until a repository-owned `tools/qa` entry point exists, suites may compose documented Gradle/integration commands plus required manual/BDD scenarios.
+Suite names are stable contracts; implementation may evolve. The repository now has `./tools/qa smoke --target rc1` and `./tools/qa report`; `sanity`, `regression` and `device` entry points remain separate future work. Physical RC1 Smoke requires manual verification that the app is signed out with no saved server profile (see local-runner.md).
 
 ### Smoke
 Purpose: prove the smallest critical user path is alive.
@@ -251,7 +254,7 @@ Use placeholders and sanitized summaries. Temporary local inspection may use sen
 ## 13. Known implementation gaps
 
 This contract does not claim these already exist:
-- central `./tools/qa smoke|sanity|regression|device` runner;
+- generic `./tools/qa smoke|sanity|regression|device` runner (`smoke --target rc1` and `report` already exist; other commands are not implemented);
 - canonical versioned Gherkin feature files;
 - Android Cucumber integration;
 - instrumented CI;
