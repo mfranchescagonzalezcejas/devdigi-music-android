@@ -15,6 +15,16 @@ case "${1:-}" in
         echo 'LOCAL_QA_MODE=RC1_PHYSICAL_SMOKE'
         echo 'REQUIRES_APPROVED_RC_AND_SAME_SIGNED_TEST_APK=YES'
         echo 'NO_RELEASE_APP_INSTALL=YES'
+        echo '===== WARNING: RC1 SMOKE APP PRECONDITION ====='
+        echo 'SMOKE_PRECONDITION=SIGNED_OUT_AND_NO_SAVED_SERVER'
+        echo 'WARNING: Confirm DevDigi Music is signed out and has NO saved server URL.'
+        echo 'WARNING: A previously saved URL disables Save server and may cause AUTH_SERVER_ENABLE_FAILED.'
+        echo 'WARNING: If a server is saved, DO NOT run the current RC1 Smoke as-is.'
+        echo 'WARNING: Remove a server via the app Delete server UI only with explicit consent.'
+        echo 'WARNING: Deleting the server changes saved configuration and may remove credentials.'
+        echo 'WARNING: Do NOT clear app data, use adb pm clear, or reinstall production RC1.'
+        echo 'WARNING: This is a manual preflight; the runner cannot detect/remove saved servers.'
+        echo '===== END RC1 SMOKE WARNING ====='
         RUN_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')" || exit 2
         RC=0
         DEVDIGI_QA_RUN_ID="$RUN_ID" DEVDIGI_RC_SMOKE_JSON="$REPORT_JSON" \
