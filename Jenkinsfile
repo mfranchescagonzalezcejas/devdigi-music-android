@@ -40,6 +40,13 @@ pipeline {
             }
         }
 
+        stage('assembleDebugAndroidTest') {
+            steps {
+                // PR and branch compilation; no release credentials.
+                sh './gradlew :app:assembleDebugAndroidTest'
+            }
+        }
+
         stage('Navidrome integration preflight') {
             when {
                 expression {
@@ -202,6 +209,74 @@ pipeline {
                     artifacts: 'app/build/outputs/apk/release/*.apk,app/build/outputs/bundle/release/*.aab,app/build/outputs/release-sha256.txt',
                     fingerprint: true
                 )
+            }
+        }
+
+        stage('RC smoke signed instrumentation (trusted opt-in)') {
+            // Only a separately provisioned signing worker may use this label.
+            // A Jenkins label alone does not provide security isolation.
+            agent { label 'android-signing' }
+
+            when {
+                beforeAgent true
+                expression {
+                    !env.CHANGE_ID &&
+                        env.BRANCH_NAME == 'main' &&
+                        env.DEVDIGI_RC_SMOKE_SIGNING_ENABLED == 'true'
+                }
+            }
+            steps {
+                // Rebuild on the trusted signing worker before credentials.
+                // Never sign APKs transferred from shared PR workspaces.
+                sh './gradlew :app:assembleDebugAndroidTest'
+
+                // Clear generated test output, never the approved RC.
+                sh 'rm -rf -- app/build/outputs/rc-smoke'
+
+                withCredentials([
+                    file(
+                        credentialsId: 'android-release-keystore',
+                        variable: 'DEVDIGI_RELEASE_STORE_FILE'
+                    ),
+                    string(
+                        credentialsId: 'android-release-store-password',
+                        variable: 'DEVDIGI_RELEASE_STORE_PASSWORD'
+                    ),
+                    string(
+                        credentialsId: 'android-release-key-alias',
+                        variable: 'DEVDIGI_RELEASE_KEY_ALIAS'
+                    ),
+                    string(
+                        credentialsId: 'android-release-key-password',
+                        variable: 'DEVDIGI_RELEASE_KEY_PASSWORD'
+                    ),
+                    file(
+                        credentialsId: 'android-rc1-approved-apk',
+                        variable: 'DEVDIGI_RC_REFERENCE_APK'
+                    ),
+                    string(
+                        credentialsId: 'android-rc1-approved-sha256',
+                        variable: 'DEVDIGI_RC_APPROVED_SHA256'
+                    ),
+                    string(
+                        credentialsId: 'android-rc1-test-approved-commit',
+                        variable: 'DEVDIGI_RC_APPROVED_TEST_SOURCE_SHA'
+                    )
+                ]) {
+                    sh './tools/sign-rc-test-apk.sh'
+                }
+
+                // Only non-secret checksum/provenance receipts may leave the worker.
+                archiveArtifacts(
+                    fingerprint: true,
+                    artifacts: 'app/build/outputs/rc-smoke/*.txt'
+                )
+            }
+            post {
+                always {
+                    // Instrumentation shares the release signer: no public artifact.
+                    sh 'rm -f -- app/build/outputs/rc-smoke/*.apk'
+                }
             }
         }
 
