@@ -2,6 +2,7 @@
 """Contract tests: synthetic instrumentation logs only; no ADB or network."""
 import importlib.util
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -14,14 +15,25 @@ SOURCE_SHA = "6fae53aa7d9085c94ca11f177c9de4205d1be412"
 
 
 class LocalSmokeContract(unittest.TestCase):
+    def test_successful_smoke_case_marker_has_exact_stdout(self):
+        script = (MODULE.parent / "rc-smoke.sh").read_text()
+        command = next(
+            line for line in script.splitlines()
+            if line.startswith("echo 'RC_SMOKE_VERIFIED_CASES=13'")
+        )
+        result = subprocess.run(
+            ["bash", "-c", command], check=True, capture_output=True, text=True
+        )
+        self.assertEqual(result.stdout, "RC_SMOKE_VERIFIED_CASES=13\n")
+
     def test_rc_smoke_entrypoint_warns_about_saved_server_precondition(self):
         script = (MODULE.parent / "qa").read_text()
-        warning = "SMOKE_PRECONDITION=SIGNED_OUT_AND_NO_SAVED_SERVER"
+        warning = "SMOKE_PRECONDITION=SIGNED_OUT_WITH_SAME_OR_EMPTY_SERVER"
         self.assertEqual(script.count(warning), 1)
-        self.assertIn("AUTH_SERVER_ENABLE_FAILED", script)
-        self.assertIn("Delete server", script)
+        self.assertIn("MUSIC-64 is BLOCKED", script)
+        self.assertIn("DIFFERENT server", script)
         self.assertIn("adb pm clear", script)
-        self.assertIn("manual preflight", script)
+        self.assertIn("Full 13/13 requires", script)
         self.assertLess(script.index(warning), script.index("RUN_ID="))
         self.assertIn("RC=0", script)
         self.assertIn("bash \"$ROOT/tools/rc-smoke.sh\"", script)
@@ -45,6 +57,134 @@ class LocalSmokeContract(unittest.TestCase):
 
     def statuses(self, report):
         return {case["key"]: case["status"] for case in report["cases"]}
+
+    def test_saved_server_reused_remains_blocked_if_later_case_fails(self):
+        self.log.write_text(
+            "INSTRUMENTATION_STATUS: devdigi.rc.precondition=SAVED_SERVER_REUSED\n"
+            "INSTRUMENTATION_STATUS: devdigi.rc.case=MUSIC-65\n"
+            "FAILURES!!!\n"
+        )
+        report = qa.reduce_result(
+            "FAIL", "RECENT_ALBUMS_FAILED", str(self.log), SOURCE_SHA
+        )
+        statuses = self.statuses(report)
+        self.assertEqual(report["status"], "FAIL")
+        self.assertEqual(statuses["MUSIC-64"], "BLOCKED")
+        self.assertEqual(statuses["MUSIC-65"], "PASS")
+        self.assertEqual(statuses["MUSIC-72"], "FAIL")
+
+    def test_mismatched_profile_is_checked_before_input_draft_mutation(self):
+        src = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationTest.kt").read_text()
+        auth = src.split("    private fun authenticate(", 1)[1].split("    private fun openAlbum(", 1)[0]
+        self.assertLess(auth.index("if (savedProfile != null)"),
+                        auth.index("performTextReplacement("))
+        self.assertIn("requireMatchingSavedProfile(savedProfile, targetEndpoint)", auth)
+
+    def test_saved_profile_is_authoritative_before_any_url_mutation(self):
+        src = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationTest.kt").read_text()
+        auth = src.split("    private fun authenticate(", 1)[1].split("    private fun openAlbum(", 1)[0]
+        self.assertIn("AuthenticationProfilePrecondition.read(serverProfileRepository(context))", auth)
+        self.assertLess(auth.index("AuthenticationProfilePrecondition.read(serverProfileRepository(context))"),
+                        auth.index("performTextReplacement("))
+        helper = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationPreconditionTest.kt").read_text()
+        self.assertIn("withTimeout(10_000L)", helper)
+
+    def test_saved_endpoint_comparison_uses_production_canonicalization(self):
+        src = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationTest.kt").read_text()
+        auth = src.split("    private fun authenticate(", 1)[1].split("    private fun openAlbum(", 1)[0]
+        self.assertIn("canonicalEndpoint(endpoint)", auth)
+        self.assertIn("profile.endpoint == expected", (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationPreconditionTest.kt").read_text())
+
+    def test_fresh_save_rechecks_persisted_profile_before_click(self):
+        src = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationTest.kt").read_text()
+        auth = src.split("    private fun authenticate(", 1)[1].split("    private fun openAlbum(", 1)[0]
+        click = auth.index('.onNodeWithTag("connection-save-server")', auth.index("REAL_STAGE_AUTH_SERVER_SAVE_FAILED"))
+        self.assertIn("savedProfile = runBlocking { AuthenticationProfilePrecondition.read(serverProfileRepository(context)) }", auth[:click])
+        self.assertLess(auth.index("savedProfile = runBlocking { AuthenticationProfilePrecondition.read(serverProfileRepository(context)) }"), click)
+        self.assertIn("waitUntilDisplayed", auth)
+
+    def test_auth_precondition_android_tests_cover_delayed_flow_and_decisions(self):
+        src = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationPreconditionTest.kt").read_text()
+        self.assertIn("delayedProfileEmission", src)
+        self.assertIn("profileMismatch", src)
+        self.assertIn("canonicalEquivalentEndpoint", src)
+        self.assertIn("absentProfileAllowsFreshSave", src)
+        self.assertIn("profileAppearingBeforeFinalSaveRecheck", src)
+
+    def test_fresh_save_waits_for_matching_persisted_ui_state(self):
+        src = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationTest.kt").read_text()
+        auth = src.split("    private fun authenticate(", 1)[1].split("    private fun openAlbum(", 1)[0]
+        persist = auth.split("REAL_STAGE_AUTH_SERVER_PERSIST_FAILED", 1)[1]
+        self.assertIn("waitForSavedProfileUi", persist)
+        self.assertNotIn('.onNodeWithTag("connection-save-server")\n                        .assertIsNotEnabled()', persist)
+
+    def test_post_save_wait_skips_initial_null_until_profile_arrives(self):
+        helper = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationPreconditionTest.kt").read_text()
+        self.assertIn("nullThenProfileEmission", helper)
+        self.assertIn("awaitSavedProfile", helper)
+        self.assertIn("filterNotNull()", helper)
+
+    def test_late_profile_is_blocked_without_draft_replacement_or_save(self):
+        src = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationTest.kt").read_text()
+        auth = src.split("    private fun authenticate(", 1)[1].split("    private fun openAlbum(", 1)[0]
+        branch = auth.split("AuthenticationProfilePrecondition.read(serverProfileRepository(context))", 2)[2]
+        branch = branch.split("REAL_STAGE_AUTH_SERVER_SAVE_FAILED", 1)[0]
+        self.assertNotIn("performTextReplacement", branch)
+        self.assertIn("PROFILE_CHANGED_BEFORE_SAVE", branch)
+        runner = (MODULE.parent.parent / "tools/rc-smoke.sh").read_text()
+        self.assertIn("AUTH_SERVER_PROFILE_CHANGED_BEFORE_SAVE_FAILED", runner)
+        self.assertIn("RC_SMOKE_PRECONDITION=SAVED_SERVER_CHANGED_BEFORE_SAVE", runner)
+        changed_branch = runner.split("if [[ \"$FAIL_STAGE\" == 'AUTH_SERVER_PROFILE_CHANGED_BEFORE_SAVE_FAILED' ]]", 1)[1].split("fi", 1)[0]
+        self.assertNotIn("RC_SMOKE_PRECONDITION=DIFFERENT_SAVED_SERVER", changed_branch)
+
+    def test_mismatch_and_ui_sync_stages_are_distinct(self):
+        src = (MODULE.parent.parent / "app/src/androidTest/java/dev/devdigi/music/realinstance/RealInstanceAuthenticationTest.kt").read_text()
+        mismatch = src.split("private fun requireMatchingSavedProfile(", 1)[1].split("private fun waitForSavedProfileUi(", 1)[0]
+        ui_wait = src.split("private fun waitForSavedProfileUi(", 1)[1].split("private fun openAlbum(", 1)[0]
+        self.assertIn("AUTH_SERVER_PROFILE_MISMATCH_FAILED", mismatch)
+        self.assertNotIn("AUTH_SERVER_PROFILE_MISMATCH_FAILED", ui_wait)
+        self.assertIn("AUTH_SERVER_PROFILE_UI_SYNC_FAILED", ui_wait)
+        runner = (MODULE.parent.parent / "tools/rc-smoke.sh").read_text()
+        self.assertIn('if [[ "$FAIL_STAGE" == \'AUTH_SERVER_PROFILE_MISMATCH_FAILED\' ]]', runner)
+        mismatch_branch = runner.split("if [[ \"$FAIL_STAGE\" == 'AUTH_SERVER_PROFILE_MISMATCH_FAILED' ]]", 1)[1].split("fi", 1)[0]
+        self.assertIn("RC_SMOKE_PRECONDITION=DIFFERENT_SAVED_SERVER", mismatch_branch)
+        self.assertNotIn("AUTH_SERVER_PROFILE_UI_SYNC_FAILED", mismatch_branch)
+
+    def test_saved_server_reused_is_twelve_pass_one_blocked(self):
+        self.log.write_text(
+            "INSTRUMENTATION_STATUS: devdigi.rc.precondition=SAVED_SERVER_REUSED\n"
+            + "\n".join(f"INSTRUMENTATION_STATUS: devdigi.rc.case={key}"
+                         for key in qa.EXPECTED[1:])
+            + "\nOK (1 test)\n"
+        )
+        report = qa.reduce_result("PASS", "", str(self.log), SOURCE_SHA)
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertTrue(report["saved_server_reused"])
+        self.assertEqual(report["counts"]["PASS"], 12)
+        self.assertEqual(report["counts"]["BLOCKED"], 1)
+        self.assertEqual(self.statuses(report)["MUSIC-64"], "BLOCKED")
+        self.assertEqual(self.statuses(report)["MUSIC-65"], "PASS")
+        self.assertEqual(ET.fromstring(qa.xml_report(report)).get("skipped"), "2")
+
+    def test_reused_mode_is_never_accepted_as_full_pass_without_marker(self):
+        report = self.reduce("PASS", qa.EXPECTED[1:], success=True)
+        self.assertEqual(report["status"], "FAIL")
+        self.assertEqual(report["counts"]["PASS"], 0)
+
+    def test_duplicate_or_late_reuse_marker_fails_closed(self):
+        marker = "INSTRUMENTATION_STATUS: devdigi.rc.precondition=SAVED_SERVER_REUSED\n"
+        self.evidence([], success=True, extra=marker + marker)
+        with self.assertRaises(ValueError):
+            qa.evidence(self.log)
+        self.evidence(["MUSIC-64"], success=True, extra=marker)
+        with self.assertRaises(ValueError):
+            qa.evidence(self.log)
+
+    def test_unknown_precondition_marker_fails_closed(self):
+        self.evidence([], success=True,
+                      extra="INSTRUMENTATION_STATUS: devdigi.rc.precondition=UNTRUSTED\n")
+        with self.assertRaises(ValueError):
+            qa.evidence(self.log)
 
     def test_full_13_pass(self):
         report = self.reduce("PASS", qa.EXPECTED, success=True)

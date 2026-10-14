@@ -30,6 +30,8 @@ CASES = (
 )
 EXPECTED = [case[0] for case in CASES]
 MARKER = re.compile(r"INSTRUMENTATION_STATUS: devdigi\.rc\.case=(MUSIC-[A-Za-z0-9_-]+)")
+REUSED = "INSTRUMENTATION_STATUS: devdigi.rc.precondition=SAVED_SERVER_REUSED"
+PRECONDITION_PREFIX = "INSTRUMENTATION_STATUS: devdigi.rc.precondition="
 SUCCESS = re.compile(r"^\s*OK \(1 test\)\s*$", re.M)
 FAILURE = re.compile(r"FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -64,23 +66,30 @@ STAGE_TO_CASE = {
 
 def evidence(log_path):
     if not log_path or not Path(log_path).is_file():
-        return [], False, False
+        return [], False, False, False
     # Parsing stays local. The original log is NEVER written into either output.
     with open(log_path, encoding="utf-8", errors="replace") as handle:
         log = handle.read(2_000_001)
     if len(log) > 2_000_000:
         raise ValueError("EVIDENCE_TOO_LARGE")
     markers = []
+    reused = False
     for line in log.splitlines():
-        if "INSTRUMENTATION_STATUS: devdigi.rc.case=" in line:
-            match = MARKER.fullmatch(line.strip())
+        text = line.strip()
+        if text.startswith(PRECONDITION_PREFIX):
+            if text != REUSED or reused or markers:
+                raise ValueError("EVIDENCE_PRECONDITION_INVALID")
+            reused = True
+        elif "INSTRUMENTATION_STATUS: devdigi.rc.case=" in text:
+            match = MARKER.fullmatch(text)
             if not match:
                 raise ValueError("EVIDENCE_MARKER_MALFORMED")
             markers.append(match.group(1))
-    if markers != EXPECTED[:len(markers)]:
+    expected = EXPECTED[1:] if reused else EXPECTED
+    if markers != expected[:len(markers)]:
         raise ValueError("EVIDENCE_ORDER_INVALID")
     ok = bool(SUCCESS.search(log)) and not FAILURE.search(log)
-    return markers, ok, True
+    return markers, ok, True, reused
 
 
 def atomic_write(path, data):
@@ -108,24 +117,33 @@ def reduce_result(status, stage, log_path, source_sha):
     stage = stage if STAGE.fullmatch(stage) else "UNCLASSIFIED"
     stage = stage if stage in STAGE_TO_CASE else "UNCLASSIFIED"
     try:
-        markers, ok, present = evidence(log_path)
+        markers, ok, present, reused = evidence(log_path)
     except ValueError:
-        markers, ok, present = [], False, False
+        markers, ok, present, reused = [], False, False, False
         status = "FAIL"
         stage = "UNCLASSIFIED"
-    if status == "PASS" and (markers != EXPECTED or not ok):
-        status = "FAIL"
-        stage = "UNCLASSIFIED"
-        markers = []  # Invalid claimed overall PASS must not promote case PASS.
+    expected = EXPECTED[1:] if reused else EXPECTED
+    if status == "PASS":
+        if markers == expected and ok and reused:
+            status = "BLOCKED"  # Twelve real PASS; MUSIC-64 did not execute.
+        elif markers != EXPECTED or not ok or reused:
+            status = "FAIL"
+            stage = "UNCLASSIFIED"
+            markers = []  # Invalid claimed PASS must not promote a case.
     case_statuses = {key: "NOT RUN" for key in EXPECTED}
     for key in markers:
         case_statuses[key] = "PASS"
+    # A verified saved-profile precondition is BLOCKED even if a later case
+    # fails. Never mislabel an unexercised MUSIC-64 as PASS or generic NOT RUN.
+    if reused:
+        case_statuses["MUSIC-64"] = "BLOCKED"
     if status == "BLOCKED":
-        for key in EXPECTED[len(markers):]:
-            case_statuses[key] = "BLOCKED"
+        for key in EXPECTED:
+            if case_statuses[key] != "PASS":
+                case_statuses[key] = "BLOCKED"
     if status == "FAIL" and stage != "UNCLASSIFIED":
         failing = STAGE_TO_CASE[stage]
-        next_case = EXPECTED[len(markers)] if len(markers) < len(EXPECTED) else None
+        next_case = expected[len(markers)] if len(markers) < len(expected) else None
         # Never claim a distant, unexecuted case failed based on a stray marker.
         attributable = failing == next_case
         # Presentation state is verified after sign-out, before MUSIC-89 emits.
@@ -157,6 +175,7 @@ def reduce_result(status, stage, log_path, source_sha):
         "candidate_version_code": 1,
         "status": status,
         "failure_stage": stage if status == "FAIL" else None,
+        "saved_server_reused": reused,
         "counts": {key: counts[key] for key in ("PASS", "FAIL", "BLOCKED", "NOT RUN", "N/A")},
         "cases": [{"key": key, "status": case_statuses[key]} for key in EXPECTED],
         "publication": "DRY_RUN_ONLY",

@@ -103,7 +103,7 @@ class QaSetupContracts(unittest.TestCase):
 
     def test_one_command_entrypoint_and_no_automatic_signing(self):
         src = (SCRIPT.parent / 'qa').read_text()
-        self.assertIn("SMOKE_PRECONDITION=SIGNED_OUT_AND_NO_SAVED_SERVER", src)
+        self.assertIn("SMOKE_PRECONDITION=SIGNED_OUT_WITH_SAME_OR_EMPTY_SERVER", src)
         self.assertIn('qa-setup.py', src)
         self.assertIn('sanity)', src)
         self.assertIn('regression)', src)

@@ -16,6 +16,22 @@ class ServerConnectionTest {
     }
 
     @Test
+    fun canonicalEndpointComparisonNormalizesCaseDefaultPortAndTrailingSlash() {
+        val saved = ServerEndpoint.parse("HTTPS://Music.Example.Com:443/")
+        val runtime = ServerEndpoint.parse("https://music.example.com")
+
+        assertEquals(saved, runtime)
+    }
+
+    @Test
+    fun canonicalEndpointComparisonKeepsDifferentEndpointsDistinct() {
+        val saved = ServerEndpoint.parse("https://music.example.com")
+        val runtime = ServerEndpoint.parse("https://other.example.com")
+
+        assertTrue(saved != runtime)
+    }
+
+    @Test
     fun preservesEncodedReverseProxyPathAndNonDefaultPort() {
         val result = ServerEndpoint.parse("https://music.example.com:8443/navidrome%20music")
 
@@ -70,28 +86,29 @@ class ServerConnectionTest {
 
     @Test
     fun rejectsUnsafeOrStructurallyInvalidEndpoints() {
-        val unsafeEndpoints = listOf(
-            "//music.example.com/navidrome",
-            "http://music.example.com",
-            "https://user@music.example.com",
-            "https://music.example.com/navidrome?token=value",
-            "https://music.example.com/navidrome#fragment",
-            "https://localhost",
-            "https://music.localhost",
-            "https://server.local",
-            "https://127.0.0.1",
-            "https://[::1]",
-            "https://10.0.0.1",
-            "https://0.0.0.0",
-            "https://169.254.1.1",
-            "https://172.16.1.1",
-            "https://192.168.1.1",
-            "https:///navidrome",
-            "https://music.example.com/navidrome\u0000",
-            "https://music.example.com/navidrome/../rest",
-            "https://music.example.com/%2e%2e/rest",
-            "https://music.example.com/navidrome%5crest",
-        )
+        val unsafeEndpoints =
+            listOf(
+                "//music.example.com/navidrome",
+                "http://music.example.com",
+                "https://user@music.example.com",
+                "https://music.example.com/navidrome?token=value",
+                "https://music.example.com/navidrome#fragment",
+                "https://localhost",
+                "https://music.localhost",
+                "https://server.local",
+                "https://127.0.0.1",
+                "https://[::1]",
+                "https://10.0.0.1",
+                "https://0.0.0.0",
+                "https://169.254.1.1",
+                "https://172.16.1.1",
+                "https://192.168.1.1",
+                "https:///navidrome",
+                "https://music.example.com/navidrome\u0000",
+                "https://music.example.com/navidrome/../rest",
+                "https://music.example.com/%2e%2e/rest",
+                "https://music.example.com/navidrome%5crest",
+            )
 
         unsafeEndpoints.forEach { endpoint ->
             assertTrue("Expected $endpoint to be rejected", ServerEndpoint.parse(endpoint) is EndpointParseResult.Invalid)
@@ -158,6 +175,8 @@ class ServerConnectionTest {
         assertTrue(ServerEndpoint.parse("https://music.example.com", HttpsOnlyEndpointPolicy) is EndpointParseResult.Valid)
     }
 
-    private fun endpoint(value: String, policy: EndpointPolicy = BuildVariantEndpointPolicy): ServerEndpoint =
-        (ServerEndpoint.parse(value, policy) as EndpointParseResult.Valid).endpoint
+    private fun endpoint(
+        value: String,
+        policy: EndpointPolicy = BuildVariantEndpointPolicy,
+    ): ServerEndpoint = (ServerEndpoint.parse(value, policy) as EndpointParseResult.Valid).endpoint
 }

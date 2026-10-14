@@ -16,20 +16,17 @@ or distribute it, attach it to issues, or commit it into Git.**
 4. Android SDK build-tools with `apksigner`, `aapt`; working Gradle wrapper,
    installed JDK, and interactive terminal. No release credentials in Gradle.
 
-## WARNING — app state before executing the physical Smoke
+## Physical Smoke starting state (WU10B)
 
-The signing step does **not** prepare or reset the device. Before running
-`./tools/qa smoke --target rc1`, the app must be **signed out** and have
-**no saved server URL/profile**. If the same URL is already registered,
-`Save server` remains disabled and the current test may fail with
-`AUTH_SERVER_ENABLE_FAILED` before `MUSIC-64`. Do not delete user data
-automatically. Removing a saved server through the app's **Delete server**
-control requires the user's consent and may remove stored credentials.
-Do **not** clear application storage or uninstall/reinstall production RC1.
+The signing step does **not** prepare or reset the device. With the approved
+instrumentation **rebuilt and re-signed after WU10B** using the trusted signing
+procedure, the Smoke requires the app to be **signed out**. A matching saved
+server URL is now reused without deletion: this runs twelve cases but reports
+**MUSIC-64=BLOCKED** because no fresh save was performed. A different saved
+server must never be overwritten. The old pre-WU10B signed AndroidTest APK
+will not have the new logic; provision and verify a fresh private driver once.
 
-See [RC1 physical Smoke preconditions and incident history](local-runner.md#warning--required-deviceapp-state-before-rc1-smoke).
-The warning is advisory until a repeatable-state WU10 implementation is
-reviewed, Jenkins-validated and merged.
+See [physical Smoke repeatability](local-runner.md#physical-smoke-with-an-existing-server-wu10b).
 
 ## Use
 

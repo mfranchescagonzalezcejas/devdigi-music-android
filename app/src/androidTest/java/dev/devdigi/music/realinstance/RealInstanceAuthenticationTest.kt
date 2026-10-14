@@ -11,6 +11,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -20,6 +21,10 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.devdigi.music.MainActivity
+import dev.devdigi.music.connection.EndpointParseResult
+import dev.devdigi.music.connection.ServerEndpoint
+import dev.devdigi.music.connection.ServerProfile
+import dev.devdigi.music.connection.serverProfileRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -436,6 +441,16 @@ class RealInstanceAuthenticationTest {
         }
     }
 
+    private fun emitSmokePreconditionReused() {
+        val status =
+            Bundle().apply {
+                putString("devdigi.rc.precondition", "SAVED_SERVER_REUSED")
+            }
+        InstrumentationRegistry
+            .getInstrumentation()
+            .sendStatus(0, status)
+    }
+
     private fun emitSmokeCase(key: String) {
         val status =
             Bundle().apply {
@@ -462,54 +477,57 @@ class RealInstanceAuthenticationTest {
         password: String,
         reportSmokeCases: Boolean = false,
     ) {
-        realInstanceStage(
-            marker =
-                "REAL_STAGE_AUTH_SERVER_INPUT_FAILED",
-        ) {
-            composeRule
-                .onNodeWithTag(
-                    "connection-server-url",
-                ).assertExists()
-                .performTextReplacement(
-                    endpoint,
-                )
-        }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val targetEndpoint = canonicalEndpoint(endpoint)
+        var savedProfile = runBlocking { AuthenticationProfilePrecondition.read(serverProfileRepository(context)) }
+        var savedServerPresent = savedProfile != null
 
-        realInstanceStage(
-            marker =
-                "REAL_STAGE_AUTH_SERVER_ENABLE_FAILED",
-        ) {
-            waitUntilEnabled(
-                "connection-save-server",
-            )
-        }
-
-        realInstanceStage(
-            marker =
-                "REAL_STAGE_AUTH_SERVER_SAVE_FAILED",
-        ) {
-            composeRule
-                .onNodeWithTag(
-                    "connection-save-server",
-                ).assertIsEnabled()
-                .performClick()
-        }
-
-        realInstanceStage(
-            marker =
-                "REAL_STAGE_AUTH_SERVER_PERSIST_FAILED",
-        ) {
-            composeRule.waitUntil(
-                timeoutMillis = UI_TIMEOUT_MS,
+        if (savedProfile != null) {
+            requireMatchingSavedProfile(savedProfile, targetEndpoint)
+            waitForSavedProfileUi(savedProfile.endpoint.value)
+        } else {
+            realInstanceStage(
+                marker = "REAL_STAGE_AUTH_SERVER_INPUT_FAILED",
             ) {
-                runCatching {
+                composeRule
+                    .onNodeWithTag("connection-server-url")
+                    .assertExists()
+                    .performTextReplacement(endpoint)
+            }
+            realInstanceStage(
+                marker = "REAL_STAGE_AUTH_SERVER_ENABLE_FAILED",
+            ) {
+                waitUntilEnabled("connection-save-server")
+            }
+            savedProfile = runBlocking { AuthenticationProfilePrecondition.read(serverProfileRepository(context)) }
+            if (savedProfile != null) {
+                requireMatchingSavedProfile(savedProfile, targetEndpoint)
+                realInstanceStage(
+                    marker = "REAL_STAGE_AUTH_SERVER_PROFILE_CHANGED_BEFORE_SAVE_FAILED",
+                ) {
+                    throw AssertionError("AUTH_SERVER_PROFILE_CHANGED_BEFORE_SAVE_FAILED")
+                }
+            } else {
+                realInstanceStage(
+                    marker = "REAL_STAGE_AUTH_SERVER_SAVE_FAILED",
+                ) {
                     composeRule
-                        .onNodeWithTag(
-                            "connection-save-server",
-                        ).assertIsNotEnabled()
-
-                    true
-                }.getOrDefault(false)
+                        .onNodeWithTag("connection-save-server")
+                        .assertIsEnabled()
+                        .performClick()
+                }
+                realInstanceStage(
+                    marker = "REAL_STAGE_AUTH_SERVER_PERSIST_FAILED",
+                ) {
+                    val persistedProfile =
+                        runBlocking {
+                            AuthenticationProfilePrecondition.awaitSavedProfile(
+                                serverProfileRepository(context),
+                            )
+                        }
+                    requireMatchingSavedProfile(persistedProfile, targetEndpoint)
+                    waitForSavedProfileUi(persistedProfile.endpoint.value)
+                }
             }
         }
 
@@ -533,7 +551,12 @@ class RealInstanceAuthenticationTest {
         }
 
         if (reportSmokeCases) {
-            emitSmokeCase("MUSIC-64")
+            if (savedServerPresent) {
+                // This run did not execute a fresh save: NEVER claim 64 PASS.
+                emitSmokePreconditionReused()
+            } else {
+                emitSmokeCase("MUSIC-64")
+            }
         }
 
         realInstanceStage(
@@ -581,6 +604,34 @@ class RealInstanceAuthenticationTest {
                 timeoutMillis =
                 AUTH_TIMEOUT_MS,
             )
+        }
+    }
+
+    private fun canonicalEndpoint(value: String): ServerEndpoint =
+        (ServerEndpoint.parse(value) as? EndpointParseResult.Valid)?.endpoint
+            ?: throw AssertionError("REAL_STAGE_AUTH_SERVER_INPUT_FAILED")
+
+    private fun requireMatchingSavedProfile(
+        profile: ServerProfile,
+        expected: ServerEndpoint,
+    ) {
+        realInstanceStage(marker = "REAL_STAGE_AUTH_SERVER_PROFILE_MISMATCH_FAILED") {
+            if (!AuthenticationProfilePrecondition.matches(profile, expected)) {
+                throw AssertionError("REAL_STAGE_AUTH_SERVER_PROFILE_MISMATCH_FAILED")
+            }
+        }
+    }
+
+    private fun waitForSavedProfileUi(endpoint: String) {
+        realInstanceStage(marker = "REAL_STAGE_AUTH_SERVER_PROFILE_UI_SYNC_FAILED") {
+            composeRule.waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+                runCatching {
+                    composeRule.onNodeWithText("Saved server: $endpoint").assertExists()
+                    composeRule.onNodeWithTag("connection-server-url").assertExists()
+                    composeRule.onNodeWithTag("connection-save-server").assertIsNotEnabled()
+                    true
+                }.getOrDefault(false)
+            }
         }
     }
 

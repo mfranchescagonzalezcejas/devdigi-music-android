@@ -3,42 +3,35 @@
 This WU preserves the existing Android RC Smoke checks and its **signed-release boundary**.
 Only the report writer is replaced. Jenkins remains the required PR CI, unchanged.
 
-## WARNING — required device/app state before RC1 Smoke
+## Physical Smoke with an existing server (WU10B)
 
-> **WARNING: RC1 Smoke currently requires a signed-out app with NO saved server URL/profile.**
-> Open DevDigi Music on the test device first. A previously registered URL
-> must not be present when this test starts. This is a *manual preflight*, not
-> an automatic detector, and it applies **every time**, including reruns
-> after a previous PASS.
+**One command, no destructive reset:** after `./tools/qa setup` on each
+machine, run `./tools/qa smoke` while signed out on the device.
 
-1. Connect and unlock exactly one authorized Android device with the approved
-   signed RC1 `dev.devdigi.music` v0.1.0 / versionCode 1 already installed.
-   The runner verifies the RC artifact SHA, version, and certificate.
-2. Open the app. Confirm it is **signed out**, on the connection screen,
-   and has **no saved server URL/profile**. The connection form must be ready
-   to save a new server. Do not share the private URL in issue comments/logs.
-3. If a server is already saved, **do not run the current Smoke**. If the
-   owner explicitly agrees, first sign out (when needed) and use **Delete
-   server** inside the app to remove its saved configuration. This may also
-   remove credentials; it is a user-visible, potentially destructive action.
-   **Do not do this automatically.**
-4. Never use **Clear storage / Clear data**, `adb shell pm clear`, production
-   RC1 uninstall/reinstall, or an automatic reset to make the test pass.
-   If the saved profile must be retained, stop and report this prerequisite
-   as a limitation; do not falsify PASS or erase user state.
-5. Provide the exact approved `DEVDIGI_RC_APK`, `DEVDIGI_RC_SHA256_FILE`,
-   and pre-signed `DEVDIGI_RC_TEST_APK`, plus private HTTPS Navidrome
-   credentials. Only then execute `./tools/qa smoke --target rc1`.
+- **No saved server:** Smoke performs the real save + no-auto-auth assertion
+  (MUSIC-64) then the remaining 12 tests. **13/13 PASS** if all succeed.
+- **Same URL already saved:** Smoke verifies the existing profile matches the
+  authorized runtime endpoint **without deleting or rewriting it**, checks
+  the signed-out presentation, and runs the other 12 tests. The fresh-save
+  action did **not** execute: **MUSIC-64=BLOCKED, 12 PASS**, overall
+  **RC_SMOKE=BLOCKED** (nonzero). It is *not* a 13/13 PASS.
+- **Different URL already saved:** stop as **BLOCKED**; never replace another
+  profile or modify a private account to make the test pass.
+- **Already authenticated:** this flow still requires signing out in the app
+  before testing. Never sign out a person automatically.
 
-**Why this matters:** The current `RealInstanceAuthenticationTest.authenticate()`
-replaces the server URL and waits for `connection-save-server` to become
-enabled. The UI deliberately disables **Save server** when the URL is equal
-to an already persisted profile. In that starting state the test can report
-`AUTH_SERVER_ENABLE_FAILED` even when the RC1 and signing boundary are valid.
-The warning printed by `tools/qa` is advisory: **there is not yet an
-automated saved-profile preflight or safe idempotent test flow**. A future
-WU10 will address repeatability without discarding genuine `MUSIC-64`
-acceptance coverage.
+This WU updates the *AndroidTest instrumentation source*, so an old signed
+AndroidTest driver does **not** contain the new behavior. Before physical
+validation, a trusted authorized operator must build/re-sign and privately
+provision a matching instrumentation APK through the existing controlled
+signing workflow. Updating only Git/Gradle does not update a cached signed
+APK. Never ask for or store release keystore passwords in local QA config.
+
+**No** `adb shell pm clear`, Clear Data, uninstall/reinstall of production RC,
+automatic Delete server, automatic credential rotation or raw secret logging.
+Neither partial coverage nor a missing marker may be published to AgileTest
+as PASS. Full repeatable 13/13 against RC1 requires a separate, explicitly
+approved isolated clean test state; no silent workaround is implemented here.
 
 ### Observed execution history (9 October 2026)
 
@@ -95,9 +88,9 @@ On subsequent runs:
 `smoke` reuses the approved RC1 + private signed driver and cached Navidrome
 input without prompting. The old `./tools/qa smoke --target rc1` form remains
 supported. It still performs every existing identity/signer/device check, and
-**does not delete any saved server or modify the production APK**. The warning
-above remains a manual preflight: on an already configured phone, stop rather
-than reset the user's data. Safe repeatability is WU10B, not part of WU10A.
+**does not delete any saved server or modify the production APK**. The
+WU10B rules above allow 12 valid case results on a matching preexisting
+profile while reporting MUSIC-64 as BLOCKED instead of manufacturing PASS.
 
 `sanity` runs offline contracts, Spotless, JVM unit tests and AndroidTest
 compilation (no device, credentials, Docker or release signing).
