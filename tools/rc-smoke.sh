@@ -667,6 +667,22 @@ then
     [[ -n "$FAIL_STAGE" ]] ||
         FAIL_STAGE='UNCLASSIFIED'
 
+    if [[ "$FAIL_STAGE" == 'AUTH_SERVER_PROFILE_MISMATCH_FAILED' ]]; then
+        write_junit 'BLOCKED' 'UNCLASSIFIED' || true
+        echo 'RC_SMOKE_PRECONDITION=DIFFERENT_SAVED_SERVER'
+        echo 'RC_SMOKE=BLOCKED'
+        echo 'PRIVATE_METADATA_RECORDED=NO'
+        exit 2
+    fi
+
+    if [[ "$FAIL_STAGE" == 'AUTH_SERVER_PROFILE_CHANGED_BEFORE_SAVE_FAILED' ]]; then
+        write_junit 'BLOCKED' 'UNCLASSIFIED' || true
+        echo 'RC_SMOKE_PRECONDITION=SAVED_SERVER_CHANGED_BEFORE_SAVE'
+        echo 'RC_SMOKE=BLOCKED'
+        echo 'PRIVATE_METADATA_RECORDED=NO'
+        exit 2
+    fi
+
     # No raw instrumentation/logcat text is printed or persisted.
     python3 -B "$ROOT/tools/qa-instrumentation-diagnose.py" "$RUN_LOG" ||
         echo 'INSTRUMENTATION_DIAGNOSTIC=UNAVAILABLE'
@@ -688,45 +704,39 @@ fi
 echo
 echo '--- validate actual Smoke case evidence ---'
 
-if ! python3 - "$RUN_LOG" <<'PY_CASES'
-import pathlib
-import re
+EVIDENCE_MODE="$(python3 -B - "$ROOT/tools/qa-report.py" "$RUN_LOG" <<'PY_CASES'
+import importlib.util
+from pathlib import Path
 import sys
 
-expected = [
-    "MUSIC-64", "MUSIC-65", "MUSIC-72",
-    "MUSIC-75", "MUSIC-80", "MUSIC-81",
-    "MUSIC-82", "MUSIC-83", "MUSIC-85",
-    "MUSIC-86", "MUSIC-87", "MUSIC-89",
-    "MUSIC-69",
-]
-
-log = pathlib.Path(sys.argv[1]).read_text(
-    encoding="utf-8",
-    errors="replace",
-)
-
-observed = []
-
-for line in log.splitlines():
-    match = re.fullmatch(
-        r"INSTRUMENTATION_STATUS: devdigi\.rc\.case=(MUSIC-[0-9]+)",
-        line.strip(),
-    )
-    if match:
-        observed.append(match.group(1))
-
-if observed != expected:
-    raise SystemExit("RC_SMOKE_CASE_EVIDENCE=FAIL")
-
-print("RC_SMOKE_CASE_EVIDENCE=PASS")
-print("RC_SMOKE_VERIFIED_CASES=13")
+spec = importlib.util.spec_from_file_location("qa_report", sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+try:
+    markers, ok, present, reused = module.evidence(sys.argv[2])
+    expected = module.EXPECTED[1:] if reused else module.EXPECTED
+    if not present or not ok or markers != expected:
+        raise ValueError("EVIDENCE_NOT_COMPLETE")
+except ValueError:
+    raise SystemExit(1)
+print("REUSED" if reused else "FRESH")
 PY_CASES
-then
-    failed 'RC_SMOKE_CASE_EVIDENCE'
+)" || failed 'RC_SMOKE_CASE_EVIDENCE'
+
+if [[ "$EVIDENCE_MODE" == 'REUSED' ]]; then
+    echo 'RC_SMOKE_CASE_EVIDENCE=PARTIAL'
+    echo 'RC_SMOKE_VERIFIED_CASES=12'
+    write_junit 'PASS' '' || failed 'JUNIT_REPORT'
+    echo 'AGILETEST_MUSIC_64=BLOCKED'
+    echo 'RC_SMOKE_PRECONDITION=SAVED_SERVER_REUSED'
+    echo 'PRIVATE_METADATA_RECORDED=NO'
+    echo 'RC_APP_REPLACED=NO'
+    echo 'RC_SMOKE=BLOCKED'
+    exit 2
 fi
 
-echo
+echo 'RC_SMOKE_CASE_EVIDENCE=PASS'
+echo 'RC_SMOKE_VERIFIED_CASES=13'
 echo '--- result mapping ---'
 
 write_junit \
